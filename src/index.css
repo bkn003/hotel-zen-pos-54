@@ -1,0 +1,234 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Vibrant Material Design palette */
+    --background: 0 0% 100%;
+    --foreground: 222 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 4.9%;
+
+    /* Vibrant teal and orange */
+    --primary: 174 77% 41%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 174 77% 51%;
+
+    --secondary: 210 40% 95%;
+    --secondary-foreground: 222 84% 4.9%;
+
+    --muted: 210 40% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 24 96% 53%;
+    --accent-foreground: 0 0% 98%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 255 255 255;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 255 255 255;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 255 255 255;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 174 77% 41%;
+
+    --radius: 0.75rem;
+
+    /* Vibrant Material Design gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(174 77% 41%), hsl(174 77% 51%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 40% 95%), hsl(215 16% 47%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 70% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(174 77% 41%) 0%, hsl(24 96% 53%) 100%);
+
+    /* Modern shadows */
+    --shadow-elegant: 0 10px 30px -10px hsl(174 77% 41% / 0.3);
+    --shadow-glow: 0 0 40px hsl(174 77% 51% / 0.4);
+    --shadow-card: 0 4px 6px -1px hsl(222 84% 4.9% / 0.1);
+
+    /* Animation */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Sidebar */
+    --sidebar-background: 222 84% 4.9%;
+    --sidebar-foreground: 210 40% 95%;
+    --sidebar-primary: 174 77% 41%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 220 14% 15%;
+    --sidebar-accent-foreground: 210 40% 95%;
+    --sidebar-border: 217 19% 20%;
+    --sidebar-ring: 174 77% 41%;
+  }
+
+  .dark {
+    --background: 213 27% 8%;
+    --foreground: 220 14% 96%;
+
+    --card: 213 27% 12%;
+    --card-foreground: 220 14% 96%;
+
+    --popover: 213 27% 12%;
+    --popover-foreground: 220 14% 96%;
+
+    --primary: 213 90% 55%;
+    --primary-foreground: 213 27% 8%;
+    --primary-glow: 213 94% 42%;
+
+    --secondary: 41 60% 25%;
+    --secondary-foreground: 220 14% 96%;
+
+    --muted: 213 15% 15%;
+    --muted-foreground: 220 9% 65%;
+
+    --accent: 41 70% 35%;
+    --accent-foreground: 220 14% 96%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 220 14% 96%;
+
+    --warning: 38 92% 60%;
+    --warning-foreground: 213 27% 8%;
+
+    --destructive: 0 84% 70%;
+    --destructive-foreground: 220 14% 96%;
+
+    --border: 213 15% 20%;
+    --input: 213 15% 20%;
+    --ring: 213 90% 55%;
+
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(213 90% 55%), hsl(213 94% 42%));
+    --gradient-secondary: linear-gradient(135deg, hsl(41 60% 25%), hsl(41 70% 35%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 45%), hsl(142 70% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(213 90% 55%) 0%, hsl(41 70% 35%) 100%);
+
+    /* Dark shadows */
+    --shadow-elegant: 0 10px 30px -10px hsl(213 90% 55% / 0.5);
+    --shadow-glow: 0 0 40px hsl(213 94% 42% / 0.6);
+    --shadow-card: 0 4px 6px -1px hsl(213 27% 8% / 0.3);
+
+    --sidebar-background: 213 27% 12%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 213 90% 55%;
+    --sidebar-primary-foreground: 213 27% 8%;
+    --sidebar-accent: 213 20% 18%;
+    --sidebar-accent-foreground: 220 14% 96%;
+    --sidebar-border: 213 15% 18%;
+    --sidebar-ring: 213 90% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden; /* Prevent horizontal scroll on the entire page */
+  }
+  
+  html {
+    overflow-x: hidden; /* Prevent horizontal scroll on the entire page */
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbars while maintaining functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari and Opera */
+  }
+
+  /* Mobile responsiveness for billing page */
+  @media screen and (max-width: 768px) {
+    .cart-view {
+      width: 100%;
+      max-width: 100%;
+      margin: 10px auto;
+      padding: 10px;
+      overflow-x: hidden; /* Prevent cart from causing horizontal scroll */
+    }
+
+    .category-view {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-x: hidden; /* Prevent category view from causing horizontal scroll */
+    }
+
+    .category-card, .cart-item {
+      width: 100%;
+      max-width: 100%;
+      font-size: 14px;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    .payment-methods {
+      display: flex;
+      overflow-x: auto;
+      gap: 5px;
+      padding-bottom: 8px;
+      /* Only this container should scroll horizontally */
+    }
+
+    .payment-methods button {
+      flex-shrink: 0;
+      min-width: 50px;
+    }
+
+    /* Category menu horizontal scroll - ONLY this section scrolls */
+    .category-menu {
+      display: flex;
+      overflow-x: auto;
+      gap: 8px;
+      padding: 10px 0;
+      /* Only this container should scroll horizontally */
+    }
+
+    .category-menu button {
+      flex-shrink: 0;
+      min-width: 80px;
+      white-space: nowrap;
+    }
+
+    .generate-button {
+      width: 100%;
+      padding: 10px;
+    }
+
+    .touch-friendly {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Ensure main container doesn't overflow */
+    .container {
+      max-width: 100%;
+      overflow-x: hidden;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+}
