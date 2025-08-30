@@ -28,6 +28,8 @@ interface PaymentType {
   is_default: boolean;
 }
 
+type PaymentMode = "cash" | "upi" | "card" | "other";
+
 const Billing = () => {
   const { profile } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
@@ -156,7 +158,7 @@ const Billing = () => {
   };
 
   // Map payment types to valid enum values
-  const mapPaymentMode = (paymentType: string): "cash" | "upi" | "card" | "other" => {
+  const mapPaymentMode = (paymentType: string): PaymentMode => {
     const normalizedType = paymentType.toLowerCase().trim();
     switch (normalizedType) {
       case 'cash':

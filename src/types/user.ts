@@ -9,3 +9,9 @@ export interface Profile {
   hotel_name?: string;
   status: UserStatus;
 }
+
+// Legacy interface for backward compatibility
+export interface UserProfile extends Profile {
+  created_at: string;
+  updated_at?: string;
+}
