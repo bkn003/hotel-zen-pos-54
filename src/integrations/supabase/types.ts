@@ -316,14 +316,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      delete_user_and_data: {
-        Args: { uid: string }
-        Returns: undefined
-      }
-      generate_bill_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      [_ in never]: never
     }
     Enums: {
       app_role: "admin" | "user" | "super_admin"
