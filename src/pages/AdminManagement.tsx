@@ -215,7 +215,7 @@ const AdminManagement = () => {
                     {admin.status === 'paused' && (
                       <Button
                         size="sm"
-                        onClick={() => updateAdminStatus(admin.id, 'active' as UserStatus)}
+                        onClick={() => updateAdminStatus(admin.id, 'active')}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
@@ -226,7 +226,7 @@ const AdminManagement = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateAdminStatus(admin.id, 'paused' as UserStatus)}
+                        onClick={() => updateAdminStatus(admin.id, 'paused')}
                       >
                         <Clock className="w-4 h-4 mr-1" />
                         Pause
@@ -256,7 +256,7 @@ const AdminManagement = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => updateAdminStatus(admin.id, 'deleted' as UserStatus)}
+                              onClick={() => updateAdminStatus(admin.id, 'deleted')}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Delete Permanently
