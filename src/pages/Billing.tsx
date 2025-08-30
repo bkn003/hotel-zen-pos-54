@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -27,6 +27,8 @@ interface PaymentType {
   is_default: boolean;
 }
 
+type PaymentMode = "cash" | "upi" | "card" | "other";
+
 const Billing = () => {
   const { profile } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
@@ -37,6 +39,8 @@ const Billing = () => {
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [discount, setDiscount] = useState(0);
+  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [tempQuantity, setTempQuantity] = useState<string>('');
 
   useEffect(() => {
     fetchItems();
@@ -124,6 +128,29 @@ const Billing = () => {
     });
   };
 
+  const startEditingQuantity = (id: string, currentQuantity: number) => {
+    setEditingQuantity(id);
+    setTempQuantity(currentQuantity.toString());
+  };
+
+  const saveQuantity = (id: string) => {
+    const newQuantity = parseInt(tempQuantity);
+    if (newQuantity && newQuantity > 0) {
+      setCart(prev => 
+        prev.map(item =>
+          item.id === id ? { ...item, quantity: newQuantity } : item
+        )
+      );
+    }
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const cancelEditQuantity = () => {
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
   };
@@ -139,7 +166,7 @@ const Billing = () => {
   };
 
   // Map payment types to valid enum values
-  const mapPaymentMode = (paymentType: string): "cash" | "upi" | "card" | "other" => {
+  const mapPaymentMode = (paymentType: string): PaymentMode => {
     const normalizedType = paymentType.toLowerCase().trim();
     switch (normalizedType) {
       case 'cash':
@@ -311,7 +338,48 @@ const Billing = () => {
                           >
                             <Minus className="w-3 h-3" />
                           </Button>
-                          <span className="mx-1 min-w-[1rem] text-center text-xs font-bold">{item.quantity}</span>
+                          
+                          {editingQuantity === item.id ? (
+                            <div className="flex items-center space-x-1">
+                              <Input
+                                type="number"
+                                value={tempQuantity}
+                                onChange={(e) => setTempQuantity(e.target.value)}
+                                className="h-5 w-12 text-xs text-center p-0"
+                                min="1"
+                                autoFocus
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    saveQuantity(item.id);
+                                  } else if (e.key === 'Escape') {
+                                    cancelEditQuantity();
+                                  }
+                                }}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => saveQuantity(item.id)}
+                                className="h-5 w-5 p-0 text-green-600"
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-1">
+                              <span className="mx-1 min-w-[1rem] text-center text-xs font-bold">{item.quantity}</span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startEditingQuantity(item.id, item.quantity)}
+                                className="h-5 w-5 p-0"
+                                title="Edit quantity"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                          
                           <Button
                             size="sm"
                             variant="outline"

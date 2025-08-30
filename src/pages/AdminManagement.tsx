@@ -4,130 +4,94 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
-} from '@/components/ui/alert-dialog';
-import { Crown, CheckCircle, XCircle, Trash2, Clock } from 'lucide-react';
-import { UserStatus } from '@/types/user';
+import { User, Shield, UserCheck, UserX } from 'lucide-react';
 
-interface AdminProfile {
+interface Profile {
   id: string;
   user_id: string;
   name: string;
   role: string;
-  hotel_name?: string;
-  status: UserStatus;
+  hotel_name: string;
+  status: string;
   created_at: string;
+  updated_at: string;
 }
+
+type UserStatus = 'active' | 'inactive' | 'suspended';
 
 const AdminManagement = () => {
   const { profile } = useAuth();
-  const [admins, setAdmins] = useState<AdminProfile[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchAdmins();
-  }, []);
+    if (profile?.role === 'admin') {
+      fetchProfiles();
+    }
+  }, [profile]);
 
-  const fetchAdmins = async () => {
+  const fetchProfiles = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'admin')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      // Map the data to ensure all required fields are present
-      const adminProfiles: AdminProfile[] = (data || []).map((admin: any) => ({
-        id: admin.id,
-        user_id: admin.user_id,
-        name: admin.name || 'Unknown',
-        role: admin.role || 'admin',
-        hotel_name: admin.hotel_name || undefined,
-        status: admin.status || 'paused',
-        created_at: admin.created_at
-      }));
-      
-      setAdmins(adminProfiles);
+      setProfiles(data || []);
     } catch (error) {
-      console.error('Error fetching admins:', error);
+      console.error('Error fetching profiles:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch admin accounts",
-        variant: "destructive",
+        description: "Failed to fetch user profiles",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateAdminStatus = async (adminId: string, newStatus: UserStatus) => {
+  const updateAdminStatus = async (userId: string, newStatus: UserStatus) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', adminId);
+        .update({ status: newStatus })
+        .eq('user_id', userId);
 
       if (error) throw error;
 
-      // If deleting, clean up related data using the database function
-      if (newStatus === 'deleted') {
-        const admin = admins.find(a => a.id === adminId);
-        if (admin) {
-          try {
-            const { error: rpcError } = await supabase
-              .rpc('delete_user_and_data', { uid: admin.user_id });
-            if (rpcError) {
-              console.error('Error calling delete_user_and_data:', rpcError);
-            }
-          } catch (rpcError) {
-            console.error('Error calling delete_user_and_data:', rpcError);
-            // Continue with the status update even if deletion fails
-          }
-        }
-      }
-
-      await fetchAdmins();
-      
       toast({
         title: "Success",
-        description: `Admin account ${newStatus === 'active' ? 'activated' : newStatus === 'paused' ? 'paused' : 'deleted'} successfully`,
+        description: `User status updated to ${newStatus}`,
       });
+
+      fetchProfiles();
     } catch (error) {
-      console.error('Error updating admin status:', error);
+      console.error('Error updating user status:', error);
       toast({
         title: "Error",
-        description: "Failed to update admin status",
-        variant: "destructive",
+        description: "Failed to update user status",
+        variant: "destructive"
       });
     }
   };
 
-  // Only allow access to admins (removed super_admin check)
+  const filteredProfiles = profiles.filter(profile => 
+    profile.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    profile.hotel_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (profile?.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <XCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
-            <CardTitle>Access Denied</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground">
-              You don't have permission to access this page. Only Admins can manage admin accounts.
-            </p>
+        <Card className="w-96">
+          <CardContent className="p-6 text-center">
+            <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">You don't have permission to access this page.</p>
           </CardContent>
         </Card>
       </div>
@@ -137,140 +101,88 @@ const AdminManagement = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading admin accounts...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'paused': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'deleted': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active': return <CheckCircle className="w-4 h-4" />;
-      case 'paused': return <Clock className="w-4 h-4" />;
-      case 'deleted': return <XCircle className="w-4 h-4" />;
-      default: return null;
-    }
-  };
-
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <Crown className="w-8 h-8 text-primary mr-3" />
-          <div>
-            <h1 className="text-3xl font-bold">Admin Management</h1>
-            <p className="text-muted-foreground">Manage hotel admin accounts and permissions</p>
+    <div className="min-h-screen p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <Shield className="w-6 h-6" />
+            <h1 className="text-2xl font-bold">Admin Management</h1>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-6">
-        {admins.length === 0 ? (
-          <Card>
-            <CardContent className="py-16 text-center">
-              <Crown className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">No Admin Accounts</h3>
-              <p className="text-muted-foreground">
-                No hotel admin accounts have been registered yet. Admins will appear here after they sign up.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          admins.map((admin) => (
-            <Card key={admin.id} className="transition-shadow hover:shadow-md">
-              <CardHeader>
+        <div className="mb-6">
+          <Input
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-md"
+          />
+        </div>
+
+        <div className="grid gap-4">
+          {filteredProfiles.map((userProfile) => (
+            <Card key={userProfile.id}>
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Crown className="w-6 h-6 text-primary" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <User className="w-5 h-5" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{admin.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{admin.hotel_name}</p>
+                      <h3 className="font-semibold">{userProfile.name}</h3>
+                      <p className="text-sm text-muted-foreground">{userProfile.hotel_name}</p>
+                      <p className="text-xs text-muted-foreground">Role: {userProfile.role}</p>
                     </div>
                   </div>
-                  <Badge className={`${getStatusColor(admin.status)} flex items-center gap-1`}>
-                    {getStatusIcon(admin.status)}
-                    {admin.status.charAt(0).toUpperCase() + admin.status.slice(1)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    <p>Registered: {new Date(admin.created_at).toLocaleDateString()}</p>
-                    <p>Role: Admin</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {admin.status === 'paused' && (
-                      <Button
-                        size="sm"
-                        onClick={() => updateAdminStatus(admin.id, 'active' as UserStatus)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Activate
-                      </Button>
-                    )}
-                    {admin.status === 'active' && (
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      userProfile.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : userProfile.status === 'suspended'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {userProfile.status}
+                    </span>
+                    <div className="flex space-x-1">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateAdminStatus(admin.id, 'paused' as UserStatus)}
+                        onClick={() => updateAdminStatus(userProfile.user_id, 'active' as UserStatus)}
+                        className="text-green-600 hover:text-green-700"
                       >
-                        <Clock className="w-4 h-4 mr-1" />
-                        Pause
+                        <UserCheck className="w-4 h-4" />
                       </Button>
-                    )}
-                    {admin.status !== 'deleted' && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="destructive">
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Admin Account</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the admin account for "{admin.name}" and all associated data including:
-                              <br />• All bills and transactions
-                              <br />• All expenses records  
-                              <br />• All items and categories
-                              <br />• All staff user accounts
-                              <br /><br />
-                              This action cannot be undone. Are you sure you want to proceed?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => updateAdminStatus(admin.id, 'deleted' as UserStatus)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              Delete Permanently
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateAdminStatus(userProfile.user_id, 'suspended' as UserStatus)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <UserX className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))
+          ))}
+        </div>
+
+        {filteredProfiles.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">No users found</h3>
+              <p className="text-muted-foreground">No users match your search criteria.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
