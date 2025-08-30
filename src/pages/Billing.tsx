@@ -139,8 +139,11 @@ const Billing = () => {
       setCart(prev => 
         prev.map(item =>
           item.id === id ? { ...item, quantity: newQuantity } : item
-        )
+        ).filter(item => item.quantity > 0)
       );
+    } else {
+      // If quantity is 0 or invalid, remove item from cart
+      setCart(prev => prev.filter(item => item.id !== id));
     }
     setEditingQuantity(null);
     setTempQuantity('');
@@ -202,14 +205,36 @@ const Billing = () => {
       });
       return;
     }
+    
     try {
       console.log('Generating bill with payment method:', selectedPayment);
 
-      // Generate bill number
-      const { data: billNumber } = await supabase.rpc('generate_bill_number');
+      // First, let's try to get the current max bill number and increment it
+      const { data: maxBillData, error: maxBillError } = await supabase
+        .from('bills')
+        .select('bill_no')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let billNumber: string;
+      if (maxBillError) {
+        console.error('Error fetching max bill number:', maxBillError);
+        // Fallback to timestamp-based bill number
+        billNumber = `BILL-${Date.now()}`;
+      } else if (maxBillData && maxBillData.length > 0) {
+        const lastBillNo = maxBillData[0].bill_no;
+        const lastNumber = parseInt(lastBillNo.replace(/\D/g, '')) || 0;
+        billNumber = `BILL-${String(lastNumber + 1).padStart(6, '0')}`;
+      } else {
+        billNumber = 'BILL-000001';
+      }
+
+      console.log('Generated bill number:', billNumber);
 
       // Map payment type to valid enum value
       const paymentMode = mapPaymentMode(selectedPayment);
+      console.log('Mapped payment mode:', paymentMode);
+
       const { data: billData, error: billError } = await supabase
         .from('bills')
         .insert({
@@ -221,10 +246,13 @@ const Billing = () => {
         })
         .select()
         .single();
+
       if (billError) {
         console.error('Bill creation error:', billError);
         throw billError;
       }
+
+      console.log('Bill created successfully:', billData);
 
       // Create bill items
       const billItems = cart.map(item => ({
@@ -234,13 +262,16 @@ const Billing = () => {
         price: item.price,
         total: item.price * item.quantity
       }));
+
       const { error: itemsError } = await supabase
         .from('bill_items')
         .insert(billItems);
+
       if (itemsError) {
         console.error('Bill items error:', itemsError);
         throw itemsError;
       }
+
       toast({
         title: "Success",
         description: `Bill ${billNumber} generated successfully!`
@@ -345,16 +376,17 @@ const Billing = () => {
                                 type="number"
                                 value={tempQuantity}
                                 onChange={(e) => setTempQuantity(e.target.value)}
-                                className="h-5 w-12 text-xs text-center p-0"
-                                min="1"
+                                className="h-5 w-16 text-xs text-center p-1"
+                                min="0"
                                 autoFocus
-                                onKeyPress={(e) => {
+                                onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     saveQuantity(item.id);
                                   } else if (e.key === 'Escape') {
                                     cancelEditQuantity();
                                   }
                                 }}
+                                onBlur={() => saveQuantity(item.id)}
                               />
                               <Button
                                 size="sm"
@@ -367,15 +399,14 @@ const Billing = () => {
                             </div>
                           ) : (
                             <div className="flex items-center space-x-1">
-                              <span className="mx-1 min-w-[1rem] text-center text-xs font-bold">{item.quantity}</span>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => startEditingQuantity(item.id, item.quantity)}
-                                className="h-5 w-5 p-0"
-                                title="Edit quantity"
+                                className="h-5 min-w-[2rem] px-1 text-xs font-bold"
+                                title="Click to edit quantity"
                               >
-                                <Edit2 className="w-3 h-3" />
+                                {item.quantity}
                               </Button>
                             </div>
                           )}
