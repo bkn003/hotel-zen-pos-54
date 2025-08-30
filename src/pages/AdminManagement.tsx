@@ -72,7 +72,7 @@ const AdminManagement = () => {
     }
   };
 
-  const updateAdminStatus = async (adminId: string, newStatus: 'active' | 'paused' | 'deleted'): Promise<void> => {
+  const updateAdminStatus = async (adminId: string, newStatus: UserStatus) => {
     try {
       const { error } = await supabase
         .from('profiles')
