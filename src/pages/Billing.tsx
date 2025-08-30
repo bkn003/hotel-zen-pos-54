@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Item {
   id: string;
@@ -27,10 +28,37 @@ interface PaymentType {
   is_default: boolean;
 }
 
+interface Bill {
+  id: string;
+  bill_no: string;
+  total_amount: number;
+  discount: number;
+  payment_mode: string;
+  date: string;
+  created_at: string;
+}
+
+interface BillItem {
+  id: string;
+  item_id: string;
+  quantity: number;
+  price: number;
+  total: number;
+  items: {
+    id: string;
+    name: string;
+    price: number;
+    image_url?: string;
+    is_active: boolean;
+  };
+}
+
 type PaymentMode = "cash" | "upi" | "card" | "other";
 
 const Billing = () => {
   const { profile } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,11 +69,72 @@ const Billing = () => {
   const [discount, setDiscount] = useState(0);
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<string>('');
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     fetchItems();
     fetchPaymentTypes();
-  }, []);
+    
+    // Check if we're editing a bill
+    const billData = location.state?.bill;
+    if (billData) {
+      setEditingBill(billData);
+      setIsEditMode(true);
+      loadBillData(billData.id);
+    }
+  }, [location.state]);
+
+  const loadBillData = async (billId: string) => {
+    try {
+      console.log('Loading bill data for:', billId);
+      
+      // Fetch bill items with item details
+      const { data: billItems, error: billItemsError } = await supabase
+        .from('bill_items')
+        .select(`
+          *,
+          items (
+            id,
+            name,
+            price,
+            image_url,
+            is_active
+          )
+        `)
+        .eq('bill_id', billId);
+
+      if (billItemsError) {
+        console.error('Error fetching bill items:', billItemsError);
+        throw billItemsError;
+      }
+
+      console.log('Bill items loaded:', billItems);
+
+      // Convert bill items to cart items
+      if (billItems && billItems.length > 0) {
+        const cartItems: CartItem[] = billItems.map((billItem: BillItem) => ({
+          id: billItem.items.id,
+          name: billItem.items.name,
+          price: billItem.price, // Use the price from the bill item (historical price)
+          image_url: billItem.items.image_url,
+          is_active: billItem.items.is_active,
+          quantity: billItem.quantity
+        }));
+
+        setCart(cartItems);
+        setDiscount(editingBill?.discount || 0);
+        setSelectedPayment(editingBill?.payment_mode || '');
+      }
+    } catch (error) {
+      console.error('Error loading bill data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load bill data",
+        variant: "destructive"
+      });
+    }
+  };
 
   const fetchItems = async () => {
     try {
@@ -79,12 +168,14 @@ const Billing = () => {
       const types = data || [];
       setPaymentTypes(types);
 
-      // Set default payment
-      const defaultPayment = types.find(p => p.is_default);
-      if (defaultPayment) {
-        setSelectedPayment(defaultPayment.payment_type);
-      } else if (types.length > 0) {
-        setSelectedPayment(types[0].payment_type);
+      // Set default payment only if not in edit mode
+      if (!isEditMode) {
+        const defaultPayment = types.find(p => p.is_default);
+        if (defaultPayment) {
+          setSelectedPayment(defaultPayment.payment_type);
+        } else if (types.length > 0) {
+          setSelectedPayment(types[0].payment_type);
+        }
       }
     } catch (error) {
       console.error('Error fetching payment types:', error);
@@ -161,6 +252,10 @@ const Billing = () => {
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
+    setIsEditMode(false);
+    setEditingBill(null);
+    // Navigate back to billing without any state
+    navigate('/billing', { replace: true });
   };
 
   const getTotalAmount = () => {
@@ -185,6 +280,94 @@ const Billing = () => {
         return 'card';
       default:
         return 'other';
+    }
+  };
+
+  const updateBill = async () => {
+    if (!editingBill) return;
+    
+    if (cart.length === 0) {
+      toast({
+        title: "Error",
+        description: "Cart is empty",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!selectedPayment) {
+      toast({
+        title: "Error",
+        description: "Please select a payment method",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      console.log('Updating bill:', editingBill.id);
+
+      const paymentMode = mapPaymentMode(selectedPayment);
+      
+      // Update bill
+      const { error: billError } = await supabase
+        .from('bills')
+        .update({
+          total_amount: getTotalAmount(),
+          discount: discount,
+          payment_mode: paymentMode,
+          is_edited: true
+        })
+        .eq('id', editingBill.id);
+
+      if (billError) {
+        console.error('Bill update error:', billError);
+        throw billError;
+      }
+
+      // Delete existing bill items
+      const { error: deleteError } = await supabase
+        .from('bill_items')
+        .delete()
+        .eq('bill_id', editingBill.id);
+
+      if (deleteError) {
+        console.error('Error deleting old bill items:', deleteError);
+        throw deleteError;
+      }
+
+      // Insert new bill items
+      const billItems = cart.map(item => ({
+        bill_id: editingBill.id,
+        item_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('bill_items')
+        .insert(billItems);
+
+      if (itemsError) {
+        console.error('Bill items error:', itemsError);
+        throw itemsError;
+      }
+
+      toast({
+        title: "Success",
+        description: `Bill ${editingBill.bill_no} updated successfully!`
+      });
+
+      // Clear cart and navigate back to reports
+      clearCart();
+      navigate('/reports');
+    } catch (error) {
+      console.error('Error updating bill:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update bill. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -308,7 +491,9 @@ const Billing = () => {
               alt="Restaurant"
               className="w-6 h-6 mr-2"
             />
-            <h1 className="text-lg sm:text-2xl font-bold">Point of Sale</h1>
+            <h1 className="text-lg sm:text-2xl font-bold">
+              {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
+            </h1>
           </div>
           <div className="flex items-center space-x-1">
             <Button
@@ -336,38 +521,38 @@ const Billing = () => {
             <div className="w-full px-1 py-2">
               <Card className="w-full max-w-[98vw] mx-auto">
                 <CardHeader className="pb-1 px-2 py-1">
-                  <CardTitle className="text-sm font-bold flex items-center justify-between">
+                  <CardTitle className="text-lg font-bold flex items-center justify-between">
                     <span className="flex items-center gap-2">
-                      <ShoppingCart className="w-4 h-4" />
+                      <ShoppingCart className="w-5 h-5" />
                       Cart ({cart.length})
                     </span>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={clearCart}
-                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                       title="Clear Cart"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-2 py-1 space-y-1">
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {cart.map(item => (
-                      <div key={item.id} className="flex items-center justify-between py-1 px-1 border rounded text-xs bg-muted/30">
-                        <div className="flex-1 min-w-0 pr-1">
-                          <h4 className="font-bold truncate text-xs">{item.name}</h4>
-                          <p className="text-xs text-muted-foreground font-medium">₹{item.price}</p>
+                      <div key={item.id} className="flex items-center justify-between py-2 px-2 border rounded text-sm bg-muted/30">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <h4 className="font-bold truncate text-base leading-tight">{item.name}</h4>
+                          <p className="text-sm text-muted-foreground font-bold">₹{item.price}</p>
                         </div>
                         <div className="flex items-center space-x-1 flex-shrink-0">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="h-5 w-5 p-0"
+                            className="h-6 w-6 p-0"
                           >
-                            <Minus className="w-3 h-3" />
+                            <Minus className="w-4 h-4" />
                           </Button>
                           
                           {editingQuantity === item.id ? (
@@ -376,7 +561,7 @@ const Billing = () => {
                                 type="number"
                                 value={tempQuantity}
                                 onChange={(e) => setTempQuantity(e.target.value)}
-                                className="h-5 w-16 text-xs text-center p-1"
+                                className="h-6 w-16 text-sm text-center p-1 font-bold"
                                 min="0"
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -392,9 +577,9 @@ const Billing = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => saveQuantity(item.id)}
-                                className="h-5 w-5 p-0 text-green-600"
+                                className="h-6 w-6 p-0 text-green-600"
                               >
-                                <Check className="w-3 h-3" />
+                                <Check className="w-4 h-4" />
                               </Button>
                             </div>
                           ) : (
@@ -403,7 +588,7 @@ const Billing = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => startEditingQuantity(item.id, item.quantity)}
-                                className="h-5 min-w-[2rem] px-1 text-xs font-bold"
+                                className="h-6 min-w-[2.5rem] px-2 text-sm font-bold"
                                 title="Click to edit quantity"
                               >
                                 {item.quantity}
@@ -415,26 +600,26 @@ const Billing = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="h-5 w-5 p-0"
+                            className="h-6 w-6 p-0"
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => removeFromCart(item.id)}
-                            className="h-5 w-5 p-0 ml-1 text-destructive hover:text-destructive"
+                            className="h-6 w-6 p-0 ml-1 text-destructive hover:text-destructive"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-1">
+                  <div className="grid grid-cols-1 gap-2">
                     <div>
-                      <label className="text-xs font-bold mb-1 block">Payment</label>
+                      <label className="text-sm font-bold mb-1 block">Payment</label>
                       <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide">
                         {paymentTypes.map(payment => (
                           <Button
@@ -442,7 +627,7 @@ const Billing = () => {
                             variant={selectedPayment === payment.payment_type ? "default" : "outline"}
                             size="sm"
                             onClick={() => setSelectedPayment(payment.payment_type)}
-                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[50px] text-xs font-bold px-2 py-1 h-5"
+                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[60px] text-sm font-bold px-3 py-1 h-7"
                           >
                             {payment.payment_type}
                           </Button>
@@ -450,28 +635,28 @@ const Billing = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs font-bold">Discount</label>
+                        <label className="text-sm font-bold">Discount</label>
                         <Input
                           type="number"
                           min="0"
                           value={discount}
                           onChange={e => setDiscount(Number(e.target.value) || 0)}
-                          className="h-6 w-full text-xs"
+                          className="h-7 w-full text-sm font-bold"
                         />
                       </div>
 
                       <div className="flex flex-col justify-end">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-sm">₹{getTotalAmount()}</span>
+                          <span className="font-bold text-lg">₹{getTotalAmount()}</span>
                         </div>
                         <Button
-                          onClick={generateBill}
+                          onClick={isEditMode ? updateBill : generateBill}
                           size="sm"
-                          className="w-full h-6 text-xs font-bold"
+                          className="w-full h-7 text-sm font-bold"
                         >
-                          Generate Bill
+                          {isEditMode ? 'Update Bill' : 'Generate Bill'}
                         </Button>
                       </div>
                     </div>
@@ -483,7 +668,7 @@ const Billing = () => {
         )}
 
         {/* Main Content - Add top padding when cart is visible */}
-        <div className={cart.length > 0 ? 'pt-[160px]' : ''}>
+        <div className={cart.length > 0 ? 'pt-[180px]' : ''}>
           {/* Search */}
           <div className="mb-3">
             <div className="flex items-center relative">
