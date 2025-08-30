@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,7 +55,7 @@ const AdminManagement = () => {
         name: admin.name || 'Unknown',
         role: admin.role || 'admin',
         hotel_name: admin.hotel_name || undefined,
-        status: admin.status || 'paused',
+        status: (admin.status || 'paused') as UserStatus,
         created_at: admin.created_at
       }));
       
