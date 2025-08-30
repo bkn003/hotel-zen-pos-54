@@ -36,11 +36,10 @@ export const Header: React.FC = () => {
 
         <div className="flex items-center space-x-3">
           <Badge 
-            variant={profile.role === 'super_admin' ? 'default' : profile.role === 'admin' ? 'secondary' : 'outline'}
+            variant={profile.role === 'admin' ? 'default' : 'outline'}
             className="hidden md:flex"
           >
-            {profile.role === 'super_admin' ? 'Super Admin' : 
-             profile.role === 'admin' ? 'Admin' : 'Staff'}
+            {profile.role === 'admin' ? 'Admin' : 'Staff'}
           </Badge>
 
           <DropdownMenu>
@@ -59,8 +58,7 @@ export const Header: React.FC = () => {
               <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">{profile.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {profile.role === 'super_admin' ? 'Super Administrator' : 
-                   profile.role === 'admin' ? 'Hotel Administrator' : 'Staff Member'}
+                  {profile.role === 'admin' ? 'Hotel Administrator' : 'Staff Member'}
                 </p>
               </div>
               

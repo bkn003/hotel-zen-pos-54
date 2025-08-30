@@ -9,19 +9,8 @@ import {
   Package, 
   Receipt, 
   BarChart3, 
-  Users,
-  Crown
+  Users
 } from 'lucide-react';
-
-const superAdminNavItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/admin-management', icon: Crown, label: 'Admin Management' },
-  { to: '/billing', icon: ShoppingCart, label: 'Billing' },
-  { to: '/items', icon: Package, label: 'Items' },
-  { to: '/expenses', icon: Receipt, label: 'Expenses' },
-  { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/users', icon: Users, label: 'Users' },
-];
 
 const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -42,11 +31,7 @@ export const Sidebar: React.FC = () => {
 
   if (!profile) return null;
 
-  const navItems = profile.role === 'super_admin' 
-    ? superAdminNavItems 
-    : profile.role === 'admin' 
-      ? adminNavItems 
-      : userNavItems;
+  const navItems = profile.role === 'admin' ? adminNavItems : userNavItems;
 
   return (
     <div className="hidden md:flex flex-col w-64 bg-sidebar border-r border-sidebar-border">

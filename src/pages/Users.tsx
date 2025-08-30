@@ -7,10 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Search, Crown, User, Shield } from 'lucide-react';
+import { Users as UsersIcon, Search, User, Shield } from 'lucide-react';
 import { AddUserDialog } from '@/components/AddUserDialog';
 import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
-import type { UserProfile } from '@/types/user';
+import type { UserProfile, UserStatus } from '@/types/user';
 
 const Users: React.FC = () => {
   const { profile } = useAuth();
@@ -50,11 +50,19 @@ const Users: React.FC = () => {
 
       if (error) throw error;
       
-      // Type cast the data to ensure proper typing
-      const typedUsers = (data || []).map(user => ({
-        ...user,
-        status: user.status as 'active' | 'paused' | 'deleted'
-      }));
+      // Filter out super_admin users and type cast the data to ensure proper typing
+      const typedUsers = (data || [])
+        .filter(user => user.role !== 'super_admin') // Filter out any remaining super_admin users
+        .map(user => ({
+          id: user.id,
+          user_id: user.user_id,
+          name: user.name,
+          role: user.role as 'admin' | 'user',
+          hotel_name: user.hotel_name,
+          status: user.status as UserStatus,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        }));
       
       setUsers(typedUsers);
       setFilteredUsers(typedUsers);
@@ -70,7 +78,7 @@ const Users: React.FC = () => {
     }
   };
 
-  const updateUserStatus = async (userId: string, newStatus: string) => {
+  const updateUserStatus = async (userId: string, newStatus: UserStatus) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -97,8 +105,6 @@ const Users: React.FC = () => {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'super_admin':
-        return <Crown className="w-4 h-4" />;
       case 'admin':
         return <Shield className="w-4 h-4" />;
       default:
@@ -128,13 +134,13 @@ const Users: React.FC = () => {
             <p className="text-muted-foreground text-sm">Manage system users and settings</p>
           </div>
         </div>
-        {profile?.role === 'super_admin' && (
+        {profile?.role === 'admin' && (
           <AddUserDialog onUserAdded={fetchUsers} />
         )}
       </div>
 
       {/* Payment Types Management */}
-      {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
+      {profile?.role === 'admin' && (
         <PaymentTypesManagement />
       )}
 
@@ -185,10 +191,10 @@ const Users: React.FC = () => {
                       <div className="flex items-center gap-1">
                         {getRoleIcon(user.role)}
                         <Badge 
-                          variant={user.role === 'super_admin' ? 'default' : user.role === 'admin' ? 'secondary' : 'outline'}
+                          variant={user.role === 'admin' ? 'default' : 'outline'}
                           className="text-xs"
                         >
-                          {user.role.replace('_', ' ')}
+                          {user.role}
                         </Badge>
                       </div>
                     </div>
@@ -205,7 +211,7 @@ const Users: React.FC = () => {
                       <div>Updated: {new Date(user.updated_at).toLocaleDateString()}</div>
                     </div>
                     
-                    {profile?.role === 'super_admin' && user.role !== 'super_admin' && (
+                    {profile?.role === 'admin' && (
                       <div className="flex flex-wrap gap-1 pt-2">
                         <Button
                           size="sm"

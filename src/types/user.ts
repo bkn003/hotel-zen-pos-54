@@ -11,5 +11,6 @@ export interface Profile {
 }
 
 export interface UserProfile extends Profile {
-  // Additional user profile fields if needed
+  created_at: string;
+  updated_at: string;
 }
