@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -215,7 +216,7 @@ const AdminManagement = () => {
                     {admin.status === 'paused' && (
                       <Button
                         size="sm"
-                        onClick={() => updateAdminStatus(admin.id, 'active')}
+                        onClick={() => updateAdminStatus(admin.id, 'active' as UserStatus)}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
@@ -226,7 +227,7 @@ const AdminManagement = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateAdminStatus(admin.id, 'paused')}
+                        onClick={() => updateAdminStatus(admin.id, 'paused' as UserStatus)}
                       >
                         <Clock className="w-4 h-4 mr-1" />
                         Pause
@@ -256,7 +257,7 @@ const AdminManagement = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => updateAdminStatus(admin.id, 'deleted')}
+                              onClick={() => updateAdminStatus(admin.id, 'deleted' as UserStatus)}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Delete Permanently
