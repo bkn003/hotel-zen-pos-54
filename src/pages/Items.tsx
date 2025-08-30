@@ -155,11 +155,12 @@ const Items: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full"
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
             <Button
               variant={selectedCategory === 'all' ? "default" : "outline"}
               onClick={() => setSelectedCategory('all')}
               size="sm"
+              className="flex-shrink-0"
             >
               All Categories
             </Button>
@@ -169,6 +170,7 @@ const Items: React.FC = () => {
                 variant={selectedCategory === category ? "default" : "outline"}
                 onClick={() => setSelectedCategory(category)}
                 size="sm"
+                className="flex-shrink-0"
               >
                 {category}
               </Button>
@@ -205,9 +207,9 @@ const Items: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
                   {activeItems.map((item) => (
-                    <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
+                    <Card key={item.id} className="p-4 hover:shadow-md transition-shadow flex-shrink-0 w-80 min-w-[280px]">
                       <div className="space-y-3">
                         <div>
                           <h4 className="font-medium text-lg">{item.name}</h4>
@@ -231,7 +233,7 @@ const Items: React.FC = () => {
                         </div>
                         
                         {profile?.role === 'admin' && (
-                          <div className="pt-2">
+                          <div className="pt-2 w-full">
                             <EditItemDialog item={item} onItemUpdated={handleItemAdded} />
                           </div>
                         )}
@@ -259,9 +261,9 @@ const Items: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
                   {inactiveItems.map((item) => (
-                    <Card key={item.id} className="p-4 hover:shadow-md transition-shadow bg-muted/50">
+                    <Card key={item.id} className="p-4 hover:shadow-md transition-shadow bg-muted/50 flex-shrink-0 w-80 min-w-[280px]">
                       <div className="space-y-3">
                         <div>
                           <h4 className="font-medium text-lg text-muted-foreground">{item.name}</h4>
@@ -285,7 +287,7 @@ const Items: React.FC = () => {
                         </div>
                         
                         {profile?.role === 'admin' && (
-                          <div className="pt-2">
+                          <div className="pt-2 w-full">
                             <EditItemDialog item={item} onItemUpdated={handleItemAdded} />
                           </div>
                         )}
