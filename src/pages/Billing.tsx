@@ -4,28 +4,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Edit } from 'lucide-react';
+import { Billing as BillingIcon, Plus, X, CheckCircle } from 'lucide-react';
 
 interface Item {
   id: string;
   name: string;
-  price: number;
-  category?: string;
-  image_url?: string;
-  is_active: boolean;
+  selling_price: number;
 }
 
-interface CartItem extends Item {
+interface BillItem {
+  item: Item;
   quantity: number;
 }
 
 interface PaymentType {
   id: string;
-  payment_type: string;
-  is_disabled: boolean;
-  is_default: boolean;
+  name: string;
 }
 
 type PaymentMode = "cash" | "upi" | "card" | "other";
@@ -33,18 +30,12 @@ type PaymentMode = "cash" | "upi" | "card" | "other";
 const Billing = () => {
   const { profile } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [billItems, setBillItems] = useState<BillItem[]>([]);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
-  const [selectedPayment, setSelectedPayment] = useState<string>('');
-  const [discount, setDiscount] = useState(0);
-  const [editingQuantity, setEditingQuantity] = useState<{
-    itemId: string;
-    quantity: number;
-  } | null>(null);
+  const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentType | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   useEffect(() => {
     fetchItems();
@@ -55,9 +46,9 @@ const Billing = () => {
     try {
       const { data, error } = await supabase
         .from('items')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
+        .select('id, name, selling_price')
+        .eq('is_active', true);
+
       if (error) throw error;
       setItems(data || []);
     } catch (error) {
@@ -65,10 +56,8 @@ const Billing = () => {
       toast({
         title: "Error",
         description: "Failed to fetch items",
-        variant: "destructive"
+        variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -76,86 +65,64 @@ const Billing = () => {
     try {
       const { data, error } = await supabase
         .from('payments')
-        .select('*')
-        .eq('is_disabled', false)
-        .order('payment_type');
-      if (error) throw error;
-      const types = data || [];
-      setPaymentTypes(types);
+        .select('id, payment_type')
+        .eq('is_disabled', false);
 
-      // Set default payment
-      const defaultPayment = types.find(p => p.is_default);
-      if (defaultPayment) {
-        setSelectedPayment(defaultPayment.payment_type);
-      } else if (types.length > 0) {
-        setSelectedPayment(types[0].payment_type);
-      }
+      if (error) throw error;
+      setPaymentTypes(data?.map(p => ({ id: p.id, name: p.payment_type })) || []);
     } catch (error) {
       console.error('Error fetching payment types:', error);
       toast({
         title: "Error",
         description: "Failed to fetch payment types",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
-  const categories = ['all', ...Array.from(new Set(items.map(item => item.category).filter(Boolean)))];
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const addToCart = (item: Item) => {
-    setCart(prev => {
-      const existing = prev.find(cartItem => cartItem.id === item.id);
-      if (existing) {
-        return prev.map(cartItem =>
-          cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
-      }
-      return [...prev, { ...item, quantity: 1 }];
-    });
-    // Clear search after adding to cart for user friendliness
-    setSearchQuery('');
-  };
-
-  const updateQuantity = (id: string, change: number) => {
-    setCart(prev => {
-      return prev.map(item => {
-        if (item.id === id) {
-          const newQuantity = item.quantity + change;
-          return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
-        }
-        return item;
-      }).filter(item => item.quantity > 0);
-    });
-  };
-
-  const handleQuantityEdit = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(id);
-    } else {
-      setCart(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, quantity: newQuantity } : item
-        )
-      );
+  const addItemToBill = () => {
+    if (!selectedItem) {
+      toast({
+        title: "Error",
+        description: "Please select an item",
+        variant: "destructive",
+      });
+      return;
     }
-    setEditingQuantity(null);
+
+    if (quantity <= 0) {
+      toast({
+        title: "Error",
+        description: "Quantity must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const existingItem = billItems.find(item => item.item.id === selectedItem.id);
+    if (existingItem) {
+      const updatedBillItems = billItems.map(item =>
+        item.item.id === selectedItem.id ? { ...item, quantity: item.quantity + quantity } : item
+      );
+      setBillItems(updatedBillItems);
+    } else {
+      setBillItems([...billItems, { item: selectedItem, quantity }]);
+    }
+
+    setSelectedItem(null);
+    setQuantity(1);
   };
 
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+  const removeItemFromBill = (itemId: string) => {
+    const updatedBillItems = billItems.filter(item => item.item.id !== itemId);
+    setBillItems(updatedBillItems);
   };
 
-  const getTotalAmount = () => {
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    return Math.max(0, subtotal - discount);
+  const clearBill = () => {
+    setBillItems([]);
   };
+
+  const totalAmount = billItems.reduce((total, item) => total + item.item.selling_price * item.quantity, 0);
 
   // Map payment types to valid enum values
   const mapPaymentMode = (paymentType: string): PaymentMode => {
@@ -164,328 +131,207 @@ const Billing = () => {
       case 'cash':
         return 'cash';
       case 'upi':
-      case 'phonepe':
       case 'gpay':
       case 'paytm':
+      case 'phonepe':
         return 'upi';
       case 'card':
-      case 'debit':
-      case 'credit':
+      case 'credit card':
+      case 'debit card':
         return 'card';
       default:
         return 'other';
     }
   };
 
-  const generateBill = async () => {
-    if (cart.length === 0) {
+  const processBill = async () => {
+    if (billItems.length === 0) {
       toast({
         title: "Error",
-        description: "Cart is empty",
-        variant: "destructive"
+        description: "Please add items to the bill",
+        variant: "destructive",
       });
       return;
     }
-    if (!selectedPayment) {
+
+    if (!selectedPaymentType) {
       toast({
         title: "Error",
         description: "Please select a payment method",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
+
     try {
-      console.log('Generating bill with payment method:', selectedPayment);
+      setIsProcessing(true);
 
-      // Generate bill number
-      const { data: billNumber } = await supabase.rpc('generate_bill_number');
-
-      // Map payment type to valid enum value
-      const paymentMode = mapPaymentMode(selectedPayment);
+      // Create the bill first
       const { data: billData, error: billError } = await supabase
         .from('bills')
-        .insert({
-          bill_no: billNumber,
-          total_amount: getTotalAmount(),
-          discount: discount,
-          payment_mode: paymentMode,
-          created_by: profile?.user_id
-        })
+        .insert([
+          {
+            bill_no: '123',
+            created_by: profile?.user_id || profile?.id || 'system',
+            total_amount: totalAmount,
+            payment_mode: mapPaymentMode(selectedPaymentType.name) as PaymentMode,
+            date: new Date().toISOString()
+          }
+        ])
         .select()
         .single();
-      if (billError) {
-        console.error('Bill creation error:', billError);
-        throw billError;
-      }
+
+      if (billError) throw billError;
 
       // Create bill items
-      const billItems = cart.map(item => ({
+      const billItemsData = billItems.map(item => ({
         bill_id: billData.id,
-        item_id: item.id,
+        item_id: item.item.id,
         quantity: item.quantity,
-        price: item.price,
-        total: item.price * item.quantity
+        price: item.item.selling_price,
+        total: item.item.selling_price * item.quantity
       }));
-      const { error: itemsError } = await supabase
+
+      const { error: billItemsError } = await supabase
         .from('bill_items')
-        .insert(billItems);
-      if (itemsError) {
-        console.error('Bill items error:', itemsError);
-        throw itemsError;
-      }
+        .insert(billItemsData);
+
+      if (billItemsError) throw billItemsError;
+
       toast({
         title: "Success",
-        description: `Bill ${billNumber} generated successfully!`
+        description: "Bill processed successfully",
       });
 
-      // Clear cart
-      setCart([]);
-      setDiscount(0);
+      // Reset the bill
+      setBillItems([]);
+      setSelectedPaymentType(null);
     } catch (error) {
-      console.error('Error generating bill:', error);
+      console.error('Error processing bill:', error);
       toast({
         title: "Error",
-        description: "Failed to generate bill. Please try again.",
-        variant: "destructive"
+        description: "Failed to process bill",
+        variant: "destructive",
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen w-full">
-      <div className="w-full px-1 py-2">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <div className="flex items-center">
-            <img
-              src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"
-              alt="Restaurant"
-              className="w-6 h-6 mr-2"
-            />
-            <h1 className="text-lg sm:text-2xl font-bold">Point of Sale</h1>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="h-7 w-7 p-0"
-            >
-              <Grid className="w-3 h-3" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-7 w-7 p-0"
-            >
-              <List className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Sticky Cart Section - Fixed positioning when cart has items */}
-        {cart.length > 0 && (
-          <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-md">
-            <div className="w-full px-1 py-2">
-              <Card className="w-full max-w-[98vw] mx-auto">
-                <CardHeader className="pb-1 px-2 py-1">
-                  <CardTitle className="text-sm font-bold flex items-center justify-between">
-                    <span>Cart ({cart.length})</span>
-                    <ShoppingCart className="w-4 h-4" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-2 py-1 space-y-1">
-                  <div className="space-y-1 max-h-20 overflow-y-auto">
-                    {cart.map(item => (
-                      <div key={item.id} className="flex items-center justify-between py-1 px-1 border rounded text-xs bg-muted/30">
-                        <div className="flex-1 min-w-0 pr-1">
-                          <h4 className="font-bold truncate text-xs">{item.name}</h4>
-                          <p className="text-xs text-muted-foreground font-medium">₹{item.price}</p>
-                        </div>
-                        <div className="flex items-center space-x-1 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, -1)}
-                            className="h-5 w-5 p-0"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </Button>
-                          <span className="mx-1 min-w-[1rem] text-center text-xs font-bold">{item.quantity}</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, 1)}
-                            className="h-5 w-5 p-0"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => removeFromCart(item.id)}
-                            className="h-5 w-5 p-0 ml-1 text-destructive hover:text-destructive"
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-1">
-                    <div>
-                      <label className="text-xs font-bold mb-1 block">Payment</label>
-                      <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide">
-                        {paymentTypes.map(payment => (
-                          <Button
-                            key={payment.id}
-                            variant={selectedPayment === payment.payment_type ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSelectedPayment(payment.payment_type)}
-                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[50px] text-xs font-bold px-2 py-1 h-5"
-                          >
-                            {payment.payment_type}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1">
-                      <div>
-                        <label className="text-xs font-bold">Discount</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={discount}
-                          onChange={e => setDiscount(Number(e.target.value) || 0)}
-                          className="h-6 w-full text-xs"
-                        />
-                      </div>
-
-                      <div className="flex flex-col justify-end">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-sm">₹{getTotalAmount()}</span>
-                        </div>
-                        <Button
-                          onClick={generateBill}
-                          size="sm"
-                          className="w-full h-6 text-xs font-bold"
-                        >
-                          Generate Bill
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content - Add top padding when cart is visible */}
-        <div className={cart.length > 0 ? 'pt-[140px]' : ''}>
-          {/* Search */}
-          <div className="mb-3">
-            <div className="flex items-center relative">
-              <Search className="absolute left-2 w-3 h-3 text-muted-foreground" />
-              <Input
-                placeholder="Search items..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Horizontal Scrollable Category Filter */}
-          <div className="mb-3">
-            <div className="overflow-x-auto scrollbar-hide">
-              <div className="flex gap-1 pb-1 min-w-max">
-                {categories.map(category => (
-                  <Button
-                    key={category}
-                    variant={selectedCategory === category ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedCategory(category)}
-                    className="whitespace-nowrap flex-shrink-0 capitalize text-xs font-bold px-2 py-1 h-7 min-w-[70px]"
-                  >
-                    {category === 'all' ? 'All' : category}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Items Section */}
-          <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-7 gap-1' 
-            : 'space-y-1'
-          }>
-            {filteredItems.map(item => (
-              <Card key={item.id} className={viewMode === 'list' 
-                ? 'w-full p-1' 
-                : 'w-full p-1 max-w-[75px]'
-              }>
-                {viewMode === 'grid' ? (
-                  <>
-                    <CardHeader className="pb-1 p-1">
-                      <CardTitle className="text-xs font-bold line-clamp-2 leading-tight text-center">{item.name}</CardTitle>
-                      {item.category && (
-                        <Badge variant="secondary" className="w-fit text-[8px] font-bold px-1 py-0 mx-auto">
-                          {item.category}
-                        </Badge>
-                      )}
-                    </CardHeader>
-                    <CardContent className="p-1 pt-0">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs font-bold">₹{item.price}</span>
-                        <Button
-                          onClick={() => addToCart(item)}
-                          size="sm"
-                          className="h-5 w-5 p-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </>
-                ) : (
-                  <div className="flex items-center justify-between w-full p-1">
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h3 className="font-bold truncate text-sm">{item.name}</h3>
-                      {item.category && (
-                        <Badge variant="secondary" className="text-xs font-bold mt-1 px-2 py-0">
-                          {item.category}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                      <span className="font-bold text-sm">₹{item.price}</span>
-                      <Button
-                        size="sm"
-                        onClick={() => addToCart(item)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        </div>
+    <div className="container mx-auto py-4 px-4 max-w-full">
+      {/* Header */}
+      <div className="flex items-center mb-6">
+        <BillingIcon className="w-8 h-8 mr-3 text-primary" />
+        <h1 className="text-2xl font-bold">Billing</h1>
       </div>
+
+      {/* Add Item Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Add Item</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select onValueChange={(value) => setSelectedItem(items.find(item => item.id === value) || null)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select an item" defaultValue={selectedItem?.name} />
+            </SelectTrigger>
+            <SelectContent>
+              {items.map((item) => (
+                <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            placeholder="Quantity"
+            value={quantity.toString()}
+            onChange={(e) => setQuantity(parseInt(e.target.value))}
+          />
+          <Button onClick={addItemToBill}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Bill Items Table */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Bill Items</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableCaption>A list of items in the current bill.</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item Name</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {billItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">No items in the bill</TableCell>
+                </TableRow>
+              ) : (
+                billItems.map((billItem) => (
+                  <TableRow key={billItem.item.id}>
+                    <TableCell>{billItem.item.name}</TableCell>
+                    <TableCell>{billItem.quantity}</TableCell>
+                    <TableCell>{billItem.item.selling_price}</TableCell>
+                    <TableCell>{billItem.item.selling_price * billItem.quantity}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => removeItemFromBill(billItem.item.id)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Payment Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-lg font-semibold">Total Amount: ${totalAmount.toFixed(2)}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Select onValueChange={(value) => setSelectedPaymentType(paymentTypes.find(pt => pt.id === value) || null)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select payment method" defaultValue={selectedPaymentType?.name} />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentTypes.map((paymentType) => (
+                  <SelectItem key={paymentType.id} value={paymentType.id}>{paymentType.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={processBill} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Process Bill
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
