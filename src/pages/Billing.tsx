@@ -10,7 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { PaymentMethod } from '@/integrations/supabase/types';
+
+// Define PaymentMethod type locally since it's not exported from the types module
+type PaymentMethod = 'cash' | 'card' | 'upi' | 'other';
 
 interface BillItem {
   id: string;
