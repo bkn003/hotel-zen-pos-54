@@ -17,7 +17,6 @@ import {
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import { Crown, CheckCircle, XCircle, Trash2, Clock } from 'lucide-react';
-import { UserStatus } from '@/types/user';
 
 interface AdminProfile {
   id: string;
@@ -25,7 +24,7 @@ interface AdminProfile {
   name: string;
   role: string;
   hotel_name?: string;
-  status: UserStatus;
+  status: 'active' | 'paused' | 'deleted';
   created_at: string;
 }
 
@@ -55,7 +54,7 @@ const AdminManagement = () => {
         name: admin.name || 'Unknown',
         role: admin.role || 'admin',
         hotel_name: admin.hotel_name || undefined,
-        status: (admin.status || 'paused') as UserStatus,
+        status: admin.status || 'paused',
         created_at: admin.created_at
       }));
       
@@ -72,7 +71,7 @@ const AdminManagement = () => {
     }
   };
 
-  const updateAdminStatus = async (adminId: string, newStatus: UserStatus) => {
+  const updateAdminStatus = async (adminId: string, newStatus: 'active' | 'paused' | 'deleted') => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -183,7 +182,7 @@ const AdminManagement = () => {
     );
   }
 
-  const getStatusColor = (status: UserStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800 border-green-200';
       case 'paused': return 'bg-orange-100 text-orange-800 border-orange-200';
@@ -192,7 +191,7 @@ const AdminManagement = () => {
     }
   };
 
-  const getStatusIcon = (status: UserStatus) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active': return <CheckCircle className="w-4 h-4" />;
       case 'paused': return <Clock className="w-4 h-4" />;
