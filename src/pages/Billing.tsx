@@ -189,7 +189,7 @@ const Billing = () => {
           bill_no: billNumber,
           total_amount: getTotalAmount(),
           discount: discount,
-          payment_mode: paymentMode as "cash" | "upi" | "card" | "other",
+          payment_mode: paymentMode,
           created_by: profile?.user_id
         })
         .select()
