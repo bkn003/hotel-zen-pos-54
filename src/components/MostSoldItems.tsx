@@ -67,7 +67,6 @@ const MostSoldItems: React.FC<MostSoldItemsProps> = ({ onAddItem }) => {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm truncate">{item.name}</h4>
-                  <p className="text-xs text-muted-foreground truncate">{item.category}</p>
                 </div>
                 <Button
                   size="sm"
@@ -76,7 +75,6 @@ const MostSoldItems: React.FC<MostSoldItemsProps> = ({ onAddItem }) => {
                     id: item.id,
                     name: item.name,
                     price: item.price,
-                    category: item.category,
                     image_url: item.image_url
                   })}
                   className="h-6 w-6 p-0 ml-2 flex-shrink-0"

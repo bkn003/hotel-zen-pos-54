@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +18,7 @@ import {
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
 import { Crown, CheckCircle, XCircle, Trash2, Clock } from 'lucide-react';
+import { UserStatus } from '@/types/user';
 
 interface AdminProfile {
   id: string;
@@ -24,7 +26,7 @@ interface AdminProfile {
   name: string;
   role: string;
   hotel_name?: string;
-  status: 'active' | 'paused' | 'deleted';
+  status: UserStatus;
   created_at: string;
 }
 
@@ -71,7 +73,7 @@ const AdminManagement = () => {
     }
   };
 
-  const updateAdminStatus = async (adminId: string, newStatus: 'active' | 'paused' | 'deleted') => {
+  const updateAdminStatus = async (adminId: string, newStatus: UserStatus) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -113,47 +115,8 @@ const AdminManagement = () => {
     }
   };
 
-  const deleteAllUsers = async () => {
-    try {
-      // First get all users from profiles
-      const { data: allProfiles, error: fetchError } = await supabase
-        .from('profiles')
-        .select('user_id');
-
-      if (fetchError) throw fetchError;
-
-      if (allProfiles && allProfiles.length > 0) {
-        // Delete each user using the RPC function
-        for (const profile of allProfiles) {
-          try {
-            const { error: deleteError } = await supabase
-              .rpc('delete_user_and_data', { uid: profile.user_id });
-            if (deleteError) {
-              console.error('Error deleting user:', deleteError);
-            }
-          } catch (error) {
-            console.error('Error deleting user:', error);
-          }
-        }
-      }
-
-      toast({
-        title: "Success",
-        description: "All users have been deleted successfully",
-      });
-
-      await fetchAdmins();
-    } catch (error) {
-      console.error('Error deleting all users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete all users",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (profile?.role !== 'super_admin') {
+  // Only allow access to admins (removed super_admin check)
+  if (profile?.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -163,7 +126,7 @@ const AdminManagement = () => {
           </CardHeader>
           <CardContent>
             <p className="text-center text-muted-foreground">
-              You don't have permission to access this page. Only Super Admins can manage admin accounts.
+              You don't have permission to access this page. Only Admins can manage admin accounts.
             </p>
           </CardContent>
         </Card>
@@ -210,39 +173,6 @@ const AdminManagement = () => {
             <p className="text-muted-foreground">Manage hotel admin accounts and permissions</p>
           </div>
         </div>
-        
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="lg">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete All Users
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete All Users</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete ALL users from the system including:
-                <br />• All admin accounts
-                <br />• All staff accounts
-                <br />• All bills and transactions
-                <br />• All expenses records
-                <br />• All items and categories
-                <br /><br />
-                This action cannot be undone and will reset the entire application. Are you sure you want to proceed?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={deleteAllUsers}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Delete All Users
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
 
       <div className="grid gap-6">
@@ -286,7 +216,7 @@ const AdminManagement = () => {
                     {admin.status === 'paused' && (
                       <Button
                         size="sm"
-                        onClick={() => updateAdminStatus(admin.id, 'active')}
+                        onClick={() => updateAdminStatus(admin.id, 'active' as UserStatus)}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
@@ -297,7 +227,7 @@ const AdminManagement = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateAdminStatus(admin.id, 'paused')}
+                        onClick={() => updateAdminStatus(admin.id, 'paused' as UserStatus)}
                       >
                         <Clock className="w-4 h-4 mr-1" />
                         Pause
@@ -327,7 +257,7 @@ const AdminManagement = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => updateAdminStatus(admin.id, 'deleted')}
+                              onClick={() => updateAdminStatus(admin.id, 'deleted' as UserStatus)}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Delete Permanently

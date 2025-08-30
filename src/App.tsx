@@ -13,7 +13,6 @@ import Items from "./pages/Items";
 import Expenses from "./pages/Expenses";
 import Users from "./pages/Users";
 import Reports from "./pages/Reports";
-import AdminManagement from "./pages/AdminManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,7 +33,6 @@ const App = () => (
             <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
             <Route path="/reports" element={<Layout><Reports /></Layout>} />
             <Route path="/users" element={<Layout><Users /></Layout>} />
-            <Route path="/admin-management" element={<Layout><AdminManagement /></Layout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

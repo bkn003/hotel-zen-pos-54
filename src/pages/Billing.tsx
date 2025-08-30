@@ -1,18 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Edit } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2 } from 'lucide-react';
 
 interface Item {
   id: string;
   name: string;
   price: number;
-  category?: string;
   image_url?: string;
   is_active: boolean;
 }
@@ -34,15 +33,10 @@ const Billing = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [discount, setDiscount] = useState(0);
-  const [editingQuantity, setEditingQuantity] = useState<{
-    itemId: string;
-    quantity: number;
-  } | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -98,12 +92,9 @@ const Billing = () => {
     }
   };
 
-  const categories = ['all', ...Array.from(new Set(items.map(item => item.category).filter(Boolean)))];
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredItems = items.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -133,21 +124,13 @@ const Billing = () => {
     });
   };
 
-  const handleQuantityEdit = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(id);
-    } else {
-      setCart(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, quantity: newQuantity } : item
-        )
-      );
-    }
-    setEditingQuantity(null);
-  };
-
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setDiscount(0);
   };
 
   const getTotalAmount = () => {
@@ -237,8 +220,7 @@ const Billing = () => {
       });
 
       // Clear cart
-      setCart([]);
-      setDiscount(0);
+      clearCart();
     } catch (error) {
       console.error('Error generating bill:', error);
       toast({
@@ -297,12 +279,23 @@ const Billing = () => {
               <Card className="w-full max-w-[98vw] mx-auto">
                 <CardHeader className="pb-1 px-2 py-1">
                   <CardTitle className="text-sm font-bold flex items-center justify-between">
-                    <span>Cart ({cart.length})</span>
-                    <ShoppingCart className="w-4 h-4" />
+                    <span className="flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4" />
+                      Cart ({cart.length})
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={clearCart}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      title="Clear Cart"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-2 py-1 space-y-1">
-                  <div className="space-y-1 max-h-20 overflow-y-auto">
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
                     {cart.map(item => (
                       <div key={item.id} className="flex items-center justify-between py-1 px-1 border rounded text-xs bg-muted/30">
                         <div className="flex-1 min-w-0 pr-1">
@@ -391,7 +384,7 @@ const Billing = () => {
         )}
 
         {/* Main Content - Add top padding when cart is visible */}
-        <div className={cart.length > 0 ? 'pt-[140px]' : ''}>
+        <div className={cart.length > 0 ? 'pt-[160px]' : ''}>
           {/* Search */}
           <div className="mb-3">
             <div className="flex items-center relative">
@@ -402,25 +395,6 @@ const Billing = () => {
                 onChange={e => setSearchQuery(e.target.value)}
                 className="pl-8 h-8 text-sm font-medium"
               />
-            </div>
-          </div>
-
-          {/* Horizontal Scrollable Category Filter */}
-          <div className="mb-3">
-            <div className="overflow-x-auto scrollbar-hide">
-              <div className="flex gap-1 pb-1 min-w-max">
-                {categories.map(category => (
-                  <Button
-                    key={category}
-                    variant={selectedCategory === category ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedCategory(category)}
-                    className="whitespace-nowrap flex-shrink-0 capitalize text-xs font-bold px-2 py-1 h-7 min-w-[70px]"
-                  >
-                    {category === 'all' ? 'All' : category}
-                  </Button>
-                ))}
-              </div>
             </div>
           </div>
 
@@ -438,11 +412,6 @@ const Billing = () => {
                   <>
                     <CardHeader className="pb-1 p-1">
                       <CardTitle className="text-xs font-bold line-clamp-2 leading-tight text-center">{item.name}</CardTitle>
-                      {item.category && (
-                        <Badge variant="secondary" className="w-fit text-[8px] font-bold px-1 py-0 mx-auto">
-                          {item.category}
-                        </Badge>
-                      )}
                     </CardHeader>
                     <CardContent className="p-1 pt-0">
                       <div className="flex flex-col items-center gap-1">
@@ -461,11 +430,6 @@ const Billing = () => {
                   <div className="flex items-center justify-between w-full p-1">
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-bold truncate text-sm">{item.name}</h3>
-                      {item.category && (
-                        <Badge variant="secondary" className="text-xs font-bold mt-1 px-2 py-0">
-                          {item.category}
-                        </Badge>
-                      )}
                     </div>
                     <div className="flex items-center space-x-2 flex-shrink-0">
                       <span className="font-bold text-sm">₹{item.price}</span>

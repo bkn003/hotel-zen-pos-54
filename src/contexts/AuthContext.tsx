@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: user.id,
       user_id: user.id,
       name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-      role: (user.user_metadata?.role || 'user') as 'admin' | 'user' | 'super_admin',
+      role: (user.user_metadata?.role || 'user') as 'admin' | 'user',
       hotel_name: user.user_metadata?.hotel_name,
       status: 'active' as UserStatus
     };
@@ -66,9 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: existingProfile.id,
           user_id: existingProfile.user_id,
           name: existingProfile.name || 'User',
-          role: existingProfile.role as 'admin' | 'user' | 'super_admin',
+          role: existingProfile.role as 'admin' | 'user',
           hotel_name: existingProfile.hotel_name || undefined,
-          status: existingProfile.status as 'active' | 'paused' | 'deleted'
+          status: existingProfile.status as UserStatus
         };
       }
 
@@ -78,9 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profileData = {
           user_id: user.id,
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-          role: (user.user_metadata?.role || 'user') as 'admin' | 'user' | 'super_admin',
+          role: (user.user_metadata?.role || 'user') as 'admin' | 'user',
           hotel_name: user.user_metadata?.hotel_name || null,
-          status: 'active' as 'active' | 'paused' | 'deleted'
+          status: 'active' as UserStatus
         };
 
         const createPromise = supabase
@@ -104,9 +104,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: data.id,
             user_id: data.user_id,
             name: data.name,
-            role: data.role as 'admin' | 'user' | 'super_admin',
+            role: data.role as 'admin' | 'user',
             hotel_name: data.hotel_name,
-            status: data.status as 'active' | 'paused' | 'deleted'
+            status: data.status as UserStatus
           };
         }
       } catch (createError) {
