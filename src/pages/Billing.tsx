@@ -336,38 +336,38 @@ const Billing = () => {
             <div className="w-full px-1 py-2">
               <Card className="w-full max-w-[98vw] mx-auto">
                 <CardHeader className="pb-1 px-2 py-1">
-                  <CardTitle className="text-lg font-bold flex items-center justify-between">
+                  <CardTitle className="text-sm font-bold flex items-center justify-between">
                     <span className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5" />
-                      <span className="text-lg font-bold">Cart ({cart.length})</span>
+                      <ShoppingCart className="w-4 h-4" />
+                      Cart ({cart.length})
                     </span>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={clearCart}
-                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                       title="Clear Cart"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-2 py-1 space-y-1">
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
                     {cart.map(item => (
-                      <div key={item.id} className="flex items-center justify-between py-2 px-2 border rounded text-sm bg-muted/30">
+                      <div key={item.id} className="flex items-center justify-between py-1 px-1 border rounded text-xs bg-muted/30">
                         <div className="flex-1 min-w-0 pr-1">
-                          <h4 className="font-bold truncate text-sm">{item.name}</h4>
-                          <p className="text-sm text-muted-foreground font-bold">₹{item.price}</p>
+                          <h4 className="font-bold truncate text-xs">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground font-medium">₹{item.price}</p>
                         </div>
                         <div className="flex items-center space-x-1 flex-shrink-0">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="h-6 w-6 p-0"
+                            className="h-5 w-5 p-0"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3 h-3" />
                           </Button>
                           
                           {editingQuantity === item.id ? (
@@ -376,7 +376,7 @@ const Billing = () => {
                                 type="number"
                                 value={tempQuantity}
                                 onChange={(e) => setTempQuantity(e.target.value)}
-                                className="h-6 w-20 text-sm text-center p-1 font-bold"
+                                className="h-5 w-16 text-xs text-center p-1"
                                 min="0"
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -392,9 +392,9 @@ const Billing = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => saveQuantity(item.id)}
-                                className="h-6 w-6 p-0 text-green-600"
+                                className="h-5 w-5 p-0 text-green-600"
                               >
-                                <Check className="w-4 h-4" />
+                                <Check className="w-3 h-3" />
                               </Button>
                             </div>
                           ) : (
@@ -403,7 +403,7 @@ const Billing = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => startEditingQuantity(item.id, item.quantity)}
-                                className="h-6 min-w-[2.5rem] px-2 text-sm font-bold"
+                                className="h-5 min-w-[2rem] px-1 text-xs font-bold"
                                 title="Click to edit quantity"
                               >
                                 {item.quantity}
@@ -415,26 +415,26 @@ const Billing = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="h-6 w-6 p-0"
+                            className="h-5 w-5 p-0"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3 h-3" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => removeFromCart(item.id)}
-                            className="h-6 w-6 p-0 ml-1 text-destructive hover:text-destructive"
+                            className="h-5 w-5 p-0 ml-1 text-destructive hover:text-destructive"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-1">
                     <div>
-                      <label className="text-sm font-bold mb-1 block">Payment</label>
+                      <label className="text-xs font-bold mb-1 block">Payment</label>
                       <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide">
                         {paymentTypes.map(payment => (
                           <Button
@@ -442,7 +442,7 @@ const Billing = () => {
                             variant={selectedPayment === payment.payment_type ? "default" : "outline"}
                             size="sm"
                             onClick={() => setSelectedPayment(payment.payment_type)}
-                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[60px] text-sm font-bold px-3 py-1 h-7"
+                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[50px] text-xs font-bold px-2 py-1 h-5"
                           >
                             {payment.payment_type}
                           </Button>
@@ -450,26 +450,26 @@ const Billing = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-1">
                       <div>
-                        <label className="text-sm font-bold">Discount</label>
+                        <label className="text-xs font-bold">Discount</label>
                         <Input
                           type="number"
                           min="0"
                           value={discount}
                           onChange={e => setDiscount(Number(e.target.value) || 0)}
-                          className="h-7 w-full text-sm font-bold"
+                          className="h-6 w-full text-xs"
                         />
                       </div>
 
                       <div className="flex flex-col justify-end">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-lg">₹{getTotalAmount()}</span>
+                          <span className="font-bold text-sm">₹{getTotalAmount()}</span>
                         </div>
                         <Button
                           onClick={generateBill}
                           size="sm"
-                          className="w-full h-7 text-sm font-bold"
+                          className="w-full h-6 text-xs font-bold"
                         >
                           Generate Bill
                         </Button>
@@ -483,7 +483,7 @@ const Billing = () => {
         )}
 
         {/* Main Content - Add top padding when cart is visible */}
-        <div className={cart.length > 0 ? 'pt-[180px]' : ''}>
+        <div className={cart.length > 0 ? 'pt-[160px]' : ''}>
           {/* Search */}
           <div className="mb-3">
             <div className="flex items-center relative">

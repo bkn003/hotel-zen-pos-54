@@ -197,7 +197,7 @@ const Expenses: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex overflow-x-auto gap-2 mb-4 pb-2 scrollbar-hide">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4 overflow-x-hidden">
             {[
               { key: 'today', label: 'Today' },
               { key: 'yesterday', label: 'Yesterday' },
@@ -210,9 +210,9 @@ const Expenses: React.FC = () => {
                 key={filter.key}
                 variant={dateFilter === filter.key ? "default" : "outline"}
                 onClick={() => setDateFilter(filter.key)}
-                className="text-xs sm:text-sm flex-shrink-0 px-3"
+                className="text-xs sm:text-sm min-w-0 px-2"
               >
-                {filter.label}
+                <span className="truncate">{filter.label}</span>
               </Button>
             ))}
           </div>
@@ -259,7 +259,7 @@ const Expenses: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Expenses List - Horizontal Scroll */}
+      {/* Expenses List */}
       <Card>
         <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
@@ -283,9 +283,9 @@ const Expenses: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 overflow-x-hidden">
               {filteredExpenses.map((expense) => (
-                <Card key={expense.id} className="p-3 sm:p-4 flex-shrink-0 w-80 min-w-[280px]">
+                <Card key={expense.id} className="p-3 sm:p-4 min-w-0">
                   <div className="space-y-3">
                     <div className="min-w-0">
                       <h4 className="font-medium text-base sm:text-lg truncate">
@@ -314,13 +314,13 @@ const Expenses: React.FC = () => {
                     )}
                     
                     {profile?.role === 'admin' && (
-                      <div className="pt-2 flex flex-col gap-2">
+                      <div className="pt-2 flex flex-col sm:flex-row gap-2">
                         <EditExpenseDialog expense={expense} onExpenseUpdated={fetchExpenses} />
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => deleteExpense(expense.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm w-full"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm"
                         >
                           Delete
                         </Button>
