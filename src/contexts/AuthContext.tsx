@@ -1,16 +1,7 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Profile {
-  id: string;
-  user_id: string;
-  name: string;
-  role: 'admin' | 'user' | 'super_admin';
-  hotel_name?: string;
-  status: 'active' | 'paused' | 'deleted';
-}
+import { Profile, UserStatus } from '@/types/user';
 
 interface AuthContextType {
   user: User | null;
@@ -45,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
       role: (user.user_metadata?.role || 'user') as 'admin' | 'user' | 'super_admin',
       hotel_name: user.user_metadata?.hotel_name,
-      status: 'active' as 'active' | 'paused' | 'deleted'
+      status: 'active' as UserStatus
     };
   };
 
