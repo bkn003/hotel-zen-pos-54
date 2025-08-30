@@ -15,3 +15,13 @@ export interface UserProfile extends Profile {
   created_at: string;
   updated_at?: string;
 }
+
+// Item interface to match database schema
+export interface Item {
+  id: string;
+  name: string;
+  price: number; // Database has 'price', not 'selling_price'
+}
+
+// Payment types
+export type PaymentMode = 'cash' | 'upi' | 'card' | 'other';

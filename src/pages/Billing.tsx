@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,13 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { Billing as BillingIcon, Plus, X, CheckCircle } from 'lucide-react';
-
-interface Item {
-  id: string;
-  name: string;
-  selling_price: number;
-}
+import { Receipt, Plus, X, CheckCircle } from 'lucide-react';
+import { Item, PaymentMode } from '@/types/user';
 
 interface BillItem {
   item: Item;
@@ -24,8 +20,6 @@ interface PaymentType {
   id: string;
   name: string;
 }
-
-type PaymentMode = "cash" | "upi" | "card" | "other";
 
 const Billing = () => {
   const { profile } = useAuth();
@@ -46,7 +40,7 @@ const Billing = () => {
     try {
       const { data, error } = await supabase
         .from('items')
-        .select('id, name, selling_price')
+        .select('id, name, price')
         .eq('is_active', true);
 
       if (error) throw error;
@@ -122,7 +116,7 @@ const Billing = () => {
     setBillItems([]);
   };
 
-  const totalAmount = billItems.reduce((total, item) => total + item.item.selling_price * item.quantity, 0);
+  const totalAmount = billItems.reduce((total, item) => total + item.item.price * item.quantity, 0);
 
   // Map payment types to valid enum values
   const mapPaymentMode = (paymentType: string): PaymentMode => {
@@ -174,7 +168,7 @@ const Billing = () => {
             bill_no: '123',
             created_by: profile?.user_id || profile?.id || 'system',
             total_amount: totalAmount,
-            payment_mode: mapPaymentMode(selectedPaymentType.name) as PaymentMode,
+            payment_mode: mapPaymentMode(selectedPaymentType.name),
             date: new Date().toISOString()
           }
         ])
@@ -188,8 +182,8 @@ const Billing = () => {
         bill_id: billData.id,
         item_id: item.item.id,
         quantity: item.quantity,
-        price: item.item.selling_price,
-        total: item.item.selling_price * item.quantity
+        price: item.item.price,
+        total: item.item.price * item.quantity
       }));
 
       const { error: billItemsError } = await supabase
@@ -222,7 +216,7 @@ const Billing = () => {
     <div className="container mx-auto py-4 px-4 max-w-full">
       {/* Header */}
       <div className="flex items-center mb-6">
-        <BillingIcon className="w-8 h-8 mr-3 text-primary" />
+        <Receipt className="w-8 h-8 mr-3 text-primary" />
         <h1 className="text-2xl font-bold">Billing</h1>
       </div>
 
@@ -282,8 +276,8 @@ const Billing = () => {
                   <TableRow key={billItem.item.id}>
                     <TableCell>{billItem.item.name}</TableCell>
                     <TableCell>{billItem.quantity}</TableCell>
-                    <TableCell>{billItem.item.selling_price}</TableCell>
-                    <TableCell>{billItem.item.selling_price * billItem.quantity}</TableCell>
+                    <TableCell>{billItem.item.price}</TableCell>
+                    <TableCell>{billItem.item.price * billItem.quantity}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => removeItemFromBill(billItem.item.id)}>
                         <X className="w-4 h-4" />
