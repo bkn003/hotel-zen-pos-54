@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -684,28 +683,28 @@ const Billing = () => {
 
           {/* Items Section */}
           <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-7 gap-1' 
+            ? 'grid grid-cols-4 gap-2' 
             : 'space-y-1'
           }>
             {filteredItems.map(item => (
               <Card key={item.id} className={viewMode === 'list' 
                 ? 'w-full p-1' 
-                : 'w-full p-1 max-w-[75px]'
+                : 'w-full p-2'
               }>
                 {viewMode === 'grid' ? (
                   <>
-                    <CardHeader className="pb-1 p-1">
-                      <CardTitle className="text-xs font-bold line-clamp-2 leading-tight text-center">{item.name}</CardTitle>
+                    <CardHeader className="pb-2 p-2">
+                      <CardTitle className="text-sm font-bold line-clamp-2 leading-tight text-center min-h-[2.5rem] flex items-center justify-center">{item.name}</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-1 pt-0">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs font-bold">₹{item.price}</span>
+                    <CardContent className="p-2 pt-0">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-sm font-bold">₹{item.price}</span>
                         <Button
                           onClick={() => addToCart(item)}
                           size="sm"
-                          className="h-5 w-5 p-0"
+                          className="h-7 w-7 p-0"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-4 h-4" />
                         </Button>
                       </div>
                     </CardContent>
