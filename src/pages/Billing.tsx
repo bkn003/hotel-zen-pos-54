@@ -90,6 +90,7 @@ const Billing = () => {
   const loadBillData = async (billId: string) => {
     try {
       console.log('Loading bill data for:', billId);
+      setLoading(true);
       
       // Fetch bill items with item details
       const { data: billItems, error: billItemsError } = await supabase
@@ -137,6 +138,9 @@ const Billing = () => {
         description: "Failed to load bill data",
         variant: "destructive"
       });
+      setCart([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -195,11 +199,13 @@ const Billing = () => {
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Get display items for cart - ensure at least 3 items are shown
+  // Updated cart display - only show minimum 3 items if cart has items
   const getCartDisplayItems = () => {
+    if (cart.length === 0) return [];
+    
     const displayItems = [...cart];
     
-    // Add empty placeholder items to reach minimum of 3
+    // Add empty placeholder items to reach minimum of 3 only if we have items
     while (displayItems.length < 3) {
       displayItems.push({
         id: `placeholder-${displayItems.length}`,
@@ -502,6 +508,9 @@ const Billing = () => {
     );
   }
 
+  const cartDisplayItems = getCartDisplayItems();
+  const showCart = cart.length > 0;
+
   return (
     <div className="min-h-screen w-full">
       <div className="w-full px-1 py-2">
@@ -537,166 +546,168 @@ const Billing = () => {
           </div>
         </div>
 
-        {/* Sticky Cart Section - Always show with at least 3 items */}
-        <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-md">
-          <div className="w-full px-1 py-2">
-            <Card className="w-full max-w-[98vw] mx-auto">
-              <CardHeader className="pb-1 px-2 py-1">
-                <CardTitle className="text-xl font-black flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <ShoppingCart className="w-6 h-6" />
-                    <span className="text-xl font-black">Cart ({cart.length})</span>
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={clearCart}
-                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                    title="Clear Cart"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-2 py-1 space-y-1">
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {getCartDisplayItems().map((item, index) => (
-                    <div key={item.id} className="flex items-center justify-between py-2 px-2 border rounded text-sm bg-muted/30">
-                      {item.name ? (
-                        <>
-                          <div className="flex-1 min-w-0 pr-2">
-                            <h4 className="font-black truncate text-lg leading-tight">{item.name}</h4>
-                            <p className="text-base text-muted-foreground font-black">₹{item.price}</p>
+        {/* Conditional Cart Section - Only show when there are items */}
+        {showCart && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-md">
+            <div className="w-full px-1 py-2">
+              <Card className="w-full max-w-[98vw] mx-auto">
+                <CardHeader className="pb-1 px-2 py-1">
+                  <CardTitle className="text-xl font-black flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <ShoppingCart className="w-6 h-6" />
+                      <span className="text-xl font-black">Cart ({cart.length})</span>
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={clearCart}
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      title="Clear Cart"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-2 py-1 space-y-1">
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {cartDisplayItems.map((item, index) => (
+                      <div key={item.id} className="flex items-center justify-between py-2 px-2 border rounded text-sm bg-muted/30">
+                        {item.name ? (
+                          <>
+                            <div className="flex-1 min-w-0 pr-2">
+                              <h4 className="font-black truncate text-lg leading-tight">{item.name}</h4>
+                              <p className="text-base text-muted-foreground font-black">₹{item.price}</p>
+                            </div>
+                            <div className="flex items-center space-x-1 flex-shrink-0">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateQuantity(item.id, -1)}
+                                className="h-7 w-7 p-0 font-black"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                              
+                              {editingQuantity === item.id ? (
+                                <div className="flex items-center space-x-1">
+                                  <Input
+                                    type="number"
+                                    value={tempQuantity}
+                                    onChange={(e) => setTempQuantity(e.target.value)}
+                                    className="h-7 w-16 text-base text-center p-1 font-black"
+                                    min="0"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        saveQuantity(item.id);
+                                      } else if (e.key === 'Escape') {
+                                        cancelEditQuantity();
+                                      }
+                                    }}
+                                    onBlur={() => saveQuantity(item.id)}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => saveQuantity(item.id)}
+                                    className="h-7 w-7 p-0 text-green-600"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => startEditingQuantity(item.id, item.quantity)}
+                                    className="h-7 min-w-[2.5rem] px-2 text-base font-black"
+                                    title="Click to edit quantity"
+                                  >
+                                    {item.quantity}
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateQuantity(item.id, 1)}
+                                className="h-7 w-7 p-0 font-black"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => removeFromCart(item.id)}
+                                className="h-7 w-7 p-0 ml-1 text-destructive hover:text-destructive"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex-1 text-center py-4">
+                            <span className="text-base text-muted-foreground font-bold">Empty slot</span>
                           </div>
-                          <div className="flex items-center space-x-1 flex-shrink-0">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="h-7 w-7 p-0 font-black"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </Button>
-                            
-                            {editingQuantity === item.id ? (
-                              <div className="flex items-center space-x-1">
-                                <Input
-                                  type="number"
-                                  value={tempQuantity}
-                                  onChange={(e) => setTempQuantity(e.target.value)}
-                                  className="h-7 w-16 text-base text-center p-1 font-black"
-                                  min="0"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      saveQuantity(item.id);
-                                    } else if (e.key === 'Escape') {
-                                      cancelEditQuantity();
-                                    }
-                                  }}
-                                  onBlur={() => saveQuantity(item.id)}
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => saveQuantity(item.id)}
-                                  className="h-7 w-7 p-0 text-green-600"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center space-x-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => startEditingQuantity(item.id, item.quantity)}
-                                  className="h-7 min-w-[2.5rem] px-2 text-base font-black"
-                                  title="Click to edit quantity"
-                                >
-                                  {item.quantity}
-                                </Button>
-                              </div>
-                            )}
-                            
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="h-7 w-7 p-0 font-black"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => removeFromCart(item.id)}
-                              className="h-7 w-7 p-0 ml-1 text-destructive hover:text-destructive"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex-1 text-center py-4">
-                          <span className="text-base text-muted-foreground font-bold">Empty slot</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                  <div>
-                    <label className="text-base font-black mb-1 block">Payment</label>
-                    <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide">
-                      {paymentTypes.map(payment => (
-                        <Button
-                          key={payment.id}
-                          variant={selectedPayment === payment.payment_type ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSelectedPayment(payment.payment_type)}
-                          className="capitalize whitespace-nowrap flex-shrink-0 min-w-[60px] text-base font-black px-3 py-1 h-8"
-                        >
-                          {payment.payment_type}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-base font-black">Discount</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={discount}
-                        onChange={e => setDiscount(Number(e.target.value) || 0)}
-                        className="h-8 w-full text-base font-black"
-                      />
-                    </div>
-
-                    <div className="flex flex-col justify-end">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-black text-xl">₹{getTotalAmount()}</span>
+                        )}
                       </div>
-                      <Button
-                        onClick={isEditMode ? updateBill : generateBill}
-                        size="sm"
-                        className="w-full h-8 text-base font-black"
-                      >
-                        {isEditMode ? 'Update Bill' : 'Generate Bill'}
-                      </Button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <div>
+                      <label className="text-base font-black mb-1 block">Payment</label>
+                      <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide">
+                        {paymentTypes.map(payment => (
+                          <Button
+                            key={payment.id}
+                            variant={selectedPayment === payment.payment_type ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSelectedPayment(payment.payment_type)}
+                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[60px] text-base font-black px-3 py-1 h-8"
+                          >
+                            {payment.payment_type}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-base font-black">Discount</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={discount}
+                          onChange={e => setDiscount(Number(e.target.value) || 0)}
+                          className="h-8 w-full text-base font-black"
+                        />
+                      </div>
+
+                      <div className="flex flex-col justify-end">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-black text-xl">₹{getTotalAmount()}</span>
+                        </div>
+                        <Button
+                          onClick={isEditMode ? updateBill : generateBill}
+                          size="sm"
+                          className="w-full h-8 text-base font-black"
+                        >
+                          {isEditMode ? 'Update Bill' : 'Generate Bill'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Main Content - Add top padding for sticky cart */}
-        <div className="pt-[200px]">
+        {/* Main Content - Add top padding only if cart is visible */}
+        <div className={showCart ? "pt-[200px]" : ""}>
           {/* Search */}
           <div className="mb-3">
             <div className="flex items-center relative">
