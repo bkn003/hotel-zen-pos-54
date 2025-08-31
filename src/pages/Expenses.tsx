@@ -119,7 +119,7 @@ const Expenses = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Expenses</h1>
         <div className="flex flex-col sm:flex-row gap-2">
-          <CategoryManagement type="expense" />
+          <CategoryManagement onCategoriesUpdated={fetchExpenses} />
           <AddExpenseDialog onExpenseAdded={fetchExpenses} />
         </div>
       </div>
