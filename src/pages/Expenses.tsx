@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Search, Edit2, Trash2, Calendar, DollarSign, FileText } from 'lucide-react';
 import { AddExpenseDialog } from '@/components/AddExpenseDialog';
@@ -31,10 +30,7 @@ const Expenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [showCategoryManagement, setShowCategoryManagement] = useState(false);
 
   useEffect(() => {
     fetchExpenses();
@@ -74,11 +70,6 @@ const Expenses = () => {
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMM dd, yyyy');
-  };
-
-  const handleEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setShowEditDialog(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -128,17 +119,8 @@ const Expenses = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Expenses</h1>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            onClick={() => setShowCategoryManagement(true)}
-            variant="outline"
-            size="sm"
-          >
-            Manage Categories
-          </Button>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Expense
-          </Button>
+          <CategoryManagement type="expense" />
+          <AddExpenseDialog onExpenseAdded={fetchExpenses} />
         </div>
       </div>
 
@@ -172,14 +154,10 @@ const Expenses = () => {
                       </div>
                     </div>
                     <div className="flex space-x-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEdit(expense)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
+                      <EditExpenseDialog
+                        expense={expense}
+                        onExpenseUpdated={fetchExpenses}
+                      />
                       <Button
                         size="sm"
                         variant="ghost"
@@ -222,28 +200,6 @@ const Expenses = () => {
           </div>
         </div>
       </div>
-
-      {/* Dialogs */}
-      <AddExpenseDialog 
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onExpenseAdded={fetchExpenses}
-      />
-
-      {editingExpense && (
-        <EditExpenseDialog
-          open={showEditDialog}
-          onOpenChange={setShowEditDialog}
-          expense={editingExpense}
-          onExpenseUpdated={fetchExpenses}
-        />
-      )}
-
-      <CategoryManagement
-        open={showCategoryManagement}
-        onOpenChange={setShowCategoryManagement}
-        type="expense"
-      />
     </div>
   );
 };
