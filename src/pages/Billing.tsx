@@ -81,6 +81,8 @@ const Billing = () => {
       console.log('Edit bill data received:', billData);
       setEditingBill(billData);
       setIsEditMode(true);
+      setDiscount(billData.discount || 0);
+      setSelectedPayment(billData.payment_mode || '');
       loadBillData(billData.id);
     }
   }, [location.state]);
@@ -122,11 +124,11 @@ const Billing = () => {
           quantity: billItem.quantity
         }));
 
+        console.log('Setting cart items:', cartItems);
         setCart(cartItems);
-        setDiscount(editingBill?.discount || 0);
-        setSelectedPayment(editingBill?.payment_mode || '');
-        
-        console.log('Cart loaded with items:', cartItems);
+      } else {
+        console.log('No bill items found');
+        setCart([]);
       }
     } catch (error) {
       console.error('Error loading bill data:', error);
