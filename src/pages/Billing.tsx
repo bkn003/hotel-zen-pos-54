@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface Item {
   id: string;
@@ -15,6 +15,12 @@ interface Item {
   price: number;
   image_url?: string;
   is_active: boolean;
+  category?: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
 }
 
 interface CartItem extends Item {
@@ -60,6 +66,8 @@ const Billing = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,6 +82,7 @@ const Billing = () => {
 
   useEffect(() => {
     fetchItems();
+    fetchCategories();
     fetchPaymentTypes();
     
     // Check if we're editing a bill
@@ -157,6 +166,20 @@ const Billing = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('item_categories')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('name');
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
   const fetchPaymentTypes = async () => {
     try {
       const { data, error } = await supabase
@@ -187,9 +210,11 @@ const Billing = () => {
     }
   };
 
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -682,6 +707,34 @@ const Billing = () => {
             </div>
           </div>
 
+          {/* Category Filter */}
+          <div className="mb-3">
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="flex w-max space-x-2 p-1">
+                <Button
+                  variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedCategory('all')}
+                  className="h-7 px-3 text-xs font-medium whitespace-nowrap"
+                >
+                  All Items
+                </Button>
+                {categories.map((category) => (
+                  <Button
+                    key={category.id}
+                    variant={selectedCategory === category.name ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedCategory(category.name)}
+                    className="h-7 px-3 text-xs font-medium whitespace-nowrap"
+                  >
+                    {category.name}
+                  </Button>
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" className="invisible" />
+            </ScrollArea>
+          </div>
+
           {/* Items Section */}
           <div className={viewMode === 'grid' 
             ? 'grid grid-cols-7 gap-1' 
@@ -714,6 +767,9 @@ const Billing = () => {
                   <div className="flex items-center justify-between w-full p-1">
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-bold truncate text-sm">{item.name}</h3>
+                      {item.category && (
+                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2 flex-shrink-0">
                       <span className="font-bold text-sm">₹{item.price}</span>
