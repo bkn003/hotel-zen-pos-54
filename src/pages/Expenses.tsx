@@ -1,338 +1,249 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Receipt, Search, Calendar, Filter } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, DollarSign, FileText } from 'lucide-react';
 import { AddExpenseDialog } from '@/components/AddExpenseDialog';
 import { EditExpenseDialog } from '@/components/EditExpenseDialog';
-import { CategorySelector } from '@/components/CategorySelector';
-import { cachedFetch, CACHE_KEYS, dataCache } from '@/utils/cacheUtils';
+import { CategoryManagement } from '@/components/CategoryManagement';
+import { format } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Expense {
   id: string;
-  expense_name?: string;
+  expense_name: string;
   amount: number;
   category: string;
   note?: string;
   date: string;
-  created_by: string;
   created_at: string;
+  created_by: string;
 }
 
-const Expenses: React.FC = () => {
+const Expenses = () => {
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dateFilter, setDateFilter] = useState('today');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false);
 
   useEffect(() => {
     fetchExpenses();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [searchTerm, expenses, startDate, endDate, dateFilter]);
-
   const fetchExpenses = async () => {
     try {
-      const data = await cachedFetch(
-        `${CACHE_KEYS.EXPENSES}_list`,
-        async () => {
-          const { data, error } = await supabase
-            .from('expenses')
-            .select('*')
-            .order('date', { ascending: false });
-
-          if (error) throw error;
-          return data || [];
-        }
-      );
-      setExpenses(data);
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setExpenses(data || []);
     } catch (error) {
       console.error('Error fetching expenses:', error);
       toast({
         title: "Error",
         description: "Failed to fetch expenses",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const applyFilters = () => {
-    let filtered = expenses;
-
-    // Search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(expense => 
-        expense.expense_name?.toLowerCase().includes(searchLower) ||
-        expense.category.toLowerCase().includes(searchLower) ||
-        expense.note?.toLowerCase().includes(searchLower) ||
-        expense.amount.toString().includes(searchTerm)
-      );
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isMobile) {
+      // 12-hour format for mobile
+      return format(date, 'h:mm a');
+    } else {
+      // 24-hour format for desktop
+      return format(date, 'HH:mm');
     }
-
-    // Date filter
-    if (dateFilter === 'custom' && startDate && endDate) {
-      const startDateObj = new Date(startDate);
-      const endDateObj = new Date(endDate);
-      
-      if (endDateObj < startDateObj) {
-        toast({
-          title: "Error",
-          description: "End date cannot be before start date",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      filtered = filtered.filter(expense => {
-        const expenseDate = new Date(expense.date);
-        return expenseDate >= startDateObj && expenseDate <= endDateObj;
-      });
-    } else if (dateFilter === 'today') {
-      const today = new Date().toISOString().split('T')[0];
-      filtered = filtered.filter(expense => expense.date === today);
-    } else if (dateFilter === 'yesterday') {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      filtered = filtered.filter(expense => expense.date === yesterdayStr);
-    } else if (dateFilter === 'week') {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      filtered = filtered.filter(expense => new Date(expense.date) >= weekAgo);
-    } else if (dateFilter === 'month') {
-      const monthAgo = new Date();
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      filtered = filtered.filter(expense => new Date(expense.date) >= monthAgo);
-    }
-
-    setFilteredExpenses(filtered);
   };
 
-  const handleCategoriesUpdated = () => {
-    // Invalidate categories cache and refetch expenses
-    dataCache.invalidate(CACHE_KEYS.CATEGORIES);
-    fetchExpenses();
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'MMM dd, yyyy');
   };
 
-  const deleteExpense = async (expenseId: string) => {
+  const handleEdit = (expense: Expense) => {
+    setEditingExpense(expense);
+    setShowEditDialog(true);
+  };
+
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this expense?')) return;
 
     try {
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', expenseId);
-
+        .eq('id', id);
+      
       if (error) throw error;
-
+      
       toast({
         title: "Success",
-        description: "Expense deleted successfully",
+        description: "Expense deleted successfully"
       });
-
+      
       fetchExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
       toast({
         title: "Error",
         description: "Failed to delete expense",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
 
+  const filteredExpenses = expenses.filter(expense => 
+    expense.expense_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    expense.note?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading expenses...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-
   return (
-    <div className="container mx-auto py-4 px-2 sm:px-4 max-w-full overflow-x-hidden">
+    <div className="p-4 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center">
-          <Receipt className="w-8 h-8 mr-3 text-primary" />
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Expenses</h1>
-            <p className="text-muted-foreground text-sm">Track your business expenses</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {profile?.role === 'admin' && (
-            <>
-              <CategorySelector onCategoriesUpdated={handleCategoriesUpdated} />
-              <AddExpenseDialog onExpenseAdded={fetchExpenses} />
-            </>
-          )}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Expenses</h1>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            onClick={() => setShowCategoryManagement(true)}
+            variant="outline"
+            size="sm"
+          >
+            Manage Categories
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Expense
+          </Button>
         </div>
       </div>
 
-      {/* Date Filters */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="w-5 h-5" />
-            Date Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4 overflow-x-hidden">
-            {[
-              { key: 'today', label: 'Today' },
-              { key: 'yesterday', label: 'Yesterday' },
-              { key: 'week', label: 'This Week' },
-              { key: 'month', label: 'This Month' },
-              { key: 'all', label: 'All Time' },
-              { key: 'custom', label: 'Custom' }
-            ].map(filter => (
-              <Button
-                key={filter.key}
-                variant={dateFilter === filter.key ? "default" : "outline"}
-                onClick={() => setDateFilter(filter.key)}
-                className="text-xs sm:text-sm min-w-0 px-2"
-              >
-                <span className="truncate">{filter.label}</span>
-              </Button>
-            ))}
-          </div>
-          
-          {dateFilter === 'custom' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">End Date</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  min={startDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Search */}
+      <div className="flex items-center relative max-w-md">
+        <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search expenses..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
-      {/* Search Bar */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Search className="w-5 h-5" />
-            Search Expenses
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Input
-            placeholder="Search by name, category, note, or amount..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full max-w-full"
-          />
-        </CardContent>
-      </Card>
-
-      {/* Expenses List */}
-      <Card>
-        <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
-          <span className="text-base sm:text-lg">All Expenses ({filteredExpenses.length})</span>
-          {filteredExpenses.length > 0 && (
-            <div className="text-left sm:text-right">
-              <p className="text-base sm:text-lg font-bold text-destructive">
-                Total: ₹{totalExpenses.toFixed(2)}
-              </p>
-            </div>
-          )}
-        </div>
-        </CardHeader>
-        <CardContent>
-          {filteredExpenses.length === 0 ? (
-            <div className="text-center py-16">
-              <Receipt className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">No Expenses Found</h3>
-              <p className="text-muted-foreground">
-                {searchTerm || dateFilter !== 'all' ? 'No expenses match your search criteria.' : 'No expenses recorded yet.'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 overflow-x-hidden">
-              {filteredExpenses.map((expense) => (
-                <Card key={expense.id} className="p-3 sm:p-4 min-w-0">
-                  <div className="space-y-3">
-                    <div className="min-w-0">
-                      <h4 className="font-medium text-base sm:text-lg truncate">
+      {/* Expenses List - Horizontal Scroll */}
+      <div className="w-full">
+        <h2 className="text-lg font-semibold mb-3">All Expenses</h2>
+        <div className="w-full overflow-x-auto">
+          <div className="flex gap-3 pb-3" style={{ minWidth: 'max-content' }}>
+            {filteredExpenses.map(expense => (
+              <Card key={expense.id} className="w-72 flex-shrink-0 hover:shadow-md transition-shadow">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg font-bold text-primary">
                         {expense.expense_name || 'Unnamed Expense'}
-                      </h4>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {expense.category}
-                      </Badge>
+                      </CardTitle>
+                      <div className="flex items-center text-sm text-muted-foreground mt-1">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        <span>{formatDate(expense.date)} at {formatTime(expense.created_at)}</span>
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-base sm:text-lg text-red-600">
-                        -₹{expense.amount.toFixed(2)}
+                    <div className="flex space-x-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleEdit(expense)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDelete(expense.id)}
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <DollarSign className="w-4 h-4 mr-1 text-green-600" />
+                      <span className="text-xl font-bold text-green-600">
+                        ₹{expense.amount.toLocaleString()}
                       </span>
                     </div>
-                    
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div>Date: {new Date(expense.date).toLocaleDateString()}</div>
-                      <div className="truncate">Created: {new Date(expense.created_at).toLocaleDateString()} at {new Date(expense.created_at).toLocaleTimeString()}</div>
-                    </div>
-                    
-                    {expense.note && (
-                      <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded break-words">
-                        {expense.note}
-                      </div>
-                    )}
-                    
-                    {profile?.role === 'admin' && (
-                      <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                        <EditExpenseDialog expense={expense} onExpenseUpdated={fetchExpenses} />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => deleteExpense(expense.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    )}
+                    <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full font-medium">
+                      {expense.category}
+                    </span>
                   </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  {expense.note && (
+                    <div className="flex items-start space-x-2">
+                      <FileText className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {expense.note}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+            {filteredExpenses.length === 0 && (
+              <div className="w-full text-center py-8 text-muted-foreground">
+                No expenses found
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <AddExpenseDialog 
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onExpenseAdded={fetchExpenses}
+      />
+
+      {editingExpense && (
+        <EditExpenseDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          expense={editingExpense}
+          onExpenseUpdated={fetchExpenses}
+        />
+      )}
+
+      <CategoryManagement
+        open={showCategoryManagement}
+        onOpenChange={setShowCategoryManagement}
+        type="expense"
+      />
     </div>
   );
 };
