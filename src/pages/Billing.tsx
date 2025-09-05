@@ -14,13 +14,6 @@ interface Item {
   price: number;
   image_url?: string;
   is_active: boolean;
-  category?: string;
-}
-
-interface ItemCategory {
-  id: string;
-  name: string;
-  is_deleted: boolean;
 }
 
 interface CartItem extends Item {
@@ -66,8 +59,6 @@ const Billing = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
-  const [categories, setCategories] = useState<ItemCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,7 +73,6 @@ const Billing = () => {
 
   useEffect(() => {
     fetchItems();
-    fetchCategories();
     fetchPaymentTypes();
     
     // Check if we're editing a bill
@@ -166,25 +156,6 @@ const Billing = () => {
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('item_categories')
-        .select('*')
-        .eq('is_deleted', false)
-        .order('name');
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch categories",
-        variant: "destructive"
-      });
-    }
-  };
-
   const fetchPaymentTypes = async () => {
     try {
       const { data, error } = await supabase
@@ -215,11 +186,9 @@ const Billing = () => {
     }
   };
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || (item as any).category_id === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredItems = items.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -712,31 +681,6 @@ const Billing = () => {
             </div>
           </div>
 
-          {/* Category Filter */}
-          <div className="mb-3">
-            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-              <Button
-                variant={selectedCategory === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory('all')}
-                className="whitespace-nowrap flex-shrink-0 h-8 px-4 text-sm font-medium"
-              >
-                All Items
-              </Button>
-              {categories.map(category => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category.id)}
-                  className="whitespace-nowrap flex-shrink-0 h-8 px-4 text-sm font-medium"
-                >
-                  {category.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
           {/* Items Section */}
           <div className={viewMode === 'grid' 
             ? 'grid grid-cols-4 gap-2' 
@@ -749,18 +693,16 @@ const Billing = () => {
               }>
                 {viewMode === 'grid' ? (
                   <>
-                    <CardHeader className="pb-1 p-3">
-                      <CardTitle className="text-sm font-semibold line-clamp-3 leading-snug text-center min-h-[3rem] flex items-center justify-center" title={item.name}>
-                        {item.name}
-                      </CardTitle>
+                    <CardHeader className="pb-2 p-2">
+                      <CardTitle className="text-sm font-bold line-clamp-2 leading-tight text-center min-h-[2.5rem] flex items-center justify-center">{item.name}</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-3 pt-0">
+                    <CardContent className="p-2 pt-0">
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-sm font-bold text-primary">₹{item.price}</span>
+                        <span className="text-sm font-bold">₹{item.price}</span>
                         <Button
                           onClick={() => addToCart(item)}
                           size="sm"
-                          className="h-8 w-8 p-0 rounded-full"
+                          className="h-7 w-7 p-0"
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
