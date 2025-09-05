@@ -689,22 +689,24 @@ const Billing = () => {
             {filteredItems.map(item => (
               <Card key={item.id} className={viewMode === 'list' 
                 ? 'w-full p-1' 
-                : 'w-full p-2'
+                : 'w-full p-1'
               }>
                 {viewMode === 'grid' ? (
                   <>
-                    <CardHeader className="pb-2 p-2">
-                      <CardTitle className="text-sm font-bold line-clamp-2 leading-tight text-center min-h-[2.5rem] flex items-center justify-center">{item.name}</CardTitle>
+                    <CardHeader className="pb-1 p-1">
+                      <CardTitle className="text-xs font-bold leading-tight text-center min-h-[3rem] flex items-center justify-center px-1" title={item.name}>
+                        <span className="line-clamp-3 break-words">{item.name}</span>
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-2 pt-0">
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-sm font-bold">₹{item.price}</span>
+                    <CardContent className="p-1 pt-0">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-xs font-bold">₹{item.price}</span>
                         <Button
                           onClick={() => addToCart(item)}
                           size="sm"
-                          className="h-7 w-7 p-0"
+                          className="h-6 w-6 p-0"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                     </CardContent>
