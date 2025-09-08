@@ -62,7 +62,7 @@ const Billing = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [discount, setDiscount] = useState(0);
