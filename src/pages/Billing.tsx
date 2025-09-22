@@ -14,6 +14,7 @@ interface Item {
   price: number;
   image_url?: string;
   is_active: boolean;
+  category?: string;
 }
 
 interface CartItem extends Item {
@@ -25,6 +26,12 @@ interface PaymentType {
   payment_type: string;
   is_disabled: boolean;
   is_default: boolean;
+}
+
+interface ItemCategory {
+  id: string;
+  name: string;
+  is_deleted: boolean;
 }
 
 interface Bill {
@@ -63,6 +70,8 @@ const Billing = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
+  const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [discount, setDiscount] = useState(0);
@@ -73,6 +82,7 @@ const Billing = () => {
 
   useEffect(() => {
     fetchItems();
+    fetchCategories();
     fetchPaymentTypes();
     
     // Check if we're editing a bill
@@ -156,6 +166,25 @@ const Billing = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('item_categories')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('name');
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive"
+      });
+    }
+  };
+
   const fetchPaymentTypes = async () => {
     try {
       const { data, error } = await supabase
@@ -186,9 +215,11 @@ const Billing = () => {
     }
   };
 
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All Categories' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -678,6 +709,37 @@ const Billing = () => {
                 onChange={e => setSearchQuery(e.target.value)}
                 className="pl-8 h-8 text-sm font-medium"
               />
+            </div>
+          </div>
+
+          {/* Category Filter */}
+          <div className="mb-3">
+            <div 
+              className="flex overflow-x-auto pb-2 scrollbar-hide"
+              style={{
+                msOverflowStyle: 'none',
+                scrollbarWidth: 'none'
+              }}
+            >
+              <Button
+                variant={selectedCategory === 'All Categories' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedCategory('All Categories')}
+                className="mr-2 whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
+              >
+                All Categories
+              </Button>
+              {categories.map(category => (
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.name ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedCategory(category.name)}
+                  className="mr-2 whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
+                >
+                  {category.name}
+                </Button>
+              ))}
             </div>
           </div>
 
