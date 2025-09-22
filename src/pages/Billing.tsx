@@ -714,18 +714,12 @@ const Billing = () => {
 
           {/* Category Filter */}
           <div className="mb-3">
-            <div 
-              className="flex overflow-x-auto pb-2 scrollbar-hide"
-              style={{
-                msOverflowStyle: 'none',
-                scrollbarWidth: 'none'
-              }}
-            >
+            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
               <Button
                 variant={selectedCategory === 'All Categories' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSelectedCategory('All Categories')}
-                className="mr-2 whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
+                className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
               >
                 All Categories
               </Button>
@@ -735,7 +729,7 @@ const Billing = () => {
                   variant={selectedCategory === category.name ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setSelectedCategory(category.name)}
-                  className="mr-2 whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
+                  className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
                 >
                   {category.name}
                 </Button>
