@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Edit } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Edit, Plus } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -15,6 +17,14 @@ interface Item {
   price: number;
   category?: string;
   is_active: boolean;
+  description?: string;
+  purchase_rate?: number;
+  unit?: string;
+  base_value?: number;
+  stock_quantity?: number;
+  minimum_stock_alert?: number;
+  quantity_step?: number;
+  image_url?: string;
 }
 
 interface EditItemDialogProps {
@@ -26,18 +36,26 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: item.name,
+    description: item.description || '',
     price: item.price.toString(),
+    purchase_rate: item.purchase_rate?.toString() || '',
+    unit: item.unit || 'Piece (pc)',
+    base_value: item.base_value?.toString() || '1',
+    stock_quantity: item.stock_quantity?.toString() || '',
+    minimum_stock_alert: item.minimum_stock_alert?.toString() || '',
+    quantity_step: item.quantity_step?.toString() || '1',
     category: item.category || '',
+    image_url: item.image_url || '',
     is_active: item.is_active
   });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price) {
+    if (!formData.name || !formData.price || !formData.purchase_rate || !formData.stock_quantity) {
       toast({
         title: "Error",
-        description: "Name and price are required",
+        description: "Name, selling price, purchase rate, and stock quantity are required",
         variant: "destructive",
       });
       return;
@@ -49,8 +67,16 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
         .from('items')
         .update({
           name: formData.name,
+          description: formData.description || null,
           price: parseFloat(formData.price),
+          purchase_rate: parseFloat(formData.purchase_rate),
+          unit: formData.unit,
+          base_value: parseFloat(formData.base_value),
+          stock_quantity: parseFloat(formData.stock_quantity),
+          minimum_stock_alert: parseFloat(formData.minimum_stock_alert) || 0,
+          quantity_step: parseFloat(formData.quantity_step),
           category: formData.category || null,
+          image_url: formData.image_url || null,
           is_active: formData.is_active
         })
         .eq('id', item.id);
@@ -87,9 +113,9 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
           <DialogHeader>
             <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
-              <Label htmlFor="name">Item Name</Label>
+              <Label htmlFor="name">Item Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -98,9 +124,20 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
                 required
               />
             </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Enter item description"
+                rows={3}
+              />
+            </div>
             
             <div>
-              <Label htmlFor="price">Price (₹)</Label>
+              <Label htmlFor="price">Selling Price *</Label>
               <Input
                 id="price"
                 type="number"
@@ -108,9 +145,100 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
                 min="0"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="Enter price"
+                placeholder="0.00"
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="purchase_rate">Purchase Rate *</Label>
+              <Input
+                id="purchase_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.purchase_rate}
+                onChange={(e) => setFormData({ ...formData, purchase_rate: e.target.value })}
+                placeholder="0.00"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="unit">Unit *</Label>
+              <Select 
+                value={formData.unit} 
+                onValueChange={(value) => setFormData({ ...formData, unit: value })}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="Piece (pc)">Piece (pc)</SelectItem>
+                  <SelectItem value="Kilogram (kg)">Kilogram (kg)</SelectItem>
+                  <SelectItem value="Gram (g)">Gram (g)</SelectItem>
+                  <SelectItem value="Liter (l)">Liter (l)</SelectItem>
+                  <SelectItem value="Milliliter (ml)">Milliliter (ml)</SelectItem>
+                  <SelectItem value="Box">Box</SelectItem>
+                  <SelectItem value="Pack">Pack</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="base_value">Base Value</Label>
+              <Input
+                id="base_value"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.base_value}
+                onChange={(e) => setFormData({ ...formData, base_value: e.target.value })}
+                placeholder="1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="stock_quantity">Stock Quantity *</Label>
+              <Input
+                id="stock_quantity"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.stock_quantity}
+                onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                placeholder="Available stock"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="minimum_stock_alert">Minimum Stock Alert</Label>
+              <Input
+                id="minimum_stock_alert"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.minimum_stock_alert}
+                onChange={(e) => setFormData({ ...formData, minimum_stock_alert: e.target.value })}
+                placeholder="Alert when stock below"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="quantity_step">Quantity Step</Label>
+              <Input
+                id="quantity_step"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={formData.quantity_step}
+                onChange={(e) => setFormData({ ...formData, quantity_step: e.target.value })}
+                placeholder="1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Amount to +/- when clicking buttons in the billing page.
+              </p>
             </div>
             
             <div>
@@ -122,6 +250,32 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
                 placeholder="Enter category (optional)"
               />
             </div>
+
+            <div>
+              <Label htmlFor="image_url">Item Image</Label>
+              <Input
+                id="image_url"
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  // Placeholder for image upload functionality
+                  toast({
+                    title: "Upload Image",
+                    description: "Image upload functionality will be added soon",
+                  });
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Upload Image
+              </Button>
+            </div>
             
             <div className="flex items-center space-x-2">
               <Switch
@@ -129,7 +283,7 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
                 checked={formData.is_active}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               />
-              <Label htmlFor="is_active">Active</Label>
+              <Label htmlFor="is_active">Item is available for sale</Label>
             </div>
             
             <div className="flex justify-end space-x-2">

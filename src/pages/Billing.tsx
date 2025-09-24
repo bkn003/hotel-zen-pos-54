@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check } from 'lucide-react';
+import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Item {
@@ -78,6 +79,7 @@ const Billing = () => {
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<string>('');
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
@@ -401,26 +403,15 @@ const Billing = () => {
     }
   };
 
-  const generateBill = async () => {
-    if (cart.length === 0) {
-      toast({
-        title: "Error",
-        description: "Cart is empty",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (!selectedPayment) {
-      toast({
-        title: "Error",
-        description: "Please select a payment method",
-        variant: "destructive"
-      });
-      return;
-    }
-    
+  const handleCompletePayment = async (paymentData: {
+    paymentMethod: string;
+    paymentAmounts: Record<string, number>;
+    discount: number;
+    discountType: 'flat' | 'percentage';
+    additionalCharges: { name: string; amount: number; enabled: boolean }[];
+  }) => {
     try {
-      console.log('Generating bill with payment method:', selectedPayment);
+      console.log('Completing payment with data:', paymentData);
 
       // First, let's try to get the current max bill number and increment it
       const { data: maxBillData, error: maxBillError } = await supabase
@@ -432,7 +423,6 @@ const Billing = () => {
       let billNumber: string;
       if (maxBillError) {
         console.error('Error fetching max bill number:', maxBillError);
-        // Fallback to timestamp-based bill number
         billNumber = `BILL-${Date.now()}`;
       } else if (maxBillData && maxBillData.length > 0) {
         const lastBillNo = maxBillData[0].bill_no;
@@ -444,16 +434,19 @@ const Billing = () => {
 
       console.log('Generated bill number:', billNumber);
 
-      // Map payment type to valid enum value
-      const paymentMode = mapPaymentMode(selectedPayment);
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
+      const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
+
+      const paymentMode = mapPaymentMode(paymentData.paymentMethod);
       console.log('Mapped payment mode:', paymentMode);
 
       const { data: billData, error: billError } = await supabase
         .from('bills')
         .insert({
           bill_no: billNumber,
-          total_amount: getTotalAmount(),
-          discount: discount,
+          total_amount: totalAmount,
+          discount: paymentData.discount,
           payment_mode: paymentMode,
           created_by: profile?.user_id
         })
@@ -490,13 +483,14 @@ const Billing = () => {
         description: `Bill ${billNumber} generated successfully!`
       });
 
-      // Clear cart
+      // Clear cart and close dialog
       clearCart();
+      setPaymentDialogOpen(false);
     } catch (error) {
-      console.error('Error generating bill:', error);
+      console.error('Error completing payment:', error);
       toast({
         title: "Error",
-        description: "Failed to generate bill. Please try again.",
+        description: "Failed to complete payment. Please try again.",
         variant: "destructive"
       });
     }
@@ -547,158 +541,30 @@ const Billing = () => {
 
         {/* Sticky Cart Section - Fixed positioning when cart has items */}
         {cart.length > 0 && (
-          <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-md">
-            <div className="w-full px-1 py-2">
-              <Card className="w-full max-w-[98vw] mx-auto">
-                <CardHeader className="pb-1 px-2 py-1">
-                  <CardTitle className="text-lg font-bold flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5" />
-                      Cart ({cart.length})
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={clearCart}
-                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                      title="Clear Cart"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-2 py-1 space-y-1">
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {cart.map(item => (
-                      <div key={item.id} className="flex items-center justify-between py-2 px-2 border rounded text-sm bg-muted/30">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <h4 className="font-bold truncate text-base leading-tight">{item.name}</h4>
-                          <p className="text-sm text-muted-foreground font-bold">₹{item.price}</p>
-                        </div>
-                        <div className="flex items-center space-x-1 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, -1)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          
-                          {editingQuantity === item.id ? (
-                            <div className="flex items-center space-x-1">
-                              <Input
-                                type="number"
-                                value={tempQuantity}
-                                onChange={(e) => setTempQuantity(e.target.value)}
-                                className="h-6 w-16 text-sm text-center p-1 font-bold"
-                                min="0"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    saveQuantity(item.id);
-                                  } else if (e.key === 'Escape') {
-                                    cancelEditQuantity();
-                                  }
-                                }}
-                                onBlur={() => saveQuantity(item.id)}
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => saveQuantity(item.id)}
-                                className="h-6 w-6 p-0 text-green-600"
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => startEditingQuantity(item.id, item.quantity)}
-                                className="h-6 min-w-[2.5rem] px-2 text-sm font-bold"
-                                title="Click to edit quantity"
-                              >
-                                {item.quantity}
-                              </Button>
-                            </div>
-                          )}
-                          
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, 1)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => removeFromCart(item.id)}
-                            className="h-6 w-6 p-0 ml-1 text-destructive hover:text-destructive"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2">
-                    <div>
-                      <label className="text-sm font-bold mb-1 block">Payment</label>
-                      <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide">
-                        {paymentTypes.map(payment => (
-                          <Button
-                            key={payment.id}
-                            variant={selectedPayment === payment.payment_type ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSelectedPayment(payment.payment_type)}
-                            className="capitalize whitespace-nowrap flex-shrink-0 min-w-[60px] text-sm font-bold px-3 py-1 h-7"
-                          >
-                            {payment.payment_type}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-sm font-bold">Discount</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={discount}
-                          onChange={e => setDiscount(Number(e.target.value) || 0)}
-                          className="h-7 w-full text-sm font-bold"
-                        />
-                      </div>
-
-                      <div className="flex flex-col justify-end">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-lg">₹{getTotalAmount()}</span>
-                        </div>
-                        <Button
-                          onClick={isEditMode ? updateBill : generateBill}
-                          size="sm"
-                          className="w-full h-7 text-sm font-bold"
-                        >
-                          {isEditMode ? 'Update Bill' : 'Generate Bill'}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-md p-2">
+            {/* Show the cart total in a simplified format */}
+            <div className="flex items-center justify-between w-full px-4 py-3 bg-background border rounded-lg shadow-sm">
+              <div className="flex items-center space-x-2">
+                <ShoppingCart className="w-5 h-5 text-primary" />
+                <span className="font-medium">
+                  {cart.reduce((sum, item) => sum + item.quantity, 0)} items
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="font-bold text-lg">₹{getTotalAmount()}</span>
+                <Button 
+                  onClick={() => setPaymentDialogOpen(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                >
+                  Pay
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Main Content - Add top padding when cart is visible */}
-        <div className={cart.length > 0 ? 'pt-[180px]' : ''}>
+        <div className={cart.length > 0 ? 'pt-16' : ''}>
           {/* Search */}
           <div className="mb-3">
             <div className="flex items-center relative">
@@ -788,6 +654,17 @@ const Billing = () => {
             ))}
           </div>
         </div>
+
+        {/* Payment Dialog */}
+        <CompletePaymentDialog
+          open={paymentDialogOpen}
+          onOpenChange={setPaymentDialogOpen}
+          cart={cart}
+          paymentTypes={paymentTypes}
+          onUpdateQuantity={updateQuantity}
+          onRemoveItem={removeFromCart}
+          onCompletePayment={handleCompletePayment}
+        />
       </div>
     </div>
   );

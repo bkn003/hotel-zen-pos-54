@@ -188,38 +188,59 @@ export type Database = {
       items: {
         Row: {
           admin_id: string | null
+          base_value: number | null
           category: string | null
           created_at: string
+          description: string | null
           id: string
           image_url: string | null
           is_active: boolean
+          minimum_stock_alert: number | null
           name: string
           price: number
+          purchase_rate: number | null
+          quantity_step: number | null
           sale_count: number | null
+          stock_quantity: number | null
+          unit: string | null
           updated_at: string
         }
         Insert: {
           admin_id?: string | null
+          base_value?: number | null
           category?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          minimum_stock_alert?: number | null
           name: string
           price: number
+          purchase_rate?: number | null
+          quantity_step?: number | null
           sale_count?: number | null
+          stock_quantity?: number | null
+          unit?: string | null
           updated_at?: string
         }
         Update: {
           admin_id?: string | null
+          base_value?: number | null
           category?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          minimum_stock_alert?: number | null
           name?: string
           price?: number
+          purchase_rate?: number | null
+          quantity_step?: number | null
           sale_count?: number | null
+          stock_quantity?: number | null
+          unit?: string | null
           updated_at?: string
         }
         Relationships: []

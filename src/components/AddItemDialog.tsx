@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,14 @@ interface Item {
   price: number;
   category?: string;
   is_active: boolean;
+  description?: string;
+  purchase_rate?: number;
+  unit?: string;
+  base_value?: number;
+  stock_quantity?: number;
+  minimum_stock_alert?: number;
+  quantity_step?: number;
+  image_url?: string;
 }
 
 interface Category {
@@ -33,8 +42,16 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: '',
+    description: '',
     price: '',
+    purchase_rate: '',
+    unit: 'Piece (pc)',
+    base_value: '1',
+    stock_quantity: '',
+    minimum_stock_alert: '',
+    quantity_step: '1',
     category: '',
+    image_url: '',
     is_active: true
   });
   const [loading, setLoading] = useState(false);
@@ -60,10 +77,10 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price) {
+    if (!formData.name || !formData.price || !formData.purchase_rate || !formData.stock_quantity) {
       toast({
         title: "Error",
-        description: "Name and price are required",
+        description: "Name, selling price, purchase rate, and stock quantity are required",
         variant: "destructive",
       });
       return;
@@ -87,8 +104,16 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
     try {
       const { error } = await supabase.from('items').insert({
         name: formData.name.trim(),
+        description: formData.description.trim() || null,
         price: parseFloat(formData.price),
+        purchase_rate: parseFloat(formData.purchase_rate),
+        unit: formData.unit,
+        base_value: parseFloat(formData.base_value),
+        stock_quantity: parseFloat(formData.stock_quantity),
+        minimum_stock_alert: parseFloat(formData.minimum_stock_alert) || 0,
+        quantity_step: parseFloat(formData.quantity_step),
         category: formData.category === 'none' ? null : formData.category.trim(),
+        image_url: formData.image_url.trim() || null,
         is_active: formData.is_active
       });
 
@@ -99,7 +124,20 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
         description: "Item added successfully",
       });
 
-      setFormData({ name: '', price: '', category: '', is_active: true });
+      setFormData({ 
+        name: '', 
+        description: '',
+        price: '', 
+        purchase_rate: '',
+        unit: 'Piece (pc)',
+        base_value: '1',
+        stock_quantity: '',
+        minimum_stock_alert: '',
+        quantity_step: '1',
+        category: '', 
+        image_url: '',
+        is_active: true 
+      });
       setOpen(false);
       onItemAdded();
     } catch (error) {
@@ -126,9 +164,9 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
         <DialogHeader>
           <DialogTitle>Add New Item</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
-            <Label htmlFor="name">Item Name</Label>
+            <Label htmlFor="name">Item Name *</Label>
             <Input
               id="name"
               value={formData.name}
@@ -137,9 +175,20 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
               required
             />
           </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Enter item description"
+                rows={3}
+              />
+            </div>
           
           <div>
-            <Label htmlFor="price">Price (₹)</Label>
+            <Label htmlFor="price">Selling Price *</Label>
             <Input
               id="price"
               type="number"
@@ -147,19 +196,110 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
               min="0"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              placeholder="Enter price"
+              placeholder="0.00"
               required
             />
           </div>
+
+          <div>
+            <Label htmlFor="purchase_rate">Purchase Rate *</Label>
+            <Input
+              id="purchase_rate"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.purchase_rate}
+              onChange={(e) => setFormData({ ...formData, purchase_rate: e.target.value })}
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="unit">Unit *</Label>
+            <Select 
+              value={formData.unit} 
+              onValueChange={(value) => setFormData({ ...formData, unit: value })}
+            >
+              <SelectTrigger className="bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectItem value="Piece (pc)">Piece (pc)</SelectItem>
+                <SelectItem value="Kilogram (kg)">Kilogram (kg)</SelectItem>
+                <SelectItem value="Gram (g)">Gram (g)</SelectItem>
+                <SelectItem value="Liter (l)">Liter (l)</SelectItem>
+                <SelectItem value="Milliliter (ml)">Milliliter (ml)</SelectItem>
+                <SelectItem value="Box">Box</SelectItem>
+                <SelectItem value="Pack">Pack</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="base_value">Base Value</Label>
+            <Input
+              id="base_value"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.base_value}
+              onChange={(e) => setFormData({ ...formData, base_value: e.target.value })}
+              placeholder="1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="stock_quantity">Stock Quantity *</Label>
+            <Input
+              id="stock_quantity"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.stock_quantity}
+              onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+              placeholder="Available stock"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="minimum_stock_alert">Minimum Stock Alert</Label>
+            <Input
+              id="minimum_stock_alert"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.minimum_stock_alert}
+              onChange={(e) => setFormData({ ...formData, minimum_stock_alert: e.target.value })}
+              placeholder="Alert when stock below"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="quantity_step">Quantity Step</Label>
+            <Input
+              id="quantity_step"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={formData.quantity_step}
+              onChange={(e) => setFormData({ ...formData, quantity_step: e.target.value })}
+              placeholder="1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Amount to +/- when clicking buttons in the billing page.
+            </p>
+          </div>
           
           <div>
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">Category *</Label>
             <Select 
               value={formData.category} 
               onValueChange={(value) => setFormData({ ...formData, category: value })}
             >
               <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Select category (optional)" />
+                <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="none">No Category</SelectItem>
@@ -171,22 +311,52 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="is_active"
-              checked={formData.is_active}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+
+          <div>
+            <Label htmlFor="image_url">Item Image</Label>
+            <Input
+              id="image_url"
+              value={formData.image_url}
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              placeholder="https://example.com/image.jpg"
             />
-            <Label htmlFor="is_active">Active</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                // Placeholder for image upload functionality
+                toast({
+                  title: "Upload Image",
+                  description: "Image upload functionality will be added soon",
+                });
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Upload Image
+            </Button>
           </div>
           
-          <div className="flex justify-end space-x-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="is_active"
+              checked={formData.is_active}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked as boolean })}
+            />
+            <Label htmlFor="is_active">Item is available for sale</Label>
+          </div>
+          
+          <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Item'}
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              {loading ? 'Creating...' : 'Create Item'}
             </Button>
           </div>
         </form>
