@@ -20,11 +20,23 @@ interface PaymentType {
   is_default: boolean;
 }
 
+interface AdditionalCharge {
+  id: string;
+  name: string;
+  charge_type: 'fixed' | 'per_unit' | 'percentage';
+  amount: number;
+  unit?: string;
+  description?: string;
+  is_active: boolean;
+  is_default: boolean;
+}
+
 interface CompletePaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cart: CartItem[];
   paymentTypes: PaymentType[];
+  additionalCharges: AdditionalCharge[];
   onUpdateQuantity: (itemId: string, change: number) => void;
   onRemoveItem: (itemId: string) => void;
   onCompletePayment: (paymentData: {
@@ -41,6 +53,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   onOpenChange,
   cart,
   paymentTypes,
+  additionalCharges,
   onUpdateQuantity,
   onRemoveItem,
   onCompletePayment
@@ -48,14 +61,24 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, number>>({});
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('flat');
-  const [additionalCharges, setAdditionalCharges] = useState([
-    { name: 'CUTTING CHARGE', amount: 80, enabled: true }
-  ]);
+  const [selectedCharges, setSelectedCharges] = useState<Record<string, boolean>>({});
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  // Calculate additional charges based on their type
   const totalAdditionalCharges = additionalCharges
-    .filter(charge => charge.enabled)
-    .reduce((sum, charge) => sum + charge.amount, 0);
+    .filter(charge => selectedCharges[charge.id])
+    .reduce((sum, charge) => {
+      if (charge.charge_type === 'fixed') {
+        return sum + charge.amount;
+      } else if (charge.charge_type === 'per_unit') {
+        const totalQuantity = cart.reduce((qty, item) => qty + item.quantity, 0);
+        return sum + (charge.amount * totalQuantity);
+      } else if (charge.charge_type === 'percentage') {
+        return sum + (subtotal * charge.amount / 100);
+      }
+      return sum;
+    }, 0);
   
   const discountAmount = discountType === 'percentage' 
     ? (subtotal * discount) / 100 
@@ -76,42 +99,48 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     const primaryPaymentMethod = Object.entries(paymentAmounts)
       .find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
 
+    const selectedAdditionalCharges = additionalCharges
+      .filter(charge => selectedCharges[charge.id])
+      .map(charge => ({
+        name: charge.name,
+        amount: charge.charge_type === 'fixed' ? charge.amount :
+                charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
+                subtotal * charge.amount / 100,
+        enabled: true
+      }));
+
     onCompletePayment({
       paymentMethod: primaryPaymentMethod,
       paymentAmounts,
       discount: discountAmount,
       discountType,
-      additionalCharges: additionalCharges.filter(charge => charge.enabled)
+      additionalCharges: selectedAdditionalCharges
     });
   };
 
-  const toggleAdditionalCharge = (index: number) => {
-    setAdditionalCharges(prev => prev.map((charge, i) => 
-      i === index ? { ...charge, enabled: !charge.enabled } : charge
-    ));
+  const toggleAdditionalCharge = (chargeId: string) => {
+    setSelectedCharges(prev => ({
+      ...prev,
+      [chargeId]: !prev[chargeId]
+    }));
   };
 
-  const updateAdditionalChargeAmount = (index: number, amount: number) => {
-    setAdditionalCharges(prev => prev.map((charge, i) => 
-      i === index ? { ...charge, amount: amount || 0 } : charge
-    ));
-  };
+  // Initialize default charges
+  React.useEffect(() => {
+    const defaultCharges: Record<string, boolean> = {};
+    additionalCharges.forEach(charge => {
+      if (charge.is_default) {
+        defaultCharges[charge.id] = true;
+      }
+    });
+    setSelectedCharges(defaultCharges);
+  }, [additionalCharges]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            Complete Payment
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Complete Payment</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -163,28 +192,46 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           </div>
 
           {/* Additional Charges */}
-          <div>
-            <h3 className="font-semibold mb-3">Additional Charges</h3>
-            <div className="space-y-2">
-              {additionalCharges.map((charge, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <Checkbox
-                    checked={charge.enabled}
-                    onCheckedChange={() => toggleAdditionalCharge(index)}
-                  />
-                  <span className="text-sm font-medium flex-1">{charge.name}</span>
-                  <Input
-                    type="number"
-                    value={charge.amount}
-                    onChange={(e) => updateAdditionalChargeAmount(index, Number(e.target.value))}
-                    className="w-20 h-8 text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              ))}
+          {additionalCharges.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-3">Additional Charges</h3>
+              <div className="space-y-2">
+                {additionalCharges.map((charge) => {
+                  const isSelected = selectedCharges[charge.id];
+                  const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
+                                         charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
+                                         subtotal * charge.amount / 100;
+                  
+                  return (
+                    <div key={charge.id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleAdditionalCharge(charge.id)}
+                        />
+                        <div>
+                          <span className="text-sm font-medium">{charge.name}</span>
+                          {charge.charge_type === 'per_unit' && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (₹{charge.amount}/{charge.unit})
+                            </span>
+                          )}
+                          {charge.charge_type === 'percentage' && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({charge.amount}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium">
+                        ₹{calculatedAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Discount */}
           <div>
@@ -258,12 +305,17 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               <span>Subtotal:</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
-            {additionalCharges.filter(charge => charge.enabled).map((charge, index) => (
-              <div key={index} className="flex justify-between text-sm">
-                <span>{charge.name}:</span>
-                <span>+₹{charge.amount.toFixed(2)}</span>
-              </div>
-            ))}
+            {additionalCharges.filter(charge => selectedCharges[charge.id]).map((charge) => {
+              const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
+                                     charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
+                                     subtotal * charge.amount / 100;
+              return (
+                <div key={charge.id} className="flex justify-between text-sm">
+                  <span>{charge.name}:</span>
+                  <span>+₹{calculatedAmount.toFixed(2)}</span>
+                </div>
+              );
+            })}
             {discountAmount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>Discount:</span>

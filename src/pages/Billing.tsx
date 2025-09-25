@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check } from 'lucide-react';
 import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
+import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Item {
@@ -80,12 +81,14 @@ const Billing = () => {
   const [tempQuantity, setTempQuantity] = useState<string>('');
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [additionalCharges, setAdditionalCharges] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     fetchItems();
     fetchCategories();
-    fetchPaymentTypes();
+      fetchPaymentTypes();
+      fetchAdditionalCharges();
     
     // Check if we're editing a bill
     const billData = location.state?.bill;
@@ -661,6 +664,7 @@ const Billing = () => {
           onOpenChange={setPaymentDialogOpen}
           cart={cart}
           paymentTypes={paymentTypes}
+          additionalCharges={additionalCharges}
           onUpdateQuantity={updateQuantity}
           onRemoveItem={removeFromCart}
           onCompletePayment={handleCompletePayment}

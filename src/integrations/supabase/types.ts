@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      additional_charges: {
+        Row: {
+          amount: number
+          charge_type: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          charge_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          charge_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bill_items: {
         Row: {
           bill_id: string
@@ -95,6 +134,33 @@ export type Database = {
           is_edited?: boolean | null
           payment_mode?: Database["public"]["Enums"]["payment_method"]
           total_amount?: number
+        }
+        Relationships: []
+      }
+      display_settings: {
+        Row: {
+          category_order: string[] | null
+          created_at: string
+          id: string
+          items_per_row: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_order?: string[] | null
+          created_at?: string
+          id?: string
+          items_per_row?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_order?: string[] | null
+          created_at?: string
+          id?: string
+          items_per_row?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
