@@ -84,72 +84,7 @@ const Billing = () => {
   const [additionalCharges, setAdditionalCharges] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  useEffect(() => {
-    fetchItems();
-    fetchCategories();
-      fetchPaymentTypes();
-      fetchAdditionalCharges();
-    
-    // Check if we're editing a bill
-    const billData = location.state?.bill;
-    if (billData) {
-      setEditingBill(billData);
-      setIsEditMode(true);
-      loadBillData(billData.id);
-    }
-  }, [location.state]);
-
-  const loadBillData = async (billId: string) => {
-    try {
-      console.log('Loading bill data for:', billId);
-      
-      // Fetch bill items with item details
-      const { data: billItems, error: billItemsError } = await supabase
-        .from('bill_items')
-        .select(`
-          *,
-          items (
-            id,
-            name,
-            price,
-            image_url,
-            is_active
-          )
-        `)
-        .eq('bill_id', billId);
-
-      if (billItemsError) {
-        console.error('Error fetching bill items:', billItemsError);
-        throw billItemsError;
-      }
-
-      console.log('Bill items loaded:', billItems);
-
-      // Convert bill items to cart items
-      if (billItems && billItems.length > 0) {
-        const cartItems: CartItem[] = billItems.map((billItem: BillItem) => ({
-          id: billItem.items.id,
-          name: billItem.items.name,
-          price: billItem.price, // Use the price from the bill item (historical price)
-          image_url: billItem.items.image_url,
-          is_active: billItem.items.is_active,
-          quantity: billItem.quantity
-        }));
-
-        setCart(cartItems);
-        setDiscount(editingBill?.discount || 0);
-        setSelectedPayment(editingBill?.payment_mode || '');
-      }
-    } catch (error) {
-      console.error('Error loading bill data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load bill data",
-        variant: "destructive"
-      });
-    }
-  };
-
+  // Fetch functions defined before useEffect
   const fetchItems = async () => {
     try {
       const { data, error } = await supabase
@@ -234,6 +169,72 @@ const Billing = () => {
       toast({
         title: "Error",
         description: "Failed to fetch additional charges",
+        variant: "destructive"
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+    fetchCategories();
+    fetchPaymentTypes();
+    fetchAdditionalCharges();
+    
+    // Check if we're editing a bill
+    const billData = location.state?.bill;
+    if (billData) {
+      setEditingBill(billData);
+      setIsEditMode(true);
+      loadBillData(billData.id);
+    }
+  }, [location.state]);
+
+  const loadBillData = async (billId: string) => {
+    try {
+      console.log('Loading bill data for:', billId);
+      
+      // Fetch bill items with item details
+      const { data: billItems, error: billItemsError } = await supabase
+        .from('bill_items')
+        .select(`
+          *,
+          items (
+            id,
+            name,
+            price,
+            image_url,
+            is_active
+          )
+        `)
+        .eq('bill_id', billId);
+
+      if (billItemsError) {
+        console.error('Error fetching bill items:', billItemsError);
+        throw billItemsError;
+      }
+
+      console.log('Bill items loaded:', billItems);
+
+      // Convert bill items to cart items
+      if (billItems && billItems.length > 0) {
+        const cartItems: CartItem[] = billItems.map((billItem: BillItem) => ({
+          id: billItem.items.id,
+          name: billItem.items.name,
+          price: billItem.price, // Use the price from the bill item (historical price)
+          image_url: billItem.items.image_url,
+          is_active: billItem.items.is_active,
+          quantity: billItem.quantity
+        }));
+
+        setCart(cartItems);
+        setDiscount(editingBill?.discount || 0);
+        setSelectedPayment(editingBill?.payment_mode || '');
+      }
+    } catch (error) {
+      console.error('Error loading bill data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load bill data",
         variant: "destructive"
       });
     }
