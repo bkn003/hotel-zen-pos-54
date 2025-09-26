@@ -180,6 +180,7 @@ const Billing = () => {
 
   const fetchDisplaySettings = async () => {
     if (!profile?.user_id) return;
+    
     try {
       const { data, error } = await supabase
         .from('display_settings')
