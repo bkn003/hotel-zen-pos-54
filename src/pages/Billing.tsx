@@ -649,60 +649,102 @@ const Billing = () => {
               >
                 All Categories
               </Button>
-              {categories.map(category => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.name ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category.name)}
-                  className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
-                >
-                  {category.name}
-                </Button>
-              ))}
+              {/* Show categories in the order specified by display settings */}
+              {displaySettings.category_order.length > 0 
+                ? displaySettings.category_order.map(categoryName => {
+                    const category = categories.find(cat => cat.name === categoryName);
+                    if (!category) return null;
+                    return (
+                      <Button
+                        key={category.id}
+                        variant={selectedCategory === category.name ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedCategory(category.name)}
+                        className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
+                      >
+                        {category.name}
+                      </Button>
+                    );
+                  })
+                : categories.map(category => (
+                    <Button
+                      key={category.id}
+                      variant={selectedCategory === category.name ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedCategory(category.name)}
+                      className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
+                    >
+                      {category.name}
+                    </Button>
+                  ))
+              }
             </div>
           </div>
 
           {/* Items Section */}
-          <div className={viewMode === 'grid' 
-            ? `grid grid-cols-${displaySettings.items_per_row} gap-2` 
-            : 'space-y-1'
+          <div className={
+            viewMode === 'grid' 
+              ? displaySettings.items_per_row === 2 
+                ? 'grid grid-cols-2 gap-3' 
+                : displaySettings.items_per_row === 3 
+                ? 'grid grid-cols-3 gap-2' 
+                : displaySettings.items_per_row === 4 
+                ? 'grid grid-cols-4 gap-2' 
+                : displaySettings.items_per_row === 5 
+                ? 'grid grid-cols-5 gap-1' 
+                : displaySettings.items_per_row === 6 
+                ? 'grid grid-cols-6 gap-1' 
+                : 'grid grid-cols-3 gap-2'
+              : 'space-y-1'
           }>
             {filteredItems.map(item => (
-              <Card key={item.id} className={viewMode === 'list' 
-                ? 'w-full p-1' 
-                : 'w-full p-1'
+              <Card key={item.id} className={
+                viewMode === 'list' 
+                  ? 'w-full p-1' 
+                  : displaySettings.items_per_row === 2 
+                  ? 'w-full p-3' 
+                  : 'w-full p-1'
               }>
                 {viewMode === 'grid' ? (
-                  <>
-                    <CardHeader className="pb-1 p-1">
-                      <CardTitle className="text-xs font-bold leading-tight text-center min-h-[3rem] flex items-center justify-center px-1" title={item.name}>
-                        <span className="line-clamp-3 break-words">{item.name}</span>
-                      </CardTitle>
-                    </CardHeader>
-                     <CardContent className="p-1 pt-0">
+                   <>
+                     <CardHeader className={displaySettings.items_per_row === 2 ? "pb-2 p-2" : "pb-1 p-1"}>
+                       <CardTitle className={
+                         displaySettings.items_per_row === 2 
+                           ? "text-sm font-bold leading-tight text-center min-h-[2rem] flex items-center justify-center px-2" 
+                           : "text-xs font-bold leading-tight text-center min-h-[3rem] flex items-center justify-center px-1"
+                       } title={item.name}>
+                         <span className="line-clamp-3 break-words">{item.name}</span>
+                       </CardTitle>
+                     </CardHeader>
+                     <CardContent className={displaySettings.items_per_row === 2 ? "p-2 pt-0" : "p-1 pt-0"}>
                        <div className="flex flex-col items-center gap-1">
                          {item.image_url && (
                            <img 
                              src={item.image_url} 
                              alt={item.name}
-                             className="w-12 h-12 object-cover rounded mb-1"
+                             className={
+                               displaySettings.items_per_row === 2 
+                                 ? "w-20 h-20 object-cover rounded mb-2" 
+                                 : "w-12 h-12 object-cover rounded mb-1"
+                             }
                              onError={(e) => {
                                e.currentTarget.style.display = 'none';
                              }}
                            />
                          )}
-                         <span className="text-xs font-bold">₹{item.price}</span>
+                         <span className={displaySettings.items_per_row === 2 ? "text-sm font-bold" : "text-xs font-bold"}>
+                           ₹{item.price}
+                         </span>
                          <Button
                            onClick={() => addToCart(item)}
                            size="sm"
-                           className="h-6 w-6 p-0"
+                           className={displaySettings.items_per_row === 2 ? "h-8 w-8 p-0" : "h-6 w-6 p-0"}
                          >
-                           <Plus className="w-3 h-3" />
+                           <Plus className={displaySettings.items_per_row === 2 ? "w-4 h-4" : "w-3 h-3"} />
                          </Button>
                        </div>
                      </CardContent>
-                  </>
+                   </>
                 ) : (
                   <div className="flex items-center justify-between w-full p-1">
                     <div className="flex items-center space-x-2 flex-1 min-w-0 pr-2">

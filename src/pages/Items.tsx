@@ -20,6 +20,14 @@ interface Item {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  image_url?: string;
+  description?: string;
+  purchase_rate?: number;
+  unit?: string;
+  base_value?: number;
+  stock_quantity?: number;
+  minimum_stock_alert?: number;
+  quantity_step?: number;
 }
 
 const Items: React.FC = () => {
@@ -206,38 +214,61 @@ const Items: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {activeItems.map((item) => (
-                    <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="font-medium text-lg">{item.name}</h4>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {item.category || 'No Category'}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-lg text-primary">
-                            ₹{item.price.toFixed(2)}
-                          </span>
-                          <Badge variant="default" className="bg-green-100 text-green-800">
-                            Active
-                          </Badge>
-                        </div>
-                        
-                        <div className="text-sm text-muted-foreground">
-                          <div>Created: {new Date(item.created_at).toLocaleDateString()}</div>
-                          <div>Updated: {new Date(item.updated_at).toLocaleDateString()}</div>
-                        </div>
-                        
-                        {profile?.role === 'admin' && (
-                          <div className="pt-2">
-                            <EditItemDialog item={item} onItemUpdated={handleItemAdded} />
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                   {activeItems.map((item) => (
+                     <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
+                       <div className="space-y-3">
+                         {/* Item Image */}
+                         {item.image_url && (
+                           <div className="w-full h-32 overflow-hidden rounded-lg">
+                             <img 
+                               src={item.image_url} 
+                               alt={item.name}
+                               className="w-full h-full object-cover"
+                               onError={(e) => {
+                                 e.currentTarget.style.display = 'none';
+                               }}
+                             />
+                           </div>
+                         )}
+                         
+                         <div>
+                           <h4 className="font-medium text-lg">{item.name}</h4>
+                           {item.description && (
+                             <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+                           )}
+                           <Badge variant="outline" className="text-xs mt-1">
+                             {item.category || 'No Category'}
+                           </Badge>
+                         </div>
+                         
+                         <div className="flex items-center justify-between">
+                           <span className="font-bold text-lg text-primary">
+                             ₹{item.price.toFixed(2)}
+                           </span>
+                           <Badge variant="default" className="bg-green-100 text-green-800">
+                             Active
+                           </Badge>
+                         </div>
+                         
+                         {item.stock_quantity && (
+                           <div className="text-sm text-muted-foreground">
+                             <div>Stock: {item.stock_quantity} {item.unit || 'units'}</div>
+                           </div>
+                         )}
+                         
+                         <div className="text-sm text-muted-foreground">
+                           <div>Created: {new Date(item.created_at).toLocaleDateString()}</div>
+                           <div>Updated: {new Date(item.updated_at).toLocaleDateString()}</div>
+                         </div>
+                         
+                         {profile?.role === 'admin' && (
+                           <div className="pt-2">
+                             <EditItemDialog item={item} onItemUpdated={handleItemAdded} />
+                           </div>
+                         )}
+                       </div>
+                     </Card>
+                   ))}
                 </div>
               )}
             </CardContent>
@@ -260,38 +291,61 @@ const Items: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {inactiveItems.map((item) => (
-                    <Card key={item.id} className="p-4 hover:shadow-md transition-shadow bg-muted/50">
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="font-medium text-lg text-muted-foreground">{item.name}</h4>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {item.category || 'No Category'}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-lg text-muted-foreground">
-                            ₹{item.price.toFixed(2)}
-                          </span>
-                          <Badge variant="destructive">
-                            Inactive
-                          </Badge>
-                        </div>
-                        
-                        <div className="text-sm text-muted-foreground">
-                          <div>Created: {new Date(item.created_at).toLocaleDateString()}</div>
-                          <div>Updated: {new Date(item.updated_at).toLocaleDateString()}</div>
-                        </div>
-                        
-                        {profile?.role === 'admin' && (
-                          <div className="pt-2">
-                            <EditItemDialog item={item} onItemUpdated={handleItemAdded} />
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                   {inactiveItems.map((item) => (
+                     <Card key={item.id} className="p-4 hover:shadow-md transition-shadow bg-muted/50">
+                       <div className="space-y-3">
+                         {/* Item Image */}
+                         {item.image_url && (
+                           <div className="w-full h-32 overflow-hidden rounded-lg opacity-60">
+                             <img 
+                               src={item.image_url} 
+                               alt={item.name}
+                               className="w-full h-full object-cover"
+                               onError={(e) => {
+                                 e.currentTarget.style.display = 'none';
+                               }}
+                             />
+                           </div>
+                         )}
+                         
+                         <div>
+                           <h4 className="font-medium text-lg text-muted-foreground">{item.name}</h4>
+                           {item.description && (
+                             <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+                           )}
+                           <Badge variant="outline" className="text-xs mt-1">
+                             {item.category || 'No Category'}
+                           </Badge>
+                         </div>
+                         
+                         <div className="flex items-center justify-between">
+                           <span className="font-bold text-lg text-muted-foreground">
+                             ₹{item.price.toFixed(2)}
+                           </span>
+                           <Badge variant="destructive">
+                             Inactive
+                           </Badge>
+                         </div>
+                         
+                         {item.stock_quantity && (
+                           <div className="text-sm text-muted-foreground">
+                             <div>Stock: {item.stock_quantity} {item.unit || 'units'}</div>
+                           </div>
+                         )}
+                         
+                         <div className="text-sm text-muted-foreground">
+                           <div>Created: {new Date(item.created_at).toLocaleDateString()}</div>
+                           <div>Updated: {new Date(item.updated_at).toLocaleDateString()}</div>
+                         </div>
+                         
+                         {profile?.role === 'admin' && (
+                           <div className="pt-2">
+                             <EditItemDialog item={item} onItemUpdated={handleItemAdded} />
+                           </div>
+                         )}
+                       </div>
+                     </Card>
+                   ))}
                 </div>
               )}
             </CardContent>
