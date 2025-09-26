@@ -220,6 +220,25 @@ const Billing = () => {
     }
   };
 
+  const fetchAdditionalCharges = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('additional_charges')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      setAdditionalCharges(data || []);
+    } catch (error) {
+      console.error('Error fetching additional charges:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch additional charges",
+        variant: "destructive"
+      });
+    }
+  };
+
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All Categories' || item.category === selectedCategory;
