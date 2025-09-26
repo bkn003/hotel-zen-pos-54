@@ -83,6 +83,10 @@ const Billing = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [additionalCharges, setAdditionalCharges] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [displaySettings, setDisplaySettings] = useState({
+    items_per_row: 3,
+    category_order: [] as string[]
+  });
 
   // Fetch functions defined before useEffect
   const fetchItems = async () => {
@@ -174,11 +178,36 @@ const Billing = () => {
     }
   };
 
+  const fetchDisplaySettings = async () => {
+    if (!profile?.user_id) return;
+    try {
+      const { data, error } = await supabase
+        .from('display_settings')
+        .select('*')
+        .eq('user_id', profile.user_id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setDisplaySettings({
+          items_per_row: data.items_per_row,
+          category_order: data.category_order || []
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching display settings:', error);
+    }
+  };
+
   useEffect(() => {
     fetchItems();
     fetchCategories();
     fetchPaymentTypes();
     fetchAdditionalCharges();
+    if (profile?.user_id) {
+      fetchDisplaySettings();
+    }
     
     // Check if we're editing a bill
     const billData = location.state?.bill;
@@ -187,7 +216,7 @@ const Billing = () => {
       setIsEditMode(true);
       loadBillData(billData.id);
     }
-  }, [location.state]);
+  }, [location.state, profile?.user_id]);
 
   const loadBillData = async (billId: string) => {
     try {
@@ -576,6 +605,13 @@ const Billing = () => {
               <div className="flex items-center space-x-3">
                 <span className="font-bold text-lg">₹{getTotalAmount()}</span>
                 <Button 
+                  variant="outline"
+                  onClick={clearCart}
+                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+                <Button 
                   onClick={() => setPaymentDialogOpen(true)}
                   className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
                 >
@@ -628,7 +664,7 @@ const Billing = () => {
 
           {/* Items Section */}
           <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-4 gap-2' 
+            ? `grid grid-cols-${displaySettings.items_per_row} gap-2` 
             : 'space-y-1'
           }>
             {filteredItems.map(item => (
@@ -643,22 +679,42 @@ const Billing = () => {
                         <span className="line-clamp-3 break-words">{item.name}</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-1 pt-0">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs font-bold">₹{item.price}</span>
-                        <Button
-                          onClick={() => addToCart(item)}
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </CardContent>
+                     <CardContent className="p-1 pt-0">
+                       <div className="flex flex-col items-center gap-1">
+                         {item.image_url && (
+                           <img 
+                             src={item.image_url} 
+                             alt={item.name}
+                             className="w-12 h-12 object-cover rounded mb-1"
+                             onError={(e) => {
+                               e.currentTarget.style.display = 'none';
+                             }}
+                           />
+                         )}
+                         <span className="text-xs font-bold">₹{item.price}</span>
+                         <Button
+                           onClick={() => addToCart(item)}
+                           size="sm"
+                           className="h-6 w-6 p-0"
+                         >
+                           <Plus className="w-3 h-3" />
+                         </Button>
+                       </div>
+                     </CardContent>
                   </>
                 ) : (
                   <div className="flex items-center justify-between w-full p-1">
-                    <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center space-x-2 flex-1 min-w-0 pr-2">
+                      {item.image_url && (
+                        <img 
+                          src={item.image_url} 
+                          alt={item.name}
+                          className="w-8 h-8 object-cover rounded flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
                       <h3 className="font-bold truncate text-sm">{item.name}</h3>
                     </div>
                     <div className="flex items-center space-x-2 flex-shrink-0">

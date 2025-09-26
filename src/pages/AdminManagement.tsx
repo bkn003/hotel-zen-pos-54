@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { User, Shield, UserCheck, UserX } from 'lucide-react';
+import { User, Shield, UserCheck, UserX, Settings, DollarSign } from 'lucide-react';
+import { AddAdditionalChargeDialog } from '@/components/AddAdditionalChargeDialog';
+import { DisplaySettings } from '@/components/DisplaySettings';
 
 interface Profile {
   id: string;
@@ -26,6 +28,7 @@ const AdminManagement = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.role === 'admin') {
@@ -114,6 +117,51 @@ const AdminManagement = () => {
             <Shield className="w-6 h-6" />
             <h1 className="text-2xl font-bold">Admin Management</h1>
           </div>
+        </div>
+
+        {/* Settings Section */}
+        <div className="mb-8 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <DollarSign className="w-5 h-5" />
+                <span>Additional Charges Management</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Manage additional charges for billing</p>
+                <Button onClick={() => setChargeDialogOpen(true)}>
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Add Charge
+                </Button>
+              </div>
+              
+              <AddAdditionalChargeDialog
+                open={chargeDialogOpen}
+                onOpenChange={setChargeDialogOpen}
+                onSuccess={() => {
+                  setChargeDialogOpen(false);
+                  toast({
+                    title: "Success",
+                    description: "Additional charge added successfully"
+                  });
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Settings className="w-5 h-5" />
+                <span>Display Settings</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {profile?.user_id && <DisplaySettings userId={profile.user_id} />}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="mb-6">

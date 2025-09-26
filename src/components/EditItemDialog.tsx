@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Plus } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 
 interface Item {
   id: string;
@@ -253,28 +254,11 @@ export const EditItemDialog: React.FC<EditItemDialogProps> = ({ item, onItemUpda
 
             <div>
               <Label htmlFor="image_url">Item Image</Label>
-              <Input
-                id="image_url"
+              <ImageUpload
                 value={formData.image_url}
-                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                placeholder="https://example.com/image.jpg"
+                onChange={(url) => setFormData({ ...formData, image_url: url })}
+                itemId={item.id}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  // Placeholder for image upload functionality
-                  toast({
-                    title: "Upload Image",
-                    description: "Image upload functionality will be added soon",
-                  });
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Upload Image
-              </Button>
             </div>
             
             <div className="flex items-center space-x-2">
