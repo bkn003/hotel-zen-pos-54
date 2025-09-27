@@ -269,10 +269,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   variant={paymentAmounts[payment.payment_type] > 0 ? "default" : "outline"}
                   size="sm"
                   onClick={() => {
-                    const currentAmount = paymentAmounts[payment.payment_type] || 0;
-                    if (currentAmount === 0) {
-                      handlePaymentAmountChange(payment.payment_type, remaining > 0 ? remaining : total);
-                    }
+                    // Clear all other payment amounts and set this one to full amount
+                    setPaymentAmounts({ [payment.payment_type]: total });
                   }}
                   className="capitalize text-xs h-8"
                 >

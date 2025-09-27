@@ -8,7 +8,8 @@ import {
   Package, 
   Receipt, 
   BarChart3, 
-  Users 
+  Users,
+  Settings
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -17,7 +18,7 @@ const adminNavItems = [
   { to: '/items', icon: Package, label: 'Items' },
   { to: '/expenses', icon: Receipt, label: 'Expenses' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/users', icon: Users, label: 'Users' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const userNavItems = [
