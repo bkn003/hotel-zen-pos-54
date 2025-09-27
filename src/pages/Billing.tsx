@@ -9,7 +9,6 @@ import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check,
 import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
-
 interface Item {
   id: string;
   name: string;
@@ -18,24 +17,20 @@ interface Item {
   is_active: boolean;
   category?: string;
 }
-
 interface CartItem extends Item {
   quantity: number;
 }
-
 interface PaymentType {
   id: string;
   payment_type: string;
   is_disabled: boolean;
   is_default: boolean;
 }
-
 interface ItemCategory {
   id: string;
   name: string;
   is_deleted: boolean;
 }
-
 interface Bill {
   id: string;
   bill_no: string;
@@ -45,7 +40,6 @@ interface Bill {
   date: string;
   created_at: string;
 }
-
 interface BillItem {
   id: string;
   item_id: string;
@@ -60,11 +54,11 @@ interface BillItem {
     is_active: boolean;
   };
 }
-
 type PaymentMode = "cash" | "upi" | "card" | "other";
-
 const Billing = () => {
-  const { profile } = useAuth();
+  const {
+    profile
+  } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
@@ -91,11 +85,10 @@ const Billing = () => {
   // Fetch functions defined before useEffect
   const fetchItems = async () => {
     try {
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
+      const {
+        data,
+        error
+      } = await supabase.from('items').select('*').eq('is_active', true).order('name');
       if (error) throw error;
       setItems(data || []);
     } catch (error) {
@@ -109,14 +102,12 @@ const Billing = () => {
       setLoading(false);
     }
   };
-
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from('item_categories')
-        .select('*')
-        .eq('is_deleted', false)
-        .order('name');
+      const {
+        data,
+        error
+      } = await supabase.from('item_categories').select('*').eq('is_deleted', false).order('name');
       if (error) throw error;
       setCategories(data || []);
     } catch (error) {
@@ -128,14 +119,12 @@ const Billing = () => {
       });
     }
   };
-
   const fetchPaymentTypes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('is_disabled', false)
-        .order('payment_type');
+      const {
+        data,
+        error
+      } = await supabase.from('payments').select('*').eq('is_disabled', false).order('payment_type');
       if (error) throw error;
       const types = data || [];
       setPaymentTypes(types);
@@ -158,14 +147,12 @@ const Billing = () => {
       });
     }
   };
-
   const fetchAdditionalCharges = async () => {
     try {
-      const { data, error } = await supabase
-        .from('additional_charges')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
+      const {
+        data,
+        error
+      } = await supabase.from('additional_charges').select('*').eq('is_active', true).order('name');
       if (error) throw error;
       setAdditionalCharges(data || []);
     } catch (error) {
@@ -177,19 +164,14 @@ const Billing = () => {
       });
     }
   };
-
   const fetchDisplaySettings = async () => {
     if (!profile?.user_id) return;
-    
     try {
-      const { data, error } = await supabase
-        .from('display_settings')
-        .select('*')
-        .eq('user_id', profile.user_id)
-        .maybeSingle();
-
+      const {
+        data,
+        error
+      } = await supabase.from('display_settings').select('*').eq('user_id', profile.user_id).maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;
-
       if (data) {
         setDisplaySettings({
           items_per_row: data.items_per_row,
@@ -200,7 +182,6 @@ const Billing = () => {
       console.error('Error fetching display settings:', error);
     }
   };
-
   useEffect(() => {
     fetchItems();
     fetchCategories();
@@ -209,7 +190,7 @@ const Billing = () => {
     if (profile?.user_id) {
       fetchDisplaySettings();
     }
-    
+
     // Check if we're editing a bill
     const billData = location.state?.bill;
     if (billData) {
@@ -218,15 +199,15 @@ const Billing = () => {
       loadBillData(billData.id);
     }
   }, [location.state, profile?.user_id]);
-
   const loadBillData = async (billId: string) => {
     try {
       console.log('Loading bill data for:', billId);
-      
+
       // Fetch bill items with item details
-      const { data: billItems, error: billItemsError } = await supabase
-        .from('bill_items')
-        .select(`
+      const {
+        data: billItems,
+        error: billItemsError
+      } = await supabase.from('bill_items').select(`
           *,
           items (
             id,
@@ -235,14 +216,11 @@ const Billing = () => {
             image_url,
             is_active
           )
-        `)
-        .eq('bill_id', billId);
-
+        `).eq('bill_id', billId);
       if (billItemsError) {
         console.error('Error fetching bill items:', billItemsError);
         throw billItemsError;
       }
-
       console.log('Bill items loaded:', billItems);
 
       // Convert bill items to cart items
@@ -250,12 +228,12 @@ const Billing = () => {
         const cartItems: CartItem[] = billItems.map((billItem: BillItem) => ({
           id: billItem.items.id,
           name: billItem.items.name,
-          price: billItem.price, // Use the price from the bill item (historical price)
+          price: billItem.price,
+          // Use the price from the bill item (historical price)
           image_url: billItem.items.image_url,
           is_active: billItem.items.is_active,
           quantity: billItem.quantity
         }));
-
         setCart(cartItems);
         setDiscount(editingBill?.discount || 0);
         setSelectedPayment(editingBill?.payment_mode || '');
@@ -269,54 +247,53 @@ const Billing = () => {
       });
     }
   };
-
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All Categories' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
-
   const addToCart = (item: Item) => {
     setCart(prev => {
       const existing = prev.find(cartItem => cartItem.id === item.id);
       if (existing) {
-        return prev.map(cartItem =>
-          cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
+        return prev.map(cartItem => cartItem.id === item.id ? {
+          ...cartItem,
+          quantity: cartItem.quantity + 1
+        } : cartItem);
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, {
+        ...item,
+        quantity: 1
+      }];
     });
     // Clear search after adding to cart for user friendliness
     setSearchQuery('');
   };
-
   const updateQuantity = (id: string, change: number) => {
     setCart(prev => {
       return prev.map(item => {
         if (item.id === id) {
           const newQuantity = item.quantity + change;
-          return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
+          return newQuantity > 0 ? {
+            ...item,
+            quantity: newQuantity
+          } : item;
         }
         return item;
       }).filter(item => item.quantity > 0);
     });
   };
-
   const startEditingQuantity = (id: string, currentQuantity: number) => {
     setEditingQuantity(id);
     setTempQuantity(currentQuantity.toString());
   };
-
   const saveQuantity = (id: string) => {
     const newQuantity = parseInt(tempQuantity);
     if (newQuantity && newQuantity > 0) {
-      setCart(prev => 
-        prev.map(item =>
-          item.id === id ? { ...item, quantity: newQuantity } : item
-        ).filter(item => item.quantity > 0)
-      );
+      setCart(prev => prev.map(item => item.id === id ? {
+        ...item,
+        quantity: newQuantity
+      } : item).filter(item => item.quantity > 0));
     } else {
       // If quantity is 0 or invalid, remove item from cart
       setCart(prev => prev.filter(item => item.id !== id));
@@ -324,25 +301,23 @@ const Billing = () => {
     setEditingQuantity(null);
     setTempQuantity('');
   };
-
   const cancelEditQuantity = () => {
     setEditingQuantity(null);
     setTempQuantity('');
   };
-
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
   };
-
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
     setIsEditMode(false);
     setEditingBill(null);
     // Navigate back to billing without any state
-    navigate('/billing', { replace: true });
+    navigate('/billing', {
+      replace: true
+    });
   };
-
   const getTotalAmount = () => {
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     return Math.max(0, subtotal - discount);
@@ -367,10 +342,8 @@ const Billing = () => {
         return 'other';
     }
   };
-
   const updateBill = async () => {
     if (!editingBill) return;
-    
     if (cart.length === 0) {
       toast({
         title: "Error",
@@ -387,34 +360,28 @@ const Billing = () => {
       });
       return;
     }
-    
     try {
       console.log('Updating bill:', editingBill.id);
-
       const paymentMode = mapPaymentMode(selectedPayment);
-      
-      // Update bill
-      const { error: billError } = await supabase
-        .from('bills')
-        .update({
-          total_amount: getTotalAmount(),
-          discount: discount,
-          payment_mode: paymentMode,
-          is_edited: true
-        })
-        .eq('id', editingBill.id);
 
+      // Update bill
+      const {
+        error: billError
+      } = await supabase.from('bills').update({
+        total_amount: getTotalAmount(),
+        discount: discount,
+        payment_mode: paymentMode,
+        is_edited: true
+      }).eq('id', editingBill.id);
       if (billError) {
         console.error('Bill update error:', billError);
         throw billError;
       }
 
       // Delete existing bill items
-      const { error: deleteError } = await supabase
-        .from('bill_items')
-        .delete()
-        .eq('bill_id', editingBill.id);
-
+      const {
+        error: deleteError
+      } = await supabase.from('bill_items').delete().eq('bill_id', editingBill.id);
       if (deleteError) {
         console.error('Error deleting old bill items:', deleteError);
         throw deleteError;
@@ -428,16 +395,13 @@ const Billing = () => {
         price: item.price,
         total: item.price * item.quantity
       }));
-
-      const { error: itemsError } = await supabase
-        .from('bill_items')
-        .insert(billItems);
-
+      const {
+        error: itemsError
+      } = await supabase.from('bill_items').insert(billItems);
       if (itemsError) {
         console.error('Bill items error:', itemsError);
         throw itemsError;
       }
-
       toast({
         title: "Success",
         description: `Bill ${editingBill.bill_no} updated successfully!`
@@ -455,24 +419,27 @@ const Billing = () => {
       });
     }
   };
-
   const handleCompletePayment = async (paymentData: {
     paymentMethod: string;
     paymentAmounts: Record<string, number>;
     discount: number;
     discountType: 'flat' | 'percentage';
-    additionalCharges: { name: string; amount: number; enabled: boolean }[];
+    additionalCharges: {
+      name: string;
+      amount: number;
+      enabled: boolean;
+    }[];
   }) => {
     try {
       console.log('Completing payment with data:', paymentData);
 
       // First, let's try to get the current max bill number and increment it
-      const { data: maxBillData, error: maxBillError } = await supabase
-        .from('bills')
-        .select('bill_no')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
+      const {
+        data: maxBillData,
+        error: maxBillError
+      } = await supabase.from('bills').select('bill_no').order('created_at', {
+        ascending: false
+      }).limit(1);
       let billNumber: string;
       if (maxBillError) {
         console.error('Error fetching max bill number:', maxBillError);
@@ -484,33 +451,26 @@ const Billing = () => {
       } else {
         billNumber = 'BILL-000001';
       }
-
       console.log('Generated bill number:', billNumber);
-
-      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
       const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
-
       const paymentMode = mapPaymentMode(paymentData.paymentMethod);
       console.log('Mapped payment mode:', paymentMode);
-
-      const { data: billData, error: billError } = await supabase
-        .from('bills')
-        .insert({
-          bill_no: billNumber,
-          total_amount: totalAmount,
-          discount: paymentData.discount,
-          payment_mode: paymentMode,
-          created_by: profile?.user_id
-        })
-        .select()
-        .single();
-
+      const {
+        data: billData,
+        error: billError
+      } = await supabase.from('bills').insert({
+        bill_no: billNumber,
+        total_amount: totalAmount,
+        discount: paymentData.discount,
+        payment_mode: paymentMode,
+        created_by: profile?.user_id
+      }).select().single();
       if (billError) {
         console.error('Bill creation error:', billError);
         throw billError;
       }
-
       console.log('Bill created successfully:', billData);
 
       // Create bill items
@@ -521,16 +481,13 @@ const Billing = () => {
         price: item.price,
         total: item.price * item.quantity
       }));
-
-      const { error: itemsError } = await supabase
-        .from('bill_items')
-        .insert(billItems);
-
+      const {
+        error: itemsError
+      } = await supabase.from('bill_items').insert(billItems);
       if (itemsError) {
         console.error('Bill items error:', itemsError);
         throw itemsError;
       }
-
       toast({
         title: "Success",
         description: `Bill ${billNumber} generated successfully!`
@@ -548,44 +505,27 @@ const Billing = () => {
       });
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
+    return <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen flex">
+  return <div className="min-h-screen flex">
       {/* Main Items Area */}
       <div className="flex-1 p-4 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <img
-              src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"
-              alt="Restaurant"
-              className="w-8 h-8 mr-3"
-            />
+            <img src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png" alt="Restaurant" className="w-8 h-8 mr-3" />
             <h1 className="text-2xl font-bold">
               {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
             </h1>
           </div>
           <div className="flex items-center space-x-2">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-            >
+            <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')}>
               <Grid className="w-4 h-4" />
             </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-            >
+            <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')}>
               <List className="w-4 h-4" />
             </Button>
           </div>
@@ -595,92 +535,50 @@ const Billing = () => {
         <div className="mb-4">
           <div className="flex items-center relative">
             <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+            <Input placeholder="Search items..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
         </div>
 
         {/* Categories - Horizontal Scroll Only */}
         <div className="mb-6">
           <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2">
-            <Button
-              variant={selectedCategory === 'All Categories' ? 'default' : 'outline'}
-              onClick={() => setSelectedCategory('All Categories')}
-              className="whitespace-nowrap flex-shrink-0"
-            >
+            <Button variant={selectedCategory === 'All Categories' ? 'default' : 'outline'} onClick={() => setSelectedCategory('All Categories')} className="whitespace-nowrap flex-shrink-0">
               All Categories
             </Button>
             {/* Show categories in order */}
-            {displaySettings.category_order.length > 0 
-              ? displaySettings.category_order.map(categoryName => {
-                  const category = categories.find(cat => cat.name === categoryName);
-                  if (!category) return null;
-                  return (
-                    <Button
-                      key={category.id}
-                      variant={selectedCategory === category.name ? 'default' : 'outline'}
-                      onClick={() => setSelectedCategory(category.name)}
-                      className="whitespace-nowrap flex-shrink-0"
-                    >
+            {displaySettings.category_order.length > 0 ? displaySettings.category_order.map(categoryName => {
+            const category = categories.find(cat => cat.name === categoryName);
+            if (!category) return null;
+            return <Button key={category.id} variant={selectedCategory === category.name ? 'default' : 'outline'} onClick={() => setSelectedCategory(category.name)} className="whitespace-nowrap flex-shrink-0">
                       {category.name}
-                    </Button>
-                  );
-                })
-              : categories.map(category => (
-                  <Button
-                    key={category.id}
-                    variant={selectedCategory === category.name ? 'default' : 'outline'}
-                    onClick={() => setSelectedCategory(category.name)}
-                    className="whitespace-nowrap flex-shrink-0"
-                  >
+                    </Button>;
+          }) : categories.map(category => <Button key={category.id} variant={selectedCategory === category.name ? 'default' : 'outline'} onClick={() => setSelectedCategory(category.name)} className="whitespace-nowrap flex-shrink-0">
                     {category.name}
-                  </Button>
-                ))
-            }
+                  </Button>)}
           </div>
         </div>
 
         {/* Items Grid - Scrollable */}
-        <div className="overflow-y-auto" style={{ height: 'calc(100vh - 280px)' }}>
-          {viewMode === 'grid' ? (
-            <div className={`grid gap-3 ${
-              displaySettings.items_per_row === 1 ? 'grid-cols-1' :
-              displaySettings.items_per_row === 2 ? 'grid-cols-2' :
-              displaySettings.items_per_row === 3 ? 'grid-cols-3' :
-              displaySettings.items_per_row === 4 ? 'grid-cols-4' :
-              displaySettings.items_per_row === 5 ? 'grid-cols-5' :
-              'grid-cols-6'
-            }`}>
-              {filteredItems.map((item) => {
-                const cartItem = cart.find(c => c.id === item.id);
-                const cachedImageUrl = getCachedImageUrl(item.id);
-                const imageUrl = item.image_url || cachedImageUrl;
-                
-                // Cache the image URL if it exists
-                if (item.image_url && !cachedImageUrl) {
-                  cacheImageUrl(item.id, item.image_url);
-                }
-                
-                return (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow border border-gray-200">
-                    <CardContent className="p-2">
+        <div className="overflow-y-auto" style={{
+        height: 'calc(100vh - 280px)'
+      }}>
+          {viewMode === 'grid' ? <div className={`grid gap-3 ${displaySettings.items_per_row === 1 ? 'grid-cols-1' : displaySettings.items_per_row === 2 ? 'grid-cols-2' : displaySettings.items_per_row === 3 ? 'grid-cols-3' : displaySettings.items_per_row === 4 ? 'grid-cols-4' : displaySettings.items_per_row === 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
+              {filteredItems.map(item => {
+            const cartItem = cart.find(c => c.id === item.id);
+            const cachedImageUrl = getCachedImageUrl(item.id);
+            const imageUrl = item.image_url || cachedImageUrl;
+
+            // Cache the image URL if it exists
+            if (item.image_url && !cachedImageUrl) {
+              cacheImageUrl(item.id, item.image_url);
+            }
+            return <Card key={item.id} className="hover:shadow-md transition-shadow border border-gray-200">
+                    <CardContent className="p-2 px-[4px] py-[2px]">
                       {/* Large Image */}
                       <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                        {imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">
                             <Package className="w-8 h-8" />
-                          </div>
-                        )}
+                          </div>}
                       </div>
                       
                       {/* Item Info */}
@@ -691,72 +589,42 @@ const Billing = () => {
                         <p className="text-xl font-bold text-primary mb-3">₹{item.price}</p>
                         
                         {/* Add/Quantity Controls */}
-                        {cartItem ? (
-                          <div className="flex items-center justify-between bg-primary/10 rounded-full py-2 px-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="h-8 w-8 p-0 rounded-full hover:bg-primary/20"
-                            >
+                        {cartItem ? <div className="flex items-center justify-between bg-primary/10 rounded-full py-2 px-3">
+                            <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0 rounded-full hover:bg-primary/20">
                               <Minus className="w-4 h-4" />
                             </Button>
                             <span className="font-bold text-lg min-w-[24px] text-center">
                               {cartItem.quantity}
                             </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="h-8 w-8 p-0 rounded-full hover:bg-primary/20"
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0 rounded-full hover:bg-primary/20">
                               <Plus className="w-4 h-4" />
                             </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            onClick={() => addToCart(item)}
-                            className="w-full bg-primary hover:bg-primary/90 text-white"
-                          >
+                          </div> : <Button onClick={() => addToCart(item)} className="w-full bg-primary hover:bg-primary/90 text-white">
                             Add
-                          </Button>
-                        )}
+                          </Button>}
                       </div>
                     </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            // List View
-            <div className="space-y-2">
-              {filteredItems.map((item) => {
-                const cartItem = cart.find(c => c.id === item.id);
-                const cachedImageUrl = getCachedImageUrl(item.id);
-                const imageUrl = item.image_url || cachedImageUrl;
-                
-                if (item.image_url && !cachedImageUrl) {
-                  cacheImageUrl(item.id, item.image_url);
-                }
-                
-                return (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  </Card>;
+          })}
+            </div> :
+        // List View
+        <div className="space-y-2">
+              {filteredItems.map(item => {
+            const cartItem = cart.find(c => c.id === item.id);
+            const cachedImageUrl = getCachedImageUrl(item.id);
+            const imageUrl = item.image_url || cachedImageUrl;
+            if (item.image_url && !cachedImageUrl) {
+              cacheImageUrl(item.id, item.image_url);
+            }
+            return <Card key={item.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           {/* Image */}
                           <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                            {imageUrl ? (
-                              <img
-                                src={imageUrl}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">
                                 <Package className="w-6 h-6" />
-                              </div>
-                            )}
+                              </div>}
                           </div>
                           
                           {/* Name and Price */}
@@ -768,44 +636,25 @@ const Billing = () => {
                         
                         {/* Controls */}
                         <div className="flex items-center space-x-2">
-                          {cartItem ? (
-                            <div className="flex items-center space-x-2 bg-primary/10 rounded-full py-1 px-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="h-6 w-6 p-0 rounded-full"
-                              >
+                          {cartItem ? <div className="flex items-center space-x-2 bg-primary/10 rounded-full py-1 px-3">
+                              <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full">
                                 <Minus className="w-3 h-3" />
                               </Button>
                               <span className="font-semibold min-w-[20px] text-center">
                                 {cartItem.quantity}
                               </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="h-6 w-6 p-0 rounded-full"
-                              >
+                              <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full">
                                 <Plus className="w-3 h-3" />
                               </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              onClick={() => addToCart(item)}
-                              className="bg-primary hover:bg-primary/90 text-white"
-                            >
+                            </div> : <Button onClick={() => addToCart(item)} className="bg-primary hover:bg-primary/90 text-white">
                               Add
-                            </Button>
-                          )}
+                            </Button>}
                         </div>
                       </div>
                     </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                  </Card>;
+          })}
+            </div>}
         </div>
       </div>
 
@@ -817,51 +666,29 @@ const Billing = () => {
               <ShoppingCart className="w-5 h-5 mr-2" />
               Cart ({cart.length})
             </h2>
-            {cart.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearCart}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
+            {cart.length > 0 && <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
                 <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+              </Button>}
           </div>
           
-          {cart.length > 0 && (
-            <div className="flex justify-between items-center text-sm">
+          {cart.length > 0 && <div className="flex justify-between items-center text-sm">
               <span>Total: ₹{getTotalAmount()}</span>
-              <Button 
-                onClick={() => setPaymentDialogOpen(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                size="sm"
-              >
+              <Button onClick={() => setPaymentDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white" size="sm">
                 Pay
               </Button>
-            </div>
-          )}
+            </div>}
         </div>
 
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-4">
-          {cart.length === 0 ? (
-            <div className="text-center py-8">
+          {cart.length === 0 ? <div className="text-center py-8">
               <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p className="text-gray-500">Cart is empty</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {cart.map((item) => (
-                <div key={item.id} className="bg-gray-50 rounded-lg p-3">
+            </div> : <div className="space-y-3">
+              {cart.map(item => <div key={item.id} className="bg-gray-50 rounded-lg p-3">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-semibold text-sm line-clamp-2 flex-1">{item.name}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromCart(item.id)}
-                      className="text-red-600 hover:text-red-700 ml-2"
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-red-600 hover:text-red-700 ml-2">
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -870,48 +697,20 @@ const Billing = () => {
                     <span className="font-bold text-primary">₹{item.price}</span>
                     
                     <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, -1)}
-                        className="h-8 w-8 p-0"
-                      >
+                      <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0">
                         <Minus className="w-4 h-4" />
                       </Button>
                       
-                      {editingQuantity === item.id ? (
-                        <div className="flex items-center space-x-1">
-                          <Input
-                            type="number"
-                            value={tempQuantity}
-                            onChange={(e) => setTempQuantity(e.target.value)}
-                            className="w-12 h-8 text-center p-0"
-                            autoFocus
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => saveQuantity(item.id)}
-                            className="h-6 w-6 p-0"
-                          >
+                      {editingQuantity === item.id ? <div className="flex items-center space-x-1">
+                          <Input type="number" value={tempQuantity} onChange={e => setTempQuantity(e.target.value)} className="w-12 h-8 text-center p-0" autoFocus />
+                          <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0">
                             <Check className="w-3 h-3" />
                           </Button>
-                        </div>
-                      ) : (
-                        <span
-                          className="font-semibold min-w-[30px] text-center cursor-pointer hover:bg-gray-200 rounded px-2 py-1"
-                          onClick={() => startEditingQuantity(item.id, item.quantity)}
-                        >
+                        </div> : <span className="font-semibold min-w-[30px] text-center cursor-pointer hover:bg-gray-200 rounded px-2 py-1" onClick={() => startEditingQuantity(item.id, item.quantity)}>
                           {item.quantity}
-                        </span>
-                      )}
+                        </span>}
                       
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, 1)}
-                        className="h-8 w-8 p-0"
-                      >
+                      <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0">
                         <Plus className="w-4 h-4" />
                       </Button>
                     </div>
@@ -922,26 +721,13 @@ const Billing = () => {
                       Total: ₹{(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                </div>)}
+            </div>}
         </div>
       </div>
 
       {/* Payment Dialog */}
-      <CompletePaymentDialog
-        open={paymentDialogOpen}
-        onOpenChange={setPaymentDialogOpen}
-        cart={cart}
-        paymentTypes={paymentTypes}
-        additionalCharges={additionalCharges}
-        onUpdateQuantity={updateQuantity}
-        onRemoveItem={removeFromCart}
-        onCompletePayment={handleCompletePayment}
-      />
-    </div>
-  );
+      <CompletePaymentDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} cart={cart} paymentTypes={paymentTypes} additionalCharges={additionalCharges} onUpdateQuantity={updateQuantity} onRemoveItem={removeFromCart} onCompletePayment={handleCompletePayment} />
+    </div>;
 };
-
 export default Billing;
