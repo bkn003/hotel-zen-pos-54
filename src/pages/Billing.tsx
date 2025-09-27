@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check, Package } from 'lucide-react';
 import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -558,237 +558,388 @@ const Billing = () => {
   }
 
   return (
-    <div className="min-h-screen w-full">
-      <div className="w-full px-1 py-2">
+    <div className="min-h-screen flex">
+      {/* Main Items Area */}
+      <div className="flex-1 p-4 overflow-hidden">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <img
               src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"
               alt="Restaurant"
-              className="w-6 h-6 mr-2"
+              className="w-8 h-8 mr-3"
             />
-            <h1 className="text-lg sm:text-2xl font-bold">
+            <h1 className="text-2xl font-bold">
               {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
             </h1>
           </div>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('grid')}
-              className="h-7 w-7 p-0"
             >
-              <Grid className="w-3 h-3" />
+              <Grid className="w-4 h-4" />
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('list')}
-              className="h-7 w-7 p-0"
             >
-              <List className="w-3 h-3" />
+              <List className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        {/* Sticky Cart Section - Fixed positioning when cart has items */}
-        {cart.length > 0 && (
-          <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-md p-2">
-            {/* Show the cart total in a simplified format */}
-            <div className="flex items-center justify-between w-full px-4 py-3 bg-background border rounded-lg shadow-sm">
-              <div className="flex items-center space-x-2">
-                <ShoppingCart className="w-5 h-5 text-primary" />
-                <span className="font-medium">
-                  {cart.reduce((sum, item) => sum + item.quantity, 0)} items
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="font-bold text-lg">₹{getTotalAmount()}</span>
-                <Button 
-                  variant="outline"
-                  onClick={clearCart}
-                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-                <Button 
-                  onClick={() => setPaymentDialogOpen(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
-                >
-                  Pay
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content - Add top padding when cart is visible */}
-        <div className={cart.length > 0 ? 'pt-16' : ''}>
-          {/* Search */}
-          <div className="mb-3">
-            <div className="flex items-center relative">
-              <Search className="absolute left-2 w-3 h-3 text-muted-foreground" />
-              <Input
-                placeholder="Search items..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Category Filter */}
-          <div className="mb-3">
-            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-              <Button
-                variant={selectedCategory === 'All Categories' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory('All Categories')}
-                className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
-              >
-                All Categories
-              </Button>
-              {/* Show categories in the order specified by display settings */}
-              {displaySettings.category_order.length > 0 
-                ? displaySettings.category_order.map(categoryName => {
-                    const category = categories.find(cat => cat.name === categoryName);
-                    if (!category) return null;
-                    return (
-                      <Button
-                        key={category.id}
-                        variant={selectedCategory === category.name ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedCategory(category.name)}
-                        className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
-                      >
-                        {category.name}
-                      </Button>
-                    );
-                  })
-                : categories.map(category => (
-                    <Button
-                      key={category.id}
-                      variant={selectedCategory === category.name ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedCategory(category.name)}
-                      className="whitespace-nowrap flex-shrink-0 h-7 px-3 text-xs font-bold"
-                    >
-                      {category.name}
-                    </Button>
-                  ))
-              }
-            </div>
-          </div>
-
-          {/* Items Section */}
-          <div className={
-            viewMode === 'grid' 
-              ? displaySettings.items_per_row === 2 
-                ? 'grid grid-cols-2 gap-3' 
-                : displaySettings.items_per_row === 3 
-                ? 'grid grid-cols-3 gap-2' 
-                : displaySettings.items_per_row === 4 
-                ? 'grid grid-cols-4 gap-2' 
-                : displaySettings.items_per_row === 5 
-                ? 'grid grid-cols-5 gap-1' 
-                : displaySettings.items_per_row === 6 
-                ? 'grid grid-cols-6 gap-1' 
-                : 'grid grid-cols-3 gap-2'
-              : 'space-y-1'
-          }>
-            {filteredItems.map(item => (
-              <Card key={item.id} className={
-                viewMode === 'list' 
-                  ? 'w-full p-1' 
-                  : displaySettings.items_per_row === 2 
-                  ? 'w-full p-3' 
-                  : 'w-full p-1'
-              }>
-                {viewMode === 'grid' ? (
-                   <>
-                     <CardHeader className={displaySettings.items_per_row === 2 ? "pb-2 p-2" : "pb-1 p-1"}>
-                       <CardTitle className={
-                         displaySettings.items_per_row === 2 
-                           ? "text-sm font-bold leading-tight text-center min-h-[2rem] flex items-center justify-center px-2" 
-                           : "text-xs font-bold leading-tight text-center min-h-[3rem] flex items-center justify-center px-1"
-                       } title={item.name}>
-                         <span className="line-clamp-3 break-words">{item.name}</span>
-                       </CardTitle>
-                     </CardHeader>
-                     <CardContent className={displaySettings.items_per_row === 2 ? "p-2 pt-0" : "p-1 pt-0"}>
-                       <div className="flex flex-col items-center gap-1">
-                         {item.image_url && (
-                           <img 
-                             src={item.image_url} 
-                             alt={item.name}
-                             className={
-                               displaySettings.items_per_row === 2 
-                                 ? "w-20 h-20 object-cover rounded mb-2" 
-                                 : "w-12 h-12 object-cover rounded mb-1"
-                             }
-                             onError={(e) => {
-                               e.currentTarget.style.display = 'none';
-                             }}
-                           />
-                         )}
-                         <span className={displaySettings.items_per_row === 2 ? "text-sm font-bold" : "text-xs font-bold"}>
-                           ₹{item.price}
-                         </span>
-                         <Button
-                           onClick={() => addToCart(item)}
-                           size="sm"
-                           className={displaySettings.items_per_row === 2 ? "h-8 w-8 p-0" : "h-6 w-6 p-0"}
-                         >
-                           <Plus className={displaySettings.items_per_row === 2 ? "w-4 h-4" : "w-3 h-3"} />
-                         </Button>
-                       </div>
-                     </CardContent>
-                   </>
-                ) : (
-                  <div className="flex items-center justify-between w-full p-1">
-                    <div className="flex items-center space-x-2 flex-1 min-w-0 pr-2">
-                      {item.image_url && (
-                        <img 
-                          src={item.image_url} 
-                          alt={item.name}
-                          className="w-8 h-8 object-cover rounded flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                      <h3 className="font-bold truncate text-sm">{item.name}</h3>
-                    </div>
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                      <span className="font-bold text-sm">₹{item.price}</span>
-                      <Button
-                        size="sm"
-                        onClick={() => addToCart(item)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            ))}
+        {/* Search */}
+        <div className="mb-4">
+          <div className="flex items-center relative">
+            <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search items..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
 
-        {/* Payment Dialog */}
-        <CompletePaymentDialog
-          open={paymentDialogOpen}
-          onOpenChange={setPaymentDialogOpen}
-          cart={cart}
-          paymentTypes={paymentTypes}
-          additionalCharges={additionalCharges}
-          onUpdateQuantity={updateQuantity}
-          onRemoveItem={removeFromCart}
-          onCompletePayment={handleCompletePayment}
-        />
+        {/* Categories - Horizontal Scroll Only */}
+        <div className="mb-6">
+          <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2">
+            <Button
+              variant={selectedCategory === 'All Categories' ? 'default' : 'outline'}
+              onClick={() => setSelectedCategory('All Categories')}
+              className="whitespace-nowrap flex-shrink-0"
+            >
+              All Categories
+            </Button>
+            {/* Show categories in order */}
+            {displaySettings.category_order.length > 0 
+              ? displaySettings.category_order.map(categoryName => {
+                  const category = categories.find(cat => cat.name === categoryName);
+                  if (!category) return null;
+                  return (
+                    <Button
+                      key={category.id}
+                      variant={selectedCategory === category.name ? 'default' : 'outline'}
+                      onClick={() => setSelectedCategory(category.name)}
+                      className="whitespace-nowrap flex-shrink-0"
+                    >
+                      {category.name}
+                    </Button>
+                  );
+                })
+              : categories.map(category => (
+                  <Button
+                    key={category.id}
+                    variant={selectedCategory === category.name ? 'default' : 'outline'}
+                    onClick={() => setSelectedCategory(category.name)}
+                    className="whitespace-nowrap flex-shrink-0"
+                  >
+                    {category.name}
+                  </Button>
+                ))
+            }
+          </div>
+        </div>
+
+        {/* Items Grid - Scrollable */}
+        <div className="overflow-y-auto" style={{ height: 'calc(100vh - 280px)' }}>
+          {viewMode === 'grid' ? (
+            <div className={`grid gap-3 ${
+              displaySettings.items_per_row === 1 ? 'grid-cols-1' :
+              displaySettings.items_per_row === 2 ? 'grid-cols-2' :
+              displaySettings.items_per_row === 3 ? 'grid-cols-3' :
+              displaySettings.items_per_row === 4 ? 'grid-cols-4' :
+              displaySettings.items_per_row === 5 ? 'grid-cols-5' :
+              'grid-cols-6'
+            }`}>
+              {filteredItems.map((item) => {
+                const cartItem = cart.find(c => c.id === item.id);
+                const cachedImageUrl = getCachedImageUrl(item.id);
+                const imageUrl = item.image_url || cachedImageUrl;
+                
+                // Cache the image URL if it exists
+                if (item.image_url && !cachedImageUrl) {
+                  cacheImageUrl(item.id, item.image_url);
+                }
+                
+                return (
+                  <Card key={item.id} className="hover:shadow-md transition-shadow border border-gray-200">
+                    <CardContent className="p-2">
+                      {/* Large Image */}
+                      <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <Package className="w-8 h-8" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Item Info */}
+                      <div className="text-center">
+                        <h3 className="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem] flex items-center justify-center">
+                          {item.name}
+                        </h3>
+                        <p className="text-xl font-bold text-primary mb-3">₹{item.price}</p>
+                        
+                        {/* Add/Quantity Controls */}
+                        {cartItem ? (
+                          <div className="flex items-center justify-between bg-primary/10 rounded-full py-2 px-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, -1)}
+                              className="h-8 w-8 p-0 rounded-full hover:bg-primary/20"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </Button>
+                            <span className="font-bold text-lg min-w-[24px] text-center">
+                              {cartItem.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, 1)}
+                              className="h-8 w-8 p-0 rounded-full hover:bg-primary/20"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => addToCart(item)}
+                            className="w-full bg-primary hover:bg-primary/90 text-white"
+                          >
+                            Add
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            // List View
+            <div className="space-y-2">
+              {filteredItems.map((item) => {
+                const cartItem = cart.find(c => c.id === item.id);
+                const cachedImageUrl = getCachedImageUrl(item.id);
+                const imageUrl = item.image_url || cachedImageUrl;
+                
+                if (item.image_url && !cachedImageUrl) {
+                  cacheImageUrl(item.id, item.image_url);
+                }
+                
+                return (
+                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          {/* Image */}
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <Package className="w-6 h-6" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Name and Price */}
+                          <div>
+                            <h3 className="font-semibold text-sm">{item.name}</h3>
+                            <p className="text-lg font-bold text-primary">₹{item.price}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Controls */}
+                        <div className="flex items-center space-x-2">
+                          {cartItem ? (
+                            <div className="flex items-center space-x-2 bg-primary/10 rounded-full py-1 px-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => updateQuantity(item.id, -1)}
+                                className="h-6 w-6 p-0 rounded-full"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                              <span className="font-semibold min-w-[20px] text-center">
+                                {cartItem.quantity}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => updateQuantity(item.id, 1)}
+                                className="h-6 w-6 p-0 rounded-full"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={() => addToCart(item)}
+                              className="bg-primary hover:bg-primary/90 text-white"
+                            >
+                              Add
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Compact Cart Section */}
+      <div className="w-80 bg-card border-l flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold flex items-center">
+              <ShoppingCart className="w-5 h-5 mr-2" />
+              Cart ({cart.length})
+            </h2>
+            {cart.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearCart}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+          
+          {cart.length > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span>Total: ₹{getTotalAmount()}</span>
+              <Button 
+                onClick={() => setPaymentDialogOpen(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+              >
+                Pay
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Cart Items */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {cart.length === 0 ? (
+            <div className="text-center py-8">
+              <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500">Cart is empty</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {cart.map((item) => (
+                <div key={item.id} className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-sm line-clamp-2 flex-1">{item.name}</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-red-600 hover:text-red-700 ml-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-primary">₹{item.price}</span>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      
+                      {editingQuantity === item.id ? (
+                        <div className="flex items-center space-x-1">
+                          <Input
+                            type="number"
+                            value={tempQuantity}
+                            onChange={(e) => setTempQuantity(e.target.value)}
+                            className="w-12 h-8 text-center p-0"
+                            autoFocus
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => saveQuantity(item.id)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Check className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span
+                          className="font-semibold min-w-[30px] text-center cursor-pointer hover:bg-gray-200 rounded px-2 py-1"
+                          onClick={() => startEditingQuantity(item.id, item.quantity)}
+                        >
+                          {item.quantity}
+                        </span>
+                      )}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end mt-2">
+                    <span className="text-sm font-semibold">
+                      Total: ₹{(item.price * item.quantity).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Payment Dialog */}
+      <CompletePaymentDialog
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        cart={cart}
+        paymentTypes={paymentTypes}
+        additionalCharges={additionalCharges}
+        onUpdateQuantity={updateQuantity}
+        onRemoveItem={removeFromCart}
+        onCompletePayment={handleCompletePayment}
+      />
     </div>
   );
 };
