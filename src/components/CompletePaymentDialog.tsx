@@ -138,52 +138,52 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Complete Payment</DialogTitle>
+      <DialogContent className="max-w-md h-[95vh] flex flex-col">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-base">Complete Payment</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-3">
           {/* Order Summary */}
           <div>
-            <h3 className="font-semibold mb-3">Order Summary</h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
+            <h3 className="font-medium mb-2 text-sm">Order Summary</h3>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
               {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">{item.name}</div>
+                <div key={item.id} className="flex items-center justify-between p-1.5 border rounded text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{item.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      ₹{item.price.toFixed(2)} per 1kg
+                      ₹{item.price.toFixed(2)} each
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onUpdateQuantity(item.id, -1)}
-                      className="h-6 w-6 p-0"
+                      className="h-5 w-5 p-0"
                     >
-                      <Minus className="h-3 w-3" />
+                      <Minus className="h-2 w-2" />
                     </Button>
-                    <span className="min-w-[2rem] text-center text-sm">{item.quantity}</span>
+                    <span className="min-w-[1.5rem] text-center text-xs">{item.quantity}</span>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onUpdateQuantity(item.id, 1)}
-                      className="h-6 w-6 p-0"
+                      className="h-5 w-5 p-0"
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-2 w-2" />
                     </Button>
-                    <div className="text-sm font-medium min-w-[4rem] text-right">
+                    <div className="text-xs font-medium min-w-[3rem] text-right">
                       ₹{(item.price * item.quantity).toFixed(2)}
                     </div>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => onRemoveItem(item.id)}
-                      className="h-6 w-6 p-0 text-destructive"
+                      className="h-5 w-5 p-0 text-destructive"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-2 w-2" />
                     </Button>
                   </div>
                 </div>
@@ -194,8 +194,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
             <div>
-              <h3 className="font-semibold mb-3">Additional Charges</h3>
-              <div className="space-y-2">
+              <h3 className="font-medium mb-2 text-sm">Additional Charges</h3>
+              <div className="space-y-1">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
                   const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
@@ -203,14 +203,15 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                                          subtotal * charge.amount / 100;
                   
                   return (
-                    <div key={charge.id} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center space-x-2">
+                    <div key={charge.id} className="flex items-center justify-between p-1.5 border rounded text-xs">
+                      <div className="flex items-center space-x-1">
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => toggleAdditionalCharge(charge.id)}
+                          className="h-3 w-3"
                         />
                         <div>
-                          <span className="text-sm font-medium">{charge.name}</span>
+                          <span className="font-medium">{charge.name}</span>
                           {charge.charge_type === 'per_unit' && (
                             <span className="text-xs text-muted-foreground ml-1">
                               (₹{charge.amount}/{charge.unit})
@@ -223,7 +224,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                           )}
                         </div>
                       </div>
-                      <span className="text-sm font-medium">
+                      <span className="font-medium">
                         ₹{calculatedAmount.toFixed(2)}
                       </span>
                     </div>
@@ -235,10 +236,10 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
           {/* Discount */}
           <div>
-            <h3 className="font-semibold mb-3">Discount (Optional)</h3>
-            <div className="flex items-center space-x-2">
+            <h3 className="font-medium mb-2 text-sm">Discount (Optional)</h3>
+            <div className="flex items-center space-x-1">
               <Select value={discountType} onValueChange={(value: 'flat' | 'percentage') => setDiscountType(value)}>
-                <SelectTrigger className="w-24 h-8">
+                <SelectTrigger className="w-20 h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,7 +251,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                 type="number"
                 value={discount}
                 onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                className="flex-1 h-8"
+                className="flex-1 h-7 text-xs"
                 placeholder="0"
                 min="0"
                 step={discountType === 'percentage' ? '1' : '0.01'}
@@ -261,8 +262,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
           {/* Payment Methods */}
           <div>
-            <h3 className="font-semibold mb-3">Payment Methods *</h3>
-            <div className="grid grid-cols-3 gap-2 mb-3">
+            <h3 className="font-medium mb-2 text-sm">Payment Methods *</h3>
+            <div className="grid grid-cols-3 gap-1 mb-2">
               {paymentTypes.map((payment) => (
                 <Button
                   key={payment.id}
@@ -272,34 +273,37 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                     // Clear all other payment amounts and set this one to full amount
                     setPaymentAmounts({ [payment.payment_type]: total });
                   }}
-                  className="capitalize text-xs h-8"
+                  className="capitalize text-xs h-6"
                 >
                   {payment.payment_type.toUpperCase()}
                 </Button>
               ))}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1">
               {paymentTypes.map((payment) => (
                 <Input
                   key={`amount-${payment.id}`}
                   type="number"
                   value={paymentAmounts[payment.payment_type] || 0}
                   onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
-                  className="h-8 text-sm text-center"
+                  className="h-6 text-xs text-center"
                   placeholder="0.00"
                   min="0"
                   step="0.01"
                 />
               ))}
             </div>
-            <div className="text-right mt-2">
-              <span className="text-sm">Remaining: <span className="font-medium">₹{remaining.toFixed(2)}</span></span>
+            <div className="text-right mt-1">
+              <span className="text-xs">Remaining: <span className="font-medium">₹{remaining.toFixed(2)}</span></span>
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="space-y-2 pt-2 border-t">
-            <div className="flex justify-between text-sm">
+        </div>
+        
+        {/* Summary - Fixed at bottom */}
+        <div className="border-t pt-2 space-y-2">
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
               <span>Subtotal:</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
@@ -308,37 +312,37 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                                      charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
                                      subtotal * charge.amount / 100;
               return (
-                <div key={charge.id} className="flex justify-between text-sm">
+                <div key={charge.id} className="flex justify-between">
                   <span>{charge.name}:</span>
                   <span>+₹{calculatedAmount.toFixed(2)}</span>
                 </div>
               );
             })}
             {discountAmount > 0 && (
-              <div className="flex justify-between text-sm text-green-600">
+              <div className="flex justify-between text-green-600">
                 <span>Discount:</span>
                 <span>-₹{discountAmount.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between font-semibold text-lg pt-2 border-t">
-              <span>Total:</span>
-              <span>₹{total.toFixed(2)}</span>
-            </div>
+          </div>
+          <div className="flex justify-between font-semibold text-sm pt-1 border-t">
+            <span>Total:</span>
+            <span>₹{total.toFixed(2)}</span>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-2 pt-4">
+          <div className="flex space-x-2 pt-2">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1"
+              className="flex-1 h-8 text-xs"
             >
               Cancel
             </Button>
             <Button
               onClick={handleCompletePayment}
               disabled={remaining !== 0}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
             >
               Complete Payment
             </Button>

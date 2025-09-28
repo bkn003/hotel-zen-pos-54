@@ -73,6 +73,8 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
           user_id: userId,
           items_per_row: settings.items_per_row,
           category_order: settings.category_order
+        }, {
+          onConflict: 'user_id'
         });
 
       if (error) throw error;

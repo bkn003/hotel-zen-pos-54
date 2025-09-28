@@ -636,24 +636,14 @@ const Reports: React.FC = () => {
                             <Eye className="w-3 h-3" />
                           </Button>
                           {billFilter === 'processed' ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => editBill(bill)}
-                                className="h-7 w-7 p-0"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => deleteBill(bill.id)}
-                                className="h-7 w-7 p-0"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteBill(bill.id)}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           ) : (
                             <Button
                               size="sm"

@@ -71,7 +71,9 @@ const Billing = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('billing-view-mode') as 'grid' | 'list') || 'grid';
+  });
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [discount, setDiscount] = useState(0);
@@ -560,14 +562,14 @@ const Billing = () => {
             <Button 
               variant={viewMode === 'grid' ? 'default' : 'outline'} 
               size="sm" 
-              onClick={() => setViewMode('grid')}
+              onClick={() => handleViewModeChange('grid')}
             >
               <Grid className="w-4 h-4" />
             </Button>
             <Button 
               variant={viewMode === 'list' ? 'default' : 'outline'} 
               size="sm" 
-              onClick={() => setViewMode('list')}
+              onClick={() => handleViewModeChange('list')}
             >
               <List className="w-4 h-4" />
             </Button>
