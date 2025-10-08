@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Settings as SettingsIcon, DollarSign, Monitor, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { AddAdditionalChargeDialog } from '@/components/AddAdditionalChargeDialog';
+import { EditAdditionalChargeDialog } from '@/components/EditAdditionalChargeDialog';
 import { DisplaySettings } from '@/components/DisplaySettings';
+import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
 
 interface AdditionalCharge {
   id: string;
@@ -25,6 +27,8 @@ const Settings = () => {
   const { profile } = useAuth();
   const [additionalCharges, setAdditionalCharges] = useState<AdditionalCharge[]>([]);
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
+  const [editChargeDialogOpen, setEditChargeDialogOpen] = useState(false);
+  const [editingCharge, setEditingCharge] = useState<AdditionalCharge | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -192,6 +196,17 @@ const Settings = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => {
+                              setEditingCharge(charge);
+                              setEditChargeDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => toggleChargeStatus(charge.id, charge.is_active)}
                           >
                             {charge.is_active ? "Deactivate" : "Activate"}
@@ -223,8 +238,22 @@ const Settings = () => {
                   });
                 }}
               />
+              
+              <EditAdditionalChargeDialog
+                open={editChargeDialogOpen}
+                onOpenChange={setEditChargeDialogOpen}
+                charge={editingCharge}
+                onSuccess={() => {
+                  setEditChargeDialogOpen(false);
+                  setEditingCharge(null);
+                  fetchAdditionalCharges();
+                }}
+              />
             </CardContent>
           </Card>
+
+          {/* Payment Types Management */}
+          <PaymentTypesManagement />
 
           {/* Display Settings */}
           <Card>

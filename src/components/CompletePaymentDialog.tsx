@@ -88,6 +88,15 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const totalPaymentAmount = Object.values(paymentAmounts).reduce((sum, amount) => sum + amount, 0);
   const remaining = total - totalPaymentAmount;
 
+  // Auto-update payment amounts when total changes
+  React.useEffect(() => {
+    // If there's already a selected payment, update its amount to match the new total
+    const selectedPaymentType = Object.entries(paymentAmounts).find(([_, amount]) => amount > 0)?.[0];
+    if (selectedPaymentType) {
+      setPaymentAmounts({ [selectedPaymentType]: total });
+    }
+  }, [total]);
+
   const handlePaymentAmountChange = (paymentType: string, amount: number) => {
     setPaymentAmounts(prev => ({
       ...prev,
@@ -161,18 +170,28 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       size="sm"
                       variant="outline"
                       onClick={() => onUpdateQuantity(item.id, -1)}
-                      className="h-5 w-5 p-0"
+                      className="h-6 w-6 p-0"
                     >
-                      <Minus className="h-2 w-2" />
+                      <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="min-w-[1.5rem] text-center text-xs">{item.quantity}</span>
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const newQty = parseInt(e.target.value) || 1;
+                        const diff = newQty - item.quantity;
+                        onUpdateQuantity(item.id, diff);
+                      }}
+                      className="h-6 w-12 text-xs text-center p-0"
+                      min="1"
+                    />
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onUpdateQuantity(item.id, 1)}
-                      className="h-5 w-5 p-0"
+                      className="h-6 w-6 p-0"
                     >
-                      <Plus className="h-2 w-2" />
+                      <Plus className="h-3 w-3" />
                     </Button>
                     <div className="text-xs font-medium min-w-[3rem] text-right">
                       ₹{(item.price * item.quantity).toFixed(2)}
@@ -181,9 +200,9 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       size="sm"
                       variant="ghost"
                       onClick={() => onRemoveItem(item.id)}
-                      className="h-5 w-5 p-0 text-destructive"
+                      className="h-6 w-6 p-0 text-destructive"
                     >
-                      <Trash2 className="h-2 w-2" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>

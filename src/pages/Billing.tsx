@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check, Package } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check, Package, ChevronRight } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
 import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -955,9 +957,9 @@ const Billing = () => {
                   setMobileCartOpen(false);
                 }}
                 disabled={cart.length === 0}
-                className="w-full h-8 text-sm"
+                className="w-full h-8 text-sm bg-green-600 hover:bg-green-700"
               >
-                Checkout
+                Pay
               </Button>
             </div>
           </div>
