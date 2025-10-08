@@ -22,11 +22,9 @@ export const useRealTimeUpdates = () => {
           console.log('Bills change detected:', payload);
           invalidateRelatedData('bills');
           
-          if (payload.eventType === 'INSERT') {
-            toast({
-              title: "New Bill Created",
-              description: "Data refreshed automatically",
-            });
+          // Trigger a page reload for reports to update
+          if (window.location.pathname === '/reports') {
+            window.dispatchEvent(new CustomEvent('bills-updated'));
           }
         }
       )

@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check, Package, ChevronRight } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 
 interface Item {
   id: string;
@@ -85,11 +85,13 @@ const Billing = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [additionalCharges, setAdditionalCharges] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [displaySettings, setDisplaySettings] = useState({
     items_per_row: 3,
     category_order: [] as string[]
   });
+
+  // Enable real-time updates
+  useRealTimeUpdates();
 
   // Fetch functions defined before useEffect
   const fetchItems = async () => {
@@ -876,91 +878,32 @@ const Billing = () => {
         </div>
       </div>
 
-      {/* Mobile Cart Toggle - Always visible */}
-      <div className="fixed bottom-20 right-4 md:hidden z-50">
-        <Button
-          onClick={() => setMobileCartOpen(!mobileCartOpen)}
-          className="rounded-full w-12 h-12 bg-primary hover:bg-primary/90 shadow-lg"
-        >
-          <ShoppingCart className="w-5 h-5" />
-          {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-              {cart.length}
-            </span>
-          )}
-        </Button>
-      </div>
-
-      {/* Mobile Cart Overlay */}
-      {mobileCartOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileCartOpen(false)}>
-          <div className="fixed right-0 top-0 h-full w-72 bg-background shadow-xl transform transition-transform duration-300 ease-in-out" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-3 border-b">
-              <h2 className="text-lg font-semibold">Cart ({cart.length})</h2>
-              <Button variant="ghost" size="sm" onClick={() => setMobileCartOpen(false)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3">
-              {cart.length === 0 ? (
-                <p className="text-center text-muted-foreground">Your cart is empty</p>
-              ) : (
-                <div className="space-y-2">
-                  {cart.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-2 border rounded text-xs">
-                      <div className="flex-1">
-                        <div className="font-medium">{item.name}</div>
-                        <div className="text-muted-foreground">₹{item.price} each</div>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.id, -1)}
-                          className="h-5 w-5 p-0"
-                        >
-                          <Minus className="h-2 w-2" />
-                        </Button>
-                        <span className="min-w-[1.5rem] text-center">{item.quantity}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.id, 1)}
-                          className="h-5 w-5 p-0"
-                        >
-                          <Plus className="h-2 w-2" />
-                        </Button>
-                        <div className="font-medium min-w-[2.5rem] text-right">
-                          ₹{(item.price * item.quantity).toFixed(0)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="border-t p-3">
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-semibold">Total: ₹{total.toFixed(0)}</span>
+      {/* Mobile Cart Button - Simple Pay button like image-60.png */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 md:hidden z-50 px-4">
+          <div className="bg-card border rounded-lg shadow-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShoppingCart className="w-5 h-5" />
+                <span className="font-semibold">{cart.length} pc</span>
+                <span className="text-lg font-bold">₹{total.toFixed(0)}</span>
+              </div>
+              <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={clearCart}
-                  className="text-xs h-6"
+                  className="h-8 px-3"
                 >
-                  Clear
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => setPaymentDialogOpen(true)}
+                  className="h-8 px-4 bg-green-600 hover:bg-green-700"
+                >
+                  Pay
                 </Button>
               </div>
-              <Button
-                onClick={() => {
-                  setPaymentDialogOpen(true);
-                  setMobileCartOpen(false);
-                }}
-                disabled={cart.length === 0}
-                className="w-full h-8 text-sm bg-green-600 hover:bg-green-700"
-              >
-                Pay
-              </Button>
             </div>
           </div>
         </div>

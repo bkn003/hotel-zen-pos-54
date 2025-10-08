@@ -167,32 +167,32 @@ const Settings = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-2">
                   {additionalCharges.map((charge) => (
-                    <Card key={charge.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold">{charge.name}</h3>
-                            <Badge variant={charge.is_active ? "default" : "secondary"}>
+                    <Card key={charge.id} className="p-2 sm:p-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-1 mb-1">
+                            <h3 className="font-semibold text-sm truncate">{charge.name}</h3>
+                            <Badge variant={charge.is_active ? "default" : "secondary"} className="text-[10px] px-1 py-0 h-4">
                               {charge.is_active ? "Active" : "Inactive"}
                             </Badge>
                             {charge.is_default && (
-                              <Badge variant="outline">Default</Badge>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">Default</Badge>
                             )}
                           </div>
                           {charge.description && (
-                            <p className="text-sm text-muted-foreground mb-2">{charge.description}</p>
+                            <p className="text-xs text-muted-foreground mb-1 line-clamp-1">{charge.description}</p>
                           )}
-                          <div className="flex items-center space-x-4 text-sm">
+                          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs">
                             <span className="font-medium">₹{charge.amount}</span>
-                            <span className="text-muted-foreground">Type: {charge.charge_type}</span>
+                            <span className="text-muted-foreground text-[10px]">Type: {charge.charge_type}</span>
                             {charge.unit && (
-                              <span className="text-muted-foreground">Unit: {charge.unit}</span>
+                              <span className="text-muted-foreground text-[10px]">Unit: {charge.unit}</span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <Button
                             variant="outline"
                             size="sm"
@@ -200,14 +200,16 @@ const Settings = () => {
                               setEditingCharge(charge);
                               setEditChargeDialogOpen(true);
                             }}
+                            className="h-7 px-2 text-xs"
                           >
-                            <Edit className="w-4 h-4 mr-1" />
+                            <Edit className="w-3 h-3 mr-1" />
                             Edit
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => toggleChargeStatus(charge.id, charge.is_active)}
+                            className="h-7 px-2 text-xs"
                           >
                             {charge.is_active ? "Deactivate" : "Activate"}
                           </Button>
@@ -215,9 +217,9 @@ const Settings = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => deleteCharge(charge.id)}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>

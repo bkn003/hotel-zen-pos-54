@@ -62,6 +62,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('flat');
   const [selectedCharges, setSelectedCharges] = useState<Record<string, boolean>>({});
+  const [initialized, setInitialized] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
@@ -134,16 +135,26 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     }));
   };
 
-  // Initialize default charges
+  // Initialize default charges and default payment
   React.useEffect(() => {
-    const defaultCharges: Record<string, boolean> = {};
-    additionalCharges.forEach(charge => {
-      if (charge.is_default) {
-        defaultCharges[charge.id] = true;
+    if (!initialized && open) {
+      const defaultCharges: Record<string, boolean> = {};
+      additionalCharges.forEach(charge => {
+        if (charge.is_default) {
+          defaultCharges[charge.id] = true;
+        }
+      });
+      setSelectedCharges(defaultCharges);
+
+      // Auto-select default payment method
+      const defaultPayment = paymentTypes.find(p => p.is_default);
+      if (defaultPayment && total > 0) {
+        setPaymentAmounts({ [defaultPayment.payment_type]: total });
       }
-    });
-    setSelectedCharges(defaultCharges);
-  }, [additionalCharges]);
+      
+      setInitialized(true);
+    }
+  }, [additionalCharges, paymentTypes, open, total, initialized]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,8 +224,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
             <div>
-              <h3 className="font-medium mb-2 text-sm">Additional Charges</h3>
-              <div className="space-y-1">
+              <h3 className="font-medium mb-1.5 text-sm">Additional Charges</h3>
+              <div className="space-y-1 max-h-24 overflow-y-auto">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
                   const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
@@ -222,29 +233,29 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                                          subtotal * charge.amount / 100;
                   
                   return (
-                    <div key={charge.id} className="flex items-center justify-between p-1.5 border rounded text-xs">
-                      <div className="flex items-center space-x-1">
+                    <div key={charge.id} className="flex items-center justify-between p-1 border rounded text-xs">
+                      <div className="flex items-center space-x-1 flex-1 min-w-0">
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => toggleAdditionalCharge(charge.id)}
-                          className="h-3 w-3"
+                          className="h-3 w-3 flex-shrink-0"
                         />
-                        <div>
-                          <span className="font-medium">{charge.name}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-xs truncate block">{charge.name}</span>
                           {charge.charge_type === 'per_unit' && (
-                            <span className="text-xs text-muted-foreground ml-1">
-                              (₹{charge.amount}/{charge.unit})
+                            <span className="text-[10px] text-muted-foreground">
+                              ₹{charge.amount}/{charge.unit}
                             </span>
                           )}
                           {charge.charge_type === 'percentage' && (
-                            <span className="text-xs text-muted-foreground ml-1">
-                              ({charge.amount}%)
+                            <span className="text-[10px] text-muted-foreground">
+                              {charge.amount}%
                             </span>
                           )}
                         </div>
                       </div>
-                      <span className="font-medium">
-                        ₹{calculatedAmount.toFixed(2)}
+                      <span className="font-medium text-xs ml-2 flex-shrink-0">
+                        ₹{calculatedAmount.toFixed(0)}
                       </span>
                     </div>
                   );

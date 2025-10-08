@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -70,6 +70,20 @@ const Reports: React.FC = () => {
 
   useEffect(() => {
     fetchReports();
+  }, [dateRange, customStartDate, customEndDate, billFilter]);
+
+  // Listen for real-time bill updates
+  useEffect(() => {
+    const handleBillsUpdate = () => {
+      console.log('Bills updated event received, refetching reports...');
+      fetchReports();
+    };
+
+    window.addEventListener('bills-updated', handleBillsUpdate);
+
+    return () => {
+      window.removeEventListener('bills-updated', handleBillsUpdate);
+    };
   }, [dateRange, customStartDate, customEndDate, billFilter]);
 
   const getDateFilter = () => {
