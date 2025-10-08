@@ -326,6 +326,11 @@ const Billing = () => {
     navigate('/billing', { replace: true });
   };
 
+  const handleViewModeChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('billing-view-mode', mode);
+  };
+
   const getTotalAmount = () => {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return Math.max(0, subtotal - discount);
