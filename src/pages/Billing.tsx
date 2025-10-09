@@ -19,6 +19,7 @@ interface Item {
   image_url?: string;
   is_active: boolean;
   category?: string;
+  unit?: string;
 }
 
 interface CartItem extends Item {
@@ -457,6 +458,7 @@ const Billing = () => {
     discountType: 'flat' | 'percentage';
     additionalCharges: { name: string; amount: number; enabled: boolean }[];
   }) => {
+    const user = (await supabase.auth.getUser()).data.user;
     try {
       console.log('Completing payment with data:', paymentData);
 
@@ -495,6 +497,8 @@ const Billing = () => {
           total_amount: totalAmount,
           discount: paymentData.discount,
           payment_mode: paymentMode,
+          payment_details: paymentData.paymentAmounts,
+          additional_charges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
           created_by: profile?.user_id
         })
         .select()
@@ -507,7 +511,7 @@ const Billing = () => {
 
       console.log('Bill created successfully:', billData);
 
-      // Create bill items
+      // Create bill items and reduce stock
       const billItems = cart.map(item => ({
         bill_id: billData.id,
         item_id: item.id,
@@ -523,6 +527,22 @@ const Billing = () => {
       if (itemsError) {
         console.error('Bill items error:', itemsError);
         throw itemsError;
+      }
+
+      // Reduce stock for each item
+      for (const item of cart) {
+        const { data: currentItem } = await supabase
+          .from('items')
+          .select('stock_quantity')
+          .eq('id', item.id)
+          .single();
+
+        if (currentItem) {
+          await supabase
+            .from('items')
+            .update({ stock_quantity: (currentItem.stock_quantity || 0) - item.quantity })
+            .eq('id', item.id);
+        }
       }
 
       toast({
@@ -641,7 +661,7 @@ const Billing = () => {
                     
                     <div className="flex-1 flex flex-col min-h-0 px-1">
                       <h3 className="font-medium text-sm mb-0.5 line-clamp-2 flex-shrink-0">{item.name}</h3>
-                      <p className="text-lg font-bold text-primary mb-1 flex-shrink-0">₹{item.price}</p>
+                      <p className="text-lg font-bold text-primary mb-1 flex-shrink-0">₹{item.price}/{item.unit || 'pc'}</p>
                       
                       {cartItem ? (
                         <div className="flex items-center justify-between mt-auto">
@@ -711,7 +731,7 @@ const Billing = () => {
                           {/* Name and Price */}
                           <div>
                             <h3 className="font-semibold text-sm">{item.name}</h3>
-                            <p className="text-lg font-bold text-primary">₹{item.price}</p>
+                            <p className="text-lg font-bold text-primary">₹{item.price}/{item.unit || 'pc'}</p>
                           </div>
                         </div>
                         

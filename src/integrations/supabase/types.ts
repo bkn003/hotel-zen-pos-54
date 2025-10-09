@@ -100,6 +100,7 @@ export type Database = {
       }
       bills: {
         Row: {
+          additional_charges: Json | null
           bill_no: string
           created_at: string
           created_by: string
@@ -108,10 +109,12 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           is_edited: boolean | null
+          payment_details: Json | null
           payment_mode: Database["public"]["Enums"]["payment_method"]
           total_amount: number
         }
         Insert: {
+          additional_charges?: Json | null
           bill_no: string
           created_at?: string
           created_by: string
@@ -120,10 +123,12 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           is_edited?: boolean | null
+          payment_details?: Json | null
           payment_mode: Database["public"]["Enums"]["payment_method"]
           total_amount: number
         }
         Update: {
+          additional_charges?: Json | null
           bill_no?: string
           created_at?: string
           created_by?: string
@@ -132,6 +137,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           is_edited?: boolean | null
+          payment_details?: Json | null
           payment_mode?: Database["public"]["Enums"]["payment_method"]
           total_amount?: number
         }

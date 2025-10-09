@@ -167,13 +167,13 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           {/* Order Summary */}
           <div>
             <h3 className="font-medium mb-2 text-sm">Order Summary</h3>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
+            <div className="space-y-1 max-h-48 overflow-y-auto">
               {cart.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-1.5 border rounded text-xs">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{item.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      ₹{item.price.toFixed(2)} each
+                      ₹{item.price.toFixed(2)}/{(item as any).unit || 'pc'}
                     </div>
                   </div>
                   <div className="flex items-center space-x-1">
@@ -189,12 +189,14 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       type="number"
                       value={item.quantity}
                       onChange={(e) => {
-                        const newQty = parseInt(e.target.value) || 1;
+                        const isWeightUnit = (item as any).unit && ['kg', 'Kilogram (kg)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)'].includes((item as any).unit);
+                        const newQty = isWeightUnit ? parseFloat(e.target.value) || 0.001 : parseInt(e.target.value) || 1;
                         const diff = newQty - item.quantity;
                         onUpdateQuantity(item.id, diff);
                       }}
                       className="h-6 w-12 text-xs text-center p-0"
-                      min="1"
+                      min={((item as any).unit && ['kg', 'Kilogram (kg)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)'].includes((item as any).unit)) ? "0.001" : "1"}
+                      step={((item as any).unit && ['kg', 'Kilogram (kg)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)'].includes((item as any).unit)) ? "0.001" : "1"}
                     />
                     <Button
                       size="sm"

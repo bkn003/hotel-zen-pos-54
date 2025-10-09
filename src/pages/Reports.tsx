@@ -25,6 +25,8 @@ interface Bill {
   date: string;
   created_at: string;
   is_deleted: boolean;
+  payment_details?: Record<string, number>;
+  additional_charges?: Array<{ name: string; amount: number }>;
   bill_items: BillItem[];
 }
 
@@ -38,6 +40,7 @@ interface BillItem {
     name: string;
     category: string;
     is_active?: boolean;
+    unit?: string;
   };
 }
 
@@ -211,7 +214,11 @@ const Reports: React.FC = () => {
         2 * 60 * 1000 // 2 minutes cache
       );
 
-      setBills(reportData.bills);
+      setBills(reportData.bills.map(bill => ({
+        ...bill,
+        payment_details: (bill.payment_details as any) || {},
+        additional_charges: (bill.additional_charges as any) || []
+      })));
       setExpenses(reportData.expenses);
       setItemReports(reportData.itemReports);
 
@@ -228,9 +235,16 @@ const Reports: React.FC = () => {
   };
 
   const deleteBill = async (billId: string) => {
-    if (!confirm('Are you sure you want to delete this bill? This will mark it as deleted.')) return;
+    if (!confirm('Are you sure you want to delete this bill? This will mark it as deleted and restore stock.')) return;
 
     try {
+      // Get bill items to restore stock
+      const { data: billItems } = await supabase
+        .from('bill_items')
+        .select('item_id, quantity')
+        .eq('bill_id', billId);
+
+      // Mark bill as deleted
       const { error } = await supabase
         .from('bills')
         .update({ is_deleted: true })
@@ -238,9 +252,27 @@ const Reports: React.FC = () => {
 
       if (error) throw error;
 
+      // Restore stock for each item
+      if (billItems) {
+        for (const item of billItems) {
+          const { data: currentItem } = await supabase
+            .from('items')
+            .select('stock_quantity')
+            .eq('id', item.item_id)
+            .single();
+
+          if (currentItem) {
+            await supabase
+              .from('items')
+              .update({ stock_quantity: (currentItem.stock_quantity || 0) + item.quantity })
+              .eq('id', item.item_id);
+          }
+        }
+      }
+
       toast({
         title: "Success",
-        description: "Bill deleted successfully",
+        description: "Bill deleted successfully and stock restored",
       });
 
       // Invalidate related caches and refresh
@@ -257,9 +289,16 @@ const Reports: React.FC = () => {
   };
 
   const restoreBill = async (billId: string) => {
-    if (!confirm('Are you sure you want to restore this bill?')) return;
+    if (!confirm('Are you sure you want to restore this bill? This will reduce stock quantities.')) return;
 
     try {
+      // Get bill items to reduce stock
+      const { data: billItems } = await supabase
+        .from('bill_items')
+        .select('item_id, quantity')
+        .eq('bill_id', billId);
+
+      // Restore bill
       const { error } = await supabase
         .from('bills')
         .update({ is_deleted: false })
@@ -267,9 +306,27 @@ const Reports: React.FC = () => {
 
       if (error) throw error;
 
+      // Reduce stock for each item
+      if (billItems) {
+        for (const item of billItems) {
+          const { data: currentItem } = await supabase
+            .from('items')
+            .select('stock_quantity')
+            .eq('id', item.item_id)
+            .single();
+
+          if (currentItem) {
+            await supabase
+              .from('items')
+              .update({ stock_quantity: (currentItem.stock_quantity || 0) - item.quantity })
+              .eq('id', item.item_id);
+          }
+        }
+      }
+
       toast({
         title: "Success",
-        description: "Bill restored successfully",
+        description: "Bill restored successfully"
       });
 
       // Invalidate related caches and refresh
@@ -878,7 +935,7 @@ const Reports: React.FC = () => {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {item.items?.category} • ₹{item.price} each
+                          {item.items?.category} • ₹{item.price}/{(item.items as any)?.unit || 'pc'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -889,6 +946,21 @@ const Reports: React.FC = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Payment Details (Split Payment) */}
+              {selectedBill.payment_details && Object.keys(selectedBill.payment_details).length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3 text-sm">Payment Split Details</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedBill.payment_details).map(([method, amount]) => (
+                      <div key={method} className="flex justify-between items-center p-2 bg-muted/30 rounded text-sm">
+                        <span className="capitalize font-medium">{method}</span>
+                        <span className="font-semibold">₹{Number(amount).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

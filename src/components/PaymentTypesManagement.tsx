@@ -270,30 +270,31 @@ export const PaymentTypesManagement: React.FC = () => {
                   ) : (
                     <div className="space-y-2">
                       {paymentTypes.map((payment) => (
-                        <div key={payment.id} className="flex items-center justify-between p-2 bg-muted/30 rounded text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-medium ${payment.is_disabled ? 'text-muted-foreground line-through' : ''}`}>
+                        <div key={payment.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 bg-muted/30 rounded text-xs">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className={`font-medium truncate ${payment.is_disabled ? 'text-muted-foreground line-through' : ''}`}>
                               {payment.payment_type}
                             </span>
                             {payment.is_default && (
-                              <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded whitespace-nowrap">
                                 Default
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-wrap">
                             <Switch
                               checked={!payment.is_disabled}
                               onCheckedChange={() => togglePaymentStatus(payment.id, payment.is_disabled)}
+                              className="scale-75"
                             />
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => setAsDefault(payment.id)}
-                              className="h-6 px-2 text-xs"
+                              className="h-6 px-2 text-[10px]"
                               disabled={payment.is_default}
                             >
-                              Set Default
+                              Default
                             </Button>
                             <Button
                               size="sm"
