@@ -11,7 +11,33 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  unit?: string;
 }
+
+// Utility function to get simplified unit names
+const getSimplifiedUnit = (unit?: string): string => {
+  if (!unit) return 'pc';
+  
+  const unitMap: Record<string, string> = {
+    'Piece (pc)': 'pc',
+    'Kilogram (kg)': 'kg',
+    'Gram (g)': 'g',
+    'Liter (L)': 'lt',
+    'Milliliter (mL)': 'ml',
+    'Dozen (dz)': 'dz',
+    'Box (box)': 'box',
+    'Packet (pkt)': 'pkt',
+  };
+  
+  return unitMap[unit] || unit.toLowerCase();
+};
+
+// Check if unit is weight/volume based
+const isWeightOrVolumeUnit = (unit?: string): boolean => {
+  if (!unit) return false;
+  const weightVolumeUnits = ['kg', 'Kilogram (kg)', 'g', 'Gram (g)', 'lt', 'Liter (L)', 'ml', 'Milliliter (mL)'];
+  return weightVolumeUnits.includes(unit) || weightVolumeUnits.includes(getSimplifiedUnit(unit));
+};
 
 interface PaymentType {
   id: string;
@@ -109,12 +135,15 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     const primaryPaymentMethod = Object.entries(paymentAmounts)
       .find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
 
+    // Filter out items with 0 quantity before completing payment
+    const validCart = cart.filter(item => item.quantity > 0);
+    
     const selectedAdditionalCharges = additionalCharges
       .filter(charge => selectedCharges[charge.id])
       .map(charge => ({
         name: charge.name,
         amount: charge.charge_type === 'fixed' ? charge.amount :
-                charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
+                charge.charge_type === 'per_unit' ? charge.amount * validCart.reduce((qty, item) => qty + item.quantity, 0) :
                 subtotal * charge.amount / 100,
         enabled: true
       }));
@@ -167,13 +196,13 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           {/* Order Summary */}
           <div>
             <h3 className="font-medium mb-2 text-sm">Order Summary</h3>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
+            <div className="space-y-1 max-h-64 overflow-y-auto">
               {cart.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-1.5 border rounded text-xs">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{item.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      ₹{item.price.toFixed(2)}/{(item as any).unit || 'pc'}
+                      ₹{item.price.toFixed(2)}/{getSimplifiedUnit(item.unit)}
                     </div>
                   </div>
                   <div className="flex items-center space-x-1">
@@ -187,16 +216,27 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                     </Button>
                     <Input
                       type="number"
-                      value={item.quantity}
+                      value={item.quantity === 0 ? '' : item.quantity}
                       onChange={(e) => {
-                        const isWeightUnit = (item as any).unit && ['kg', 'Kilogram (kg)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)'].includes((item as any).unit);
-                        const newQty = isWeightUnit ? parseFloat(e.target.value) || 0.001 : parseInt(e.target.value) || 1;
-                        const diff = newQty - item.quantity;
-                        onUpdateQuantity(item.id, diff);
+                        const value = e.target.value;
+                        if (value === '' || value === '0') {
+                          // Keep item in cart with 0 quantity for easier editing
+                          const diff = 0 - item.quantity;
+                          onUpdateQuantity(item.id, diff);
+                          return;
+                        }
+                        
+                        const isWeightUnit = isWeightOrVolumeUnit(item.unit);
+                        const newQty = isWeightUnit ? parseFloat(value) : parseInt(value);
+                        
+                        if (!isNaN(newQty) && newQty >= 0) {
+                          const diff = newQty - item.quantity;
+                          onUpdateQuantity(item.id, diff);
+                        }
                       }}
                       className="h-6 w-12 text-xs text-center p-0"
-                      min={((item as any).unit && ['kg', 'Kilogram (kg)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)'].includes((item as any).unit)) ? "0.001" : "1"}
-                      step={((item as any).unit && ['kg', 'Kilogram (kg)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)'].includes((item as any).unit)) ? "0.001" : "1"}
+                      min="0"
+                      step={isWeightOrVolumeUnit(item.unit) ? "0.001" : "1"}
                     />
                     <Button
                       size="sm"

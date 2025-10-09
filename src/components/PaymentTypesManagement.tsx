@@ -214,11 +214,11 @@ export const PaymentTypesManagement: React.FC = () => {
               Manage Payment Types
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-md w-[95vw] max-h-[85vh] flex flex-col">
+            <DialogHeader className="pb-2">
               <DialogTitle className="text-base">Manage Payment Types</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto flex-1">
               {/* Add/Edit Form */}
               <Card className="border-muted">
                 <CardHeader className="pb-2">

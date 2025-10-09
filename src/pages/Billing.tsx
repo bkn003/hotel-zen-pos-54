@@ -22,6 +22,24 @@ interface Item {
   unit?: string;
 }
 
+// Utility function to get simplified unit names
+const getSimplifiedUnit = (unit?: string): string => {
+  if (!unit) return 'pc';
+  
+  const unitMap: Record<string, string> = {
+    'Piece (pc)': 'pc',
+    'Kilogram (kg)': 'kg',
+    'Gram (g)': 'g',
+    'Liter (L)': 'lt',
+    'Milliliter (mL)': 'ml',
+    'Dozen (dz)': 'dz',
+    'Box (box)': 'box',
+    'Packet (pkt)': 'pkt',
+  };
+  
+  return unitMap[unit] || unit.toLowerCase();
+};
+
 interface CartItem extends Item {
   quantity: number;
 }
@@ -284,11 +302,11 @@ const Billing = () => {
     setCart(prev => {
       return prev.map(item => {
         if (item.id === id) {
-          const newQuantity = item.quantity + change;
-          return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
+          const newQuantity = Math.max(0, item.quantity + change);
+          return { ...item, quantity: newQuantity };
         }
         return item;
-      }).filter(item => item.quantity > 0);
+      });
     });
   };
 
@@ -462,6 +480,18 @@ const Billing = () => {
     try {
       console.log('Completing payment with data:', paymentData);
 
+      // Filter cart to only include items with quantity > 0
+      const validCart = cart.filter(item => item.quantity > 0);
+      
+      if (validCart.length === 0) {
+        toast({
+          title: "Error",
+          description: "Cart is empty or all items have 0 quantity",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // First, let's try to get the current max bill number and increment it
       const { data: maxBillData, error: maxBillError } = await supabase
         .from('bills')
@@ -483,7 +513,7 @@ const Billing = () => {
 
       console.log('Generated bill number:', billNumber);
 
-      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotal = validCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
       const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
       const paymentMode = mapPaymentMode(paymentData.paymentMethod);
@@ -512,7 +542,7 @@ const Billing = () => {
       console.log('Bill created successfully:', billData);
 
       // Create bill items and reduce stock
-      const billItems = cart.map(item => ({
+      const billItems = validCart.map(item => ({
         bill_id: billData.id,
         item_id: item.id,
         quantity: item.quantity,
@@ -530,7 +560,7 @@ const Billing = () => {
       }
 
       // Reduce stock for each item
-      for (const item of cart) {
+      for (const item of validCart) {
         const { data: currentItem } = await supabase
           .from('items')
           .select('stock_quantity')
@@ -661,7 +691,7 @@ const Billing = () => {
                     
                     <div className="flex-1 flex flex-col min-h-0 px-1">
                       <h3 className="font-medium text-sm mb-0.5 line-clamp-2 flex-shrink-0">{item.name}</h3>
-                      <p className="text-lg font-bold text-primary mb-1 flex-shrink-0">₹{item.price}/{item.unit || 'pc'}</p>
+                      <p className="text-lg font-bold text-primary mb-1 flex-shrink-0">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
                       
                       {cartItem ? (
                         <div className="flex items-center justify-between mt-auto">
@@ -731,7 +761,7 @@ const Billing = () => {
                           {/* Name and Price */}
                           <div>
                             <h3 className="font-semibold text-sm">{item.name}</h3>
-                            <p className="text-lg font-bold text-primary">₹{item.price}/{item.unit || 'pc'}</p>
+                            <p className="text-lg font-bold text-primary">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
                           </div>
                         </div>
                         
