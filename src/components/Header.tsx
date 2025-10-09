@@ -1,28 +1,19 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LogOut, User, Settings, Hotel } from 'lucide-react';
-
 export const Header: React.FC = () => {
-  const { profile, signOut } = useAuth();
-
+  const {
+    profile,
+    signOut
+  } = useAuth();
   if (!profile) return null;
-
   const handleSignOut = async () => {
     await signOut();
   };
-
-  return (
-    <header className="bg-card border-b border-border px-4 py-3 md:px-6">
+  return <header className="bg-card border-b border-border px-4 md:px-6 py-[2px]">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Hotel className="h-8 w-8 text-primary" />
@@ -35,10 +26,7 @@ export const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          <Badge 
-            variant={profile.role === 'admin' ? 'default' : 'outline'}
-            className="hidden md:flex"
-          >
+          <Badge variant={profile.role === 'admin' ? 'default' : 'outline'} className="hidden md:flex">
             {profile.role === 'admin' ? 'Admin' : 'Staff'}
           </Badge>
 
@@ -79,6 +67,5 @@ export const Header: React.FC = () => {
           </DropdownMenu>
         </div>
       </div>
-    </header>
-  );
+    </header>;
 };
