@@ -131,38 +131,38 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div className="flex items-center space-x-2">
-            <SettingsIcon className="w-6 h-6" />
-            <h1 className="text-2xl font-bold">Settings</h1>
+            <SettingsIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            <h1 className="text-xl sm:text-2xl font-bold">Settings</h1>
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Additional Charges Management */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center space-x-2">
-                  <DollarSign className="w-5 h-5" />
-                  <span>Additional Charges Management</span>
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-base sm:text-lg">Additional Charges</span>
                 </div>
-                <Button onClick={() => setChargeDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button onClick={() => setChargeDialogOpen(true)} size="sm">
+                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Add Charge
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6">
               {additionalCharges.length === 0 ? (
-                <div className="text-center py-8">
-                  <DollarSign className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Additional Charges</h3>
-                  <p className="text-muted-foreground mb-4">Create your first additional charge to get started.</p>
-                  <Button onClick={() => setChargeDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
+                <div className="text-center py-6 sm:py-8">
+                  <DollarSign className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">No Additional Charges</h3>
+                  <p className="text-sm text-muted-foreground mb-3 sm:mb-4">Create your first additional charge to get started.</p>
+                  <Button onClick={() => setChargeDialogOpen(true)} size="sm">
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     Add Charge
                   </Button>
                 </div>
@@ -259,13 +259,13 @@ const Settings = () => {
 
           {/* Display Settings */}
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-6">
               <CardTitle className="flex items-center space-x-2">
-                <Monitor className="w-5 h-5" />
-                <span>Display Settings</span>
+                <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-base sm:text-lg">Display Settings</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6">
               {profile?.user_id && <DisplaySettings userId={profile.user_id} />}
             </CardContent>
           </Card>

@@ -13,15 +13,15 @@ export const Header: React.FC = () => {
   const handleSignOut = async () => {
     await signOut();
   };
-  return <header className="bg-card border-b border-border px-4 md:px-6 py-[2px]">
+  return <header className="bg-card border-b border-border px-3 md:px-6 py-1.5">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Hotel className="h-8 w-8 text-primary" />
+        <div className="flex items-center space-x-2">
+          <Hotel className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="font-bold text-xl text-foreground">
-              {profile.hotel_name || 'Hotel ZEN'} POS
+            <h1 className="font-bold text-base text-foreground">
+              {profile.hotel_name || 'BISMILLAH'} POS
             </h1>
-            <p className="text-sm text-muted-foreground">Management System</p>
+            <p className="text-xs text-muted-foreground">Management System</p>
           </div>
         </div>
 

@@ -71,23 +71,39 @@ const Reports: React.FC = () => {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [billFilter, setBillFilter] = useState('processed');
 
-  useEffect(() => {
+  const fetchReportsCallback = useCallback(() => {
     fetchReports();
   }, [dateRange, customStartDate, customEndDate, billFilter]);
 
-  // Listen for real-time bill updates
   useEffect(() => {
-    const handleBillsUpdate = () => {
-      console.log('Bills updated event received, refetching reports...');
-      fetchReports();
-    };
+    fetchReportsCallback();
+  }, [fetchReportsCallback]);
 
-    window.addEventListener('bills-updated', handleBillsUpdate);
+  // Real-time subscription for bills changes
+  useEffect(() => {
+    console.log('Setting up real-time bills subscription in Reports...');
+    
+    const channel = supabase
+      .channel('reports-bills-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bills'
+        },
+        (payload) => {
+          console.log('Bill change detected in Reports:', payload);
+          fetchReportsCallback();
+        }
+      )
+      .subscribe();
 
     return () => {
-      window.removeEventListener('bills-updated', handleBillsUpdate);
+      console.log('Cleaning up real-time bills subscription in Reports...');
+      supabase.removeChannel(channel);
     };
-  }, [dateRange, customStartDate, customEndDate, billFilter]);
+  }, [fetchReportsCallback]);
 
   const getDateFilter = () => {
     const today = new Date();
