@@ -164,33 +164,41 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     }));
   };
 
-  // Reset initialization when dialog closes
+  // Reset state when dialog closes
   React.useEffect(() => {
     if (!open) {
       setInitialized(false);
+      setSelectedCharges({});
+      setPaymentAmounts({});
+      setDiscount(0);
+      setDiscountType('flat');
     }
   }, [open]);
 
-  // Initialize default charges and default payment
+  // Initialize default charges and default payment when dialog opens
   React.useEffect(() => {
-    if (!initialized && open) {
+    if (open && additionalCharges.length > 0) {
+      console.log('Initializing default charges, additionalCharges:', additionalCharges);
+      
       const defaultCharges: Record<string, boolean> = {};
       additionalCharges.forEach(charge => {
+        console.log(`Charge: ${charge.name}, is_default: ${charge.is_default}`);
         if (charge.is_default) {
           defaultCharges[charge.id] = true;
         }
       });
+      
+      console.log('Default charges object:', defaultCharges);
       setSelectedCharges(defaultCharges);
 
       // Auto-select default payment method
       const defaultPayment = paymentTypes.find(p => p.is_default);
       if (defaultPayment && total > 0) {
+        console.log('Setting default payment:', defaultPayment.payment_type);
         setPaymentAmounts({ [defaultPayment.payment_type]: total });
       }
-      
-      setInitialized(true);
     }
-  }, [additionalCharges, paymentTypes, open, total, initialized]);
+  }, [open, additionalCharges, paymentTypes, total]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
