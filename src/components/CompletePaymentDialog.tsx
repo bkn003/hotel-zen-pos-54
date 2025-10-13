@@ -164,6 +164,13 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     }));
   };
 
+  // Reset initialization when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setInitialized(false);
+    }
+  }, [open]);
+
   // Initialize default charges and default payment
   React.useEffect(() => {
     if (!initialized && open) {
