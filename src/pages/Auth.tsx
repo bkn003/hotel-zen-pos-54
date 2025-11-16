@@ -13,6 +13,7 @@ import { Eye, EyeOff, Hotel, Clock } from 'lucide-react';
 const Auth = () => {
   const { user, profile, signIn, signUp, signOut, loading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -127,6 +128,35 @@ const Auth = () => {
     );
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Check your email for a password reset link.",
+      });
+      setIsForgotPassword(false);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send password reset email.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -195,19 +225,22 @@ const Auth = () => {
         <CardHeader className="text-center">
           <Hotel className="w-16 h-16 mx-auto mb-4 text-primary" />
           <CardTitle className="text-2xl font-bold">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {isForgotPassword ? 'Reset Password' : (isLogin ? 'Welcome Back' : 'Create Account')}
           </CardTitle>
           <CardDescription>
-            {isLogin 
-              ? 'Sign in to access your POS system' 
-              : 'Register for Hotel ZEN POS Management'
+            {isForgotPassword 
+              ? 'Enter your email to receive a password reset link'
+              : (isLogin 
+                ? 'Sign in to access your POS system' 
+                : 'Register for Hotel ZEN POS Management'
+              )
             }
           </CardDescription>
         </CardHeader>
         
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+          <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
+            {!isLogin && !isForgotPassword && (
               <>
                 <div>
                   <Label htmlFor="name">Full Name</Label>
@@ -265,47 +298,67 @@ const Auth = () => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  required
-                  placeholder="Enter your password"
-                  minLength={6}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+            {!isForgotPassword && (
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    required
+                    placeholder="Enter your password"
+                    minLength={6}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+              {loading ? 'Please wait...' : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Create Account'))}
             </Button>
+
+            {isLogin && !isForgotPassword && (
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => setIsForgotPassword(true)}
+                className="w-full text-sm"
+              >
+                Forgot password?
+              </Button>
+            )}
           </form>
 
           <div className="mt-6 text-center">
             <Button
               variant="link"
               onClick={() => {
-                setIsLogin(!isLogin);
-                setFormData({ email: '', password: '', name: '', role: 'user', hotelName: '' });
+                if (isForgotPassword) {
+                  setIsForgotPassword(false);
+                } else {
+                  setIsLogin(!isLogin);
+                  setFormData({ email: '', password: '', name: '', role: 'user', hotelName: '' });
+                }
               }}
               className="text-sm"
             >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : 'Already have an account? Sign in'
+              {isForgotPassword
+                ? 'Back to sign in'
+                : (isLogin 
+                  ? "Don't have an account? Sign up" 
+                  : 'Already have an account? Sign in'
+                )
               }
             </Button>
           </div>
