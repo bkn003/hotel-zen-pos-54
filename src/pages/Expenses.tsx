@@ -11,6 +11,7 @@ import { AddExpenseDialog } from '@/components/AddExpenseDialog';
 import { EditExpenseDialog } from '@/components/EditExpenseDialog';
 import { CategorySelector } from '@/components/CategorySelector';
 import { cachedFetch, CACHE_KEYS, dataCache } from '@/utils/cacheUtils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Expense {
   id: string;
@@ -259,23 +260,23 @@ const Expenses: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Expenses List */}
+      {/* Expenses Table */}
       <Card>
         <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
-          <span className="text-base sm:text-lg">All Expenses ({filteredExpenses.length})</span>
-          {filteredExpenses.length > 0 && (
-            <div className="text-left sm:text-right">
-              <p className="text-base sm:text-lg font-bold text-destructive">
-                Total: ₹{totalExpenses.toFixed(2)}
-              </p>
-            </div>
-          )}
-        </div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+            <span className="text-base sm:text-lg">All Expenses ({filteredExpenses.length})</span>
+            {filteredExpenses.length > 0 && (
+              <div className="text-left sm:text-right">
+                <p className="text-base sm:text-lg font-bold text-destructive">
+                  Total: ₹{totalExpenses.toFixed(2)}
+                </p>
+              </div>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {filteredExpenses.length === 0 ? (
-            <div className="text-center py-16">
+            <div className="text-center py-16 px-4">
               <Receipt className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">No Expenses Found</h3>
               <p className="text-muted-foreground">
@@ -283,52 +284,55 @@ const Expenses: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 overflow-x-hidden">
-              {filteredExpenses.map((expense) => (
-                <Card key={expense.id} className="p-3 sm:p-4 min-w-0">
-                  <div className="space-y-3">
-                    <div className="min-w-0">
-                      <h4 className="font-medium text-base sm:text-lg truncate">
-                        {expense.expense_name || 'Unnamed Expense'}
-                      </h4>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {expense.category}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-base sm:text-lg text-red-600">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Note</TableHead>
+                    <TableHead>Created</TableHead>
+                    {profile?.role === 'admin' && <TableHead className="text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredExpenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">{expense.expense_name || 'Unnamed Expense'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{expense.category}</Badge>
+                      </TableCell>
+                      <TableCell className="font-bold text-destructive">
                         -₹{expense.amount.toFixed(2)}
-                      </span>
-                    </div>
-                    
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div>Date: {new Date(expense.date).toLocaleDateString()}</div>
-                      <div className="truncate">Created: {new Date(expense.created_at).toLocaleDateString()} at {new Date(expense.created_at).toLocaleTimeString()}</div>
-                    </div>
-                    
-                    {expense.note && (
-                      <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded break-words">
-                        {expense.note}
-                      </div>
-                    )}
-                    
-                    {profile?.role === 'admin' && (
-                      <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                        <EditExpenseDialog expense={expense} onExpenseUpdated={fetchExpenses} />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => deleteExpense(expense.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ))}
+                      </TableCell>
+                      <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{expense.note || '-'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(expense.created_at).toLocaleString()}
+                      </TableCell>
+                      {profile?.role === 'admin' && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <EditExpenseDialog
+                              expense={expense}
+                              onExpenseUpdated={fetchExpenses}
+                            />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deleteExpense(expense.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

@@ -7,7 +7,8 @@ import {
   ShoppingCart, 
   Package, 
   Receipt, 
-  BarChart3, 
+  BarChart3,
+  TrendingUp,
   Users,
   Settings
 } from 'lucide-react';
