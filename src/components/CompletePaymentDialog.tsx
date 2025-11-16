@@ -167,27 +167,32 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     }
   }, [open]);
 
-  // Initialize default charges ONCE when dialog opens
+  // Initialize defaults when dialog opens or payment types change
   React.useEffect(() => {
-    if (open && !hasInitialized.current && additionalCharges.length > 0) {
-      hasInitialized.current = true;
+    if (open && paymentTypes.length > 0) {
+      // Reset initialization when payment types change to allow re-initialization
+      hasInitialized.current = false;
       
-      const defaultCharges: Record<string, boolean> = {};
-      additionalCharges.forEach(charge => {
-        if (charge.is_default) {
-          defaultCharges[charge.id] = true;
-        }
-      });
-      
-      setSelectedCharges(defaultCharges);
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        
+        // Initialize default charges
+        const defaultCharges: Record<string, boolean> = {};
+        additionalCharges.forEach(charge => {
+          if (charge.is_default) {
+            defaultCharges[charge.id] = true;
+          }
+        });
+        setSelectedCharges(defaultCharges);
 
-      // Auto-select default payment method
-      const defaultPayment = paymentTypes.find(p => p.is_default);
-      if (defaultPayment && subtotal > 0) {
-        setPaymentAmounts({ [defaultPayment.payment_type]: total });
+        // Auto-select default payment method
+        const defaultPayment = paymentTypes.find(p => p.is_default);
+        if (defaultPayment && total > 0) {
+          setPaymentAmounts({ [defaultPayment.payment_type]: total });
+        }
       }
     }
-  }, [open, additionalCharges, paymentTypes]);
+  }, [open, paymentTypes, additionalCharges, total]);
 
   // Update payment amount when total changes (for already selected payment)
   React.useEffect(() => {

@@ -9,12 +9,14 @@ import {
   Package, 
   Receipt, 
   BarChart3, 
+  TrendingUp,
   Users,
   Settings
 } from 'lucide-react';
 
 const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
   { to: '/billing', icon: ShoppingCart, label: 'Billing' },
   { to: '/items', icon: Package, label: 'Items' },
   { to: '/expenses', icon: Receipt, label: 'Expenses' },
