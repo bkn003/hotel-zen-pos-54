@@ -169,7 +169,7 @@ const Expenses: React.FC = () => {
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
-    <div className="container mx-auto py-4 px-2 sm:px-4 max-w-full overflow-x-hidden">
+    <div className="container mx-auto py-4 px-4 max-w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center">
@@ -284,8 +284,8 @@ const Expenses: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full align-middle px-2">
                 <Table>
                   <TableHeader>
                     <TableRow>
