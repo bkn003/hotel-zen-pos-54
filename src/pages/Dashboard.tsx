@@ -33,15 +33,38 @@ const Dashboard = () => {
     fetchDashboardStats();
   }, []);
 
+  // Real-time subscription for updates
+  useEffect(() => {
+    const billsChannel = supabase
+      .channel('dashboard-bills-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, () => {
+        fetchDashboardStats();
+      })
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('dashboard-expenses-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+        fetchDashboardStats();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(billsChannel);
+      supabase.removeChannel(expensesChannel);
+    };
+  }, []);
+
   const fetchDashboardStats = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      // Fetch today's sales
+      // Fetch today's sales (exclude deleted bills)
       const { data: billsData } = await supabase
         .from('bills')
         .select('total_amount')
-        .eq('date', today);
+        .eq('date', today)
+        .or('is_deleted.is.null,is_deleted.eq.false');
 
       const todaySales = billsData?.reduce((sum, bill) => sum + Number(bill.total_amount), 0) || 0;
       const todayBills = billsData?.length || 0;
