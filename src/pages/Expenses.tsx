@@ -284,55 +284,57 @@ const Expenses: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Note</TableHead>
-                    <TableHead>Created</TableHead>
-                    {profile?.role === 'admin' && <TableHead className="text-right">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredExpenses.map((expense) => (
-                    <TableRow key={expense.id}>
-                      <TableCell className="font-medium">{expense.expense_name || 'Unnamed Expense'}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{expense.category}</Badge>
-                      </TableCell>
-                      <TableCell className="font-bold text-destructive">
-                        -₹{expense.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{expense.note || '-'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(expense.created_at).toLocaleString()}
-                      </TableCell>
-                      {profile?.role === 'admin' && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <EditExpenseDialog
-                              expense={expense}
-                              onExpenseUpdated={fetchExpenses}
-                            />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => deleteExpense(expense.id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[120px]">Name</TableHead>
+                      <TableHead className="min-w-[100px]">Category</TableHead>
+                      <TableHead className="min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[100px]">Date</TableHead>
+                      <TableHead className="min-w-[150px]">Note</TableHead>
+                      <TableHead className="min-w-[120px]">Created</TableHead>
+                      {profile?.role === 'admin' && <TableHead className="text-right min-w-[150px]">Actions</TableHead>}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredExpenses.map((expense) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="font-medium">{expense.expense_name || 'Unnamed Expense'}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{expense.category}</Badge>
+                        </TableCell>
+                        <TableCell className="font-bold text-destructive">
+                          -₹{expense.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{new Date(expense.date).toLocaleDateString()}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{expense.note || '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {new Date(expense.created_at).toLocaleString()}
+                        </TableCell>
+                        {profile?.role === 'admin' && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <EditExpenseDialog
+                                expense={expense}
+                                onExpenseUpdated={fetchExpenses}
+                              />
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => deleteExpense(expense.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>

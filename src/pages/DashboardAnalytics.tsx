@@ -41,6 +41,28 @@ const DashboardAnalytics = () => {
     fetchAnalyticsData();
   }, [period]);
 
+  // Real-time subscription for updates
+  useEffect(() => {
+    const billsChannel = supabase
+      .channel('analytics-bills-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, () => {
+        fetchAnalyticsData();
+      })
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('analytics-expenses-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+        fetchAnalyticsData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(billsChannel);
+      supabase.removeChannel(expensesChannel);
+    };
+  }, [period]);
+
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
@@ -58,11 +80,12 @@ const DashboardAnalytics = () => {
         startDate.setMonth(today.getMonth() - 6);
       }
 
-      // Fetch bills
+      // Fetch bills (exclude deleted)
       const { data: billsData } = await supabase
         .from('bills')
         .select('total_amount, date, discount')
         .gte('date', startDate.toISOString().split('T')[0])
+        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('date');
 
       // Fetch expenses
@@ -72,11 +95,12 @@ const DashboardAnalytics = () => {
         .gte('date', startDate.toISOString().split('T')[0])
         .order('date');
 
-      // Fetch top selling items
+      // Fetch top selling items (exclude items from deleted bills)
       const { data: billItemsData } = await supabase
         .from('bill_items')
-        .select('quantity, price, item_id, items(name)')
-        .gte('created_at', startDate.toISOString());
+        .select('quantity, price, item_id, items(name), bill_id, bills!inner(is_deleted)')
+        .gte('created_at', startDate.toISOString())
+        .or('bills.is_deleted.is.null,bills.is_deleted.eq.false', { foreignTable: 'bills' });
 
       // Process sales data
       const salesMap = new Map<string, { sales: number; expenses: number }>();
@@ -123,7 +147,7 @@ const DashboardAnalytics = () => {
 
       setTopItems(topItemsData);
 
-      // Calculate stats
+      // Calculate stats (from non-deleted bills only)
       const totalRevenue = billsData?.reduce((sum, bill) => sum + Number(bill.total_amount), 0) || 0;
       const totalExpenses = expensesData?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
 
