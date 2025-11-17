@@ -274,7 +274,7 @@ const Expenses: React.FC = () => {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-4">
           {filteredExpenses.length === 0 ? (
             <div className="text-center py-16 px-4">
               <Receipt className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -284,18 +284,75 @@ const Expenses: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="inline-block min-w-full align-middle px-2">
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4">
+                {filteredExpenses.map((expense) => (
+                  <Card key={expense.id} className="shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-base">{expense.expense_name || 'Unnamed Expense'}</h3>
+                            <Badge variant="secondary" className="mt-1">{expense.category}</Badge>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-destructive">-₹{expense.amount.toFixed(2)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Date</p>
+                            <p className="font-medium">{new Date(expense.date).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Created</p>
+                            <p className="font-medium text-xs">{new Date(expense.created_at).toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        {expense.note && (
+                          <div>
+                            <p className="text-muted-foreground text-sm">Note</p>
+                            <p className="text-sm">{expense.note}</p>
+                          </div>
+                        )}
+
+                        {profile?.role === 'admin' && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <EditExpenseDialog
+                              expense={expense}
+                              onExpenseUpdated={fetchExpenses}
+                            />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deleteExpense(expense.id)}
+                              className="flex-1"
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[120px]">Name</TableHead>
-                      <TableHead className="min-w-[100px]">Category</TableHead>
-                      <TableHead className="min-w-[100px]">Amount</TableHead>
-                      <TableHead className="min-w-[100px]">Date</TableHead>
-                      <TableHead className="min-w-[150px]">Note</TableHead>
-                      <TableHead className="min-w-[120px]">Created</TableHead>
-                      {profile?.role === 'admin' && <TableHead className="text-right min-w-[150px]">Actions</TableHead>}
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Note</TableHead>
+                      <TableHead>Created</TableHead>
+                      {profile?.role === 'admin' && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -335,7 +392,7 @@ const Expenses: React.FC = () => {
                   </TableBody>
                 </Table>
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
