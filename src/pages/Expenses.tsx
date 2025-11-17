@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Receipt, Search, Calendar, Filter } from 'lucide-react';
+import { Receipt, Search, Calendar, FileSpreadsheet, Download } from 'lucide-react';
 import { AddExpenseDialog } from '@/components/AddExpenseDialog';
 import { EditExpenseDialog } from '@/components/EditExpenseDialog';
 import { CategorySelector } from '@/components/CategorySelector';
 import { cachedFetch, CACHE_KEYS, dataCache } from '@/utils/cacheUtils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { exportToPDF, exportToExcel } from '@/utils/exportUtils';
 
 interface Expense {
   id: string;
@@ -155,6 +156,66 @@ const Expenses: React.FC = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    try {
+      const expensesForExport = filteredExpenses.map(expense => ({
+        expense_name: expense.expense_name,
+        category: expense.category,
+        amount: expense.amount,
+        date: expense.date,
+        note: expense.note
+      }));
+
+      const dateRangeText = dateFilter === 'custom' 
+        ? `${startDate} to ${endDate}`
+        : dateFilter.charAt(0).toUpperCase() + dateFilter.slice(1);
+
+      exportToExcel(expensesForExport, `Expenses Report - ${dateRangeText}`);
+
+      toast({
+        title: "Success",
+        description: "Expenses exported to Excel successfully!",
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export Excel file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      const expensesForExport = filteredExpenses.map(expense => ({
+        expense_name: expense.expense_name,
+        category: expense.category,
+        amount: expense.amount,
+        date: expense.date,
+        note: expense.note
+      }));
+
+      const dateRangeText = dateFilter === 'custom' 
+        ? `${startDate} to ${endDate}`
+        : dateFilter.charAt(0).toUpperCase() + dateFilter.slice(1);
+
+      exportToPDF(expensesForExport, `Expenses Report - ${dateRangeText}`);
+
+      toast({
+        title: "Success",
+        description: "Expenses exported to PDF successfully!",
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export PDF file",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -179,11 +240,33 @@ const Expenses: React.FC = () => {
             <p className="text-muted-foreground text-sm">Track your business expenses</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           {profile?.role === 'admin' && (
             <>
-              <CategorySelector onCategoriesUpdated={handleCategoriesUpdated} />
-              <AddExpenseDialog onExpenseAdded={fetchExpenses} />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportExcel}
+                  className="text-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-1" />
+                  Export Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportPDF}
+                  className="text-xs"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Export PDF
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <CategorySelector onCategoriesUpdated={handleCategoriesUpdated} />
+                <AddExpenseDialog onExpenseAdded={fetchExpenses} />
+              </div>
             </>
           )}
         </div>
