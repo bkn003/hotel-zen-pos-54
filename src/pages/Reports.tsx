@@ -125,6 +125,8 @@ const Reports: React.FC = () => {
       case 'year':
         const yearStart = new Date(today.getFullYear(), 0, 1);
         return { start: yearStart.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+      case 'all':
+        return { start: '2000-01-01', end: today.toISOString().split('T')[0] };
       case 'custom':
         // Validate custom dates
         if (!customStartDate || !customEndDate) {
@@ -575,6 +577,7 @@ const Reports: React.FC = () => {
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
                   <SelectItem value="year">This Year</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
                   <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>

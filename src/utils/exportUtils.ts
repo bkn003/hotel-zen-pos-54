@@ -11,6 +11,15 @@ interface ExpenseForPDF {
   note?: string;
 }
 
+interface ExpenseForExport {
+  expense_name?: string;
+  category: string;
+  amount: number;
+  date: string;
+  note?: string;
+  created_at: string;
+}
+
 interface BillForExport {
   bill_no: string;
   date: string;
