@@ -514,17 +514,23 @@ const Billing = () => {
         throw itemsError;
       }
 
-      // Reduce stock for each item
-      for (const item of validCart) {
-        const {
-          data: currentItem
-        } = await supabase.from('items').select('stock_quantity').eq('id', item.id).single();
+      // Reduce stock for each item (parallel execution for better performance)
+      await Promise.all(validCart.map(async (item) => {
+        const { data: currentItem } = await supabase
+          .from('items')
+          .select('stock_quantity')
+          .eq('id', item.id)
+          .single();
+        
         if (currentItem) {
-          await supabase.from('items').update({
-            stock_quantity: (currentItem.stock_quantity || 0) - item.quantity
-          }).eq('id', item.id);
+          await supabase
+            .from('items')
+            .update({
+              stock_quantity: (currentItem.stock_quantity || 0) - item.quantity
+            })
+            .eq('id', item.id);
         }
-      }
+      }));
       toast({
         title: "Success",
         description: `Bill ${billNumber} generated successfully!`

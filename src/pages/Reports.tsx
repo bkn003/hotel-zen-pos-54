@@ -708,6 +708,7 @@ const Reports: React.FC = () => {
                         </div>
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                           <span>{format(new Date(bill.date), 'MMM dd, yyyy')}</span>
+                          <span>{format(new Date(bill.created_at), 'hh:mm a')}</span>
                           <span>{bill.payment_mode.toUpperCase()} • {bill.bill_items?.length || 0} items</span>
                         </div>
                       </div>
@@ -811,7 +812,9 @@ const Reports: React.FC = () => {
                 <div className="text-center py-8 text-xs">Loading...</div>
               ) : (
                 <div className="space-y-3">
-                  {Object.entries(paymentMethodSummary).map(([method, amount]) => (
+                  {Object.entries(paymentMethodSummary)
+                    .sort(([, amountA], [, amountB]) => amountB - amountA)
+                    .map(([method, amount]) => (
                     <div key={method} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
                         <h3 className="font-semibold text-sm capitalize">{method}</h3>
