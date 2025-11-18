@@ -287,16 +287,32 @@ const DashboardAnalytics = () => {
               <CardDescription>Best performing products by revenue</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topItems}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
+              {topItems.length > 0 ? (
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={topItems} margin={{ bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={100}
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(Number(value))}
+                      labelFormatter={(label) => `Item: ${label}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  No sales data available for this period
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -379,6 +379,7 @@ const Reports: React.FC = () => {
       const billsForExport = activeBills.map(bill => ({
         bill_no: bill.bill_no,
         date: format(new Date(bill.date), 'MMM dd, yyyy'),
+        time: format(new Date(bill.created_at), 'hh:mm a'),
         total_amount: bill.total_amount,
         discount: bill.discount,
         payment_mode: bill.payment_mode.toUpperCase(),
@@ -448,6 +449,7 @@ const Reports: React.FC = () => {
       const billsForExport = activeBills.map(bill => ({
         bill_no: bill.bill_no,
         date: format(new Date(bill.date), 'MMM dd, yyyy'),
+        time: format(new Date(bill.created_at), 'hh:mm a'),
         total_amount: bill.total_amount,
         discount: bill.discount,
         payment_mode: bill.payment_mode.toUpperCase(),
@@ -695,9 +697,9 @@ const Reports: React.FC = () => {
                           : 'bg-muted/50'
                       }`}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-sm truncate">{bill.bill_no}</h3>
+                      <div className="flex-1 min-w-0 mr-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-sm">{bill.bill_no}</h3>
                           {bill.is_deleted && (
                             <Badge variant="destructive" className="text-xs">
                               Deleted
@@ -709,11 +711,11 @@ const Reports: React.FC = () => {
                           <span>{bill.payment_mode.toUpperCase()} • {bill.bill_items?.length || 0} items</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <div className="text-right">
-                          <p className="font-semibold text-sm text-primary">₹{bill.total_amount.toFixed(2)}</p>
+                          <p className="font-semibold text-sm text-primary whitespace-nowrap">₹{bill.total_amount.toFixed(2)}</p>
                           {bill.discount > 0 && (
-                            <p className="text-xs text-success">-₹{bill.discount.toFixed(2)}</p>
+                            <p className="text-xs text-success whitespace-nowrap">-₹{bill.discount.toFixed(2)}</p>
                           )}
                         </div>
                         <div className="flex gap-1">
@@ -721,7 +723,7 @@ const Reports: React.FC = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedBill(bill)}
-                            className="h-7 w-7 p-0"
+                            className="h-7 w-7 p-0 flex-shrink-0"
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
@@ -730,7 +732,7 @@ const Reports: React.FC = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => deleteBill(bill.id)}
-                              className="h-7 w-7 p-0"
+                              className="h-7 w-7 p-0 flex-shrink-0"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -739,9 +741,10 @@ const Reports: React.FC = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => restoreBill(bill.id)}
-                              className="h-7 text-xs px-2"
+                              className="h-7 w-7 p-0 flex-shrink-0"
+                              title="Restore"
                             >
-                              Restore
+                              <Edit className="w-3 h-3" />
                             </Button>
                           )}
                         </div>

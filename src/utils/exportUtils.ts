@@ -23,6 +23,7 @@ interface ExpenseForExport {
 interface BillForExport {
   bill_no: string;
   date: string;
+  time: string;
   total_amount: number;
   discount: number;
   payment_mode: string;
@@ -65,6 +66,7 @@ export const exportAllReportsToExcel = (data: {
       '#': index + 1,
       'Bill No': bill.bill_no,
       'Date': bill.date,
+      'Time': bill.time,
       'Amount': bill.total_amount,
       'Discount': bill.discount,
       'Payment Mode': bill.payment_mode,
@@ -76,6 +78,7 @@ export const exportAllReportsToExcel = (data: {
       '#': '',
       'Bill No': '',
       'Date': 'TOTAL',
+      'Time': '',
       'Amount': billsTotal,
       'Discount': data.bills.reduce((sum, bill) => sum + bill.discount, 0),
       'Payment Mode': '',
@@ -232,6 +235,7 @@ export const exportAllReportsToPDF = (data: {
       (index + 1).toString(),
       bill.bill_no,
       bill.date,
+      bill.time,
       bill.total_amount.toFixed(2),
       bill.discount.toFixed(2),
       bill.payment_mode,
@@ -242,6 +246,7 @@ export const exportAllReportsToPDF = (data: {
       '',
       'TOTAL',
       '',
+      '',
       billsTotal.toFixed(2),
       data.bills.reduce((sum, bill) => sum + bill.discount, 0).toFixed(2),
       '',
@@ -249,7 +254,7 @@ export const exportAllReportsToPDF = (data: {
     ]);
 
     autoTable(doc, {
-      head: [['#', 'Bill No', 'Date', 'Amount', 'Discount', 'Payment', 'Items']],
+      head: [['#', 'Bill No', 'Date', 'Time', 'Amount', 'Discount', 'Payment', 'Items']],
       body: billsTableData,
       startY: 55,
       styles: { fontSize: 8, cellPadding: 2 },
