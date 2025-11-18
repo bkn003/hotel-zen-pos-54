@@ -98,9 +98,14 @@ const DashboardAnalytics = () => {
       // Fetch top selling items (exclude items from deleted bills)
       const { data: billItemsData } = await supabase
         .from('bill_items')
-        .select('quantity, price, item_id, items(name), bill_id, bills!inner(is_deleted)')
-        .gte('created_at', startDate.toISOString())
-        .or('bills.is_deleted.is.null,bills.is_deleted.eq.false', { foreignTable: 'bills' });
+        .select(`
+          quantity, 
+          price, 
+          item_id, 
+          items(name),
+          bills!inner(is_deleted)
+        `)
+        .gte('created_at', startDate.toISOString());
 
       // Process sales data
       const salesMap = new Map<string, { sales: number; expenses: number }>();
@@ -128,10 +133,13 @@ const DashboardAnalytics = () => {
 
       setSalesData(chartData);
 
-      // Process top items
+      // Process top items (exclude items from deleted bills)
       const itemsMap = new Map<string, { quantity: number; revenue: number }>();
       
       billItemsData?.forEach((item: any) => {
+        // Skip items from deleted bills
+        if (item.bills?.is_deleted) return;
+        
         const name = item.items?.name || 'Unknown';
         const current = itemsMap.get(name) || { quantity: 0, revenue: 0 };
         itemsMap.set(name, {
