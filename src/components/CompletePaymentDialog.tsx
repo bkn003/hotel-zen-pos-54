@@ -90,7 +90,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [selectedCharges, setSelectedCharges] = useState<Record<string, boolean>>({});
   const hasInitialized = React.useRef(false);
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate subtotal from cart
+  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   // Calculate additional charges based on their type
   const totalAdditionalCharges = additionalCharges
@@ -102,16 +103,19 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
         const totalQuantity = cart.reduce((qty, item) => qty + item.quantity, 0);
         return sum + (charge.amount * totalQuantity);
       } else if (charge.charge_type === 'percentage') {
-        return sum + (subtotal * charge.amount / 100);
+        return sum + (cartSubtotal * charge.amount / 100);
       }
       return sum;
     }, 0);
+  
+  // Subtotal includes cart items + additional charges
+  const subtotal = cartSubtotal + totalAdditionalCharges;
   
   const discountAmount = discountType === 'percentage' 
     ? (subtotal * discount) / 100 
     : discount;
   
-  const total = subtotal + totalAdditionalCharges - discountAmount;
+  const total = subtotal - discountAmount;
   const totalPaymentAmount = Object.values(paymentAmounts).reduce((sum, amount) => sum + amount, 0);
   const remaining = total - totalPaymentAmount;
 
@@ -136,7 +140,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
         name: charge.name,
         amount: charge.charge_type === 'fixed' ? charge.amount :
                 charge.charge_type === 'per_unit' ? charge.amount * validCart.reduce((qty, item) => qty + item.quantity, 0) :
-                subtotal * charge.amount / 100,
+                cartSubtotal * charge.amount / 100,
         enabled: true
       }));
 
@@ -176,10 +180,10 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       if (!hasInitialized.current) {
         hasInitialized.current = true;
         
-        // Initialize default charges
+        // Initialize default charges - auto-enable all active charges
         const defaultCharges: Record<string, boolean> = {};
         additionalCharges.forEach(charge => {
-          if (charge.is_default) {
+          if (charge.is_active) {
             defaultCharges[charge.id] = true;
           }
         });
@@ -291,7 +295,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   const isSelected = selectedCharges[charge.id];
                   const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
                                          charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
-                                         subtotal * charge.amount / 100;
+                                         cartSubtotal * charge.amount / 100;
                   
                   return (
                     <div key={charge.id} className="flex items-center justify-between p-1 border rounded text-xs">
@@ -401,7 +405,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             {additionalCharges.filter(charge => selectedCharges[charge.id]).map((charge) => {
               const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
                                      charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
-                                     subtotal * charge.amount / 100;
+                                     cartSubtotal * charge.amount / 100;
               return (
                 <div key={charge.id} className="flex justify-between">
                   <span>{charge.name}:</span>
