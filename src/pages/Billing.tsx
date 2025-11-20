@@ -438,7 +438,6 @@ const Billing = () => {
       enabled: boolean;
     }[];
   }) => {
-    const user = (await supabase.auth.getUser()).data.user;
     try {
       console.log('Completing payment with data:', paymentData);
 

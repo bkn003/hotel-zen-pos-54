@@ -20,10 +20,12 @@ interface TopItem {
   revenue: number;
 }
 
+type Period = 'today' | 'yesterday' | 'daily' | 'weekly' | 'monthly';
+
 const DashboardAnalytics = () => {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [period, setPeriod] = useState<Period>('today');
   const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [topItems, setTopItems] = useState<TopItem[]>([]);
   const [stats, setStats] = useState({
@@ -68,23 +70,41 @@ const DashboardAnalytics = () => {
       setLoading(true);
       const today = new Date();
       let startDate: Date;
+      let endDate: Date = new Date(today);
 
-      if (period === 'daily') {
-        startDate = new Date(today);
-        startDate.setDate(today.getDate() - 7);
-      } else if (period === 'weekly') {
-        startDate = new Date(today);
-        startDate.setDate(today.getDate() - 28);
-      } else {
-        startDate = new Date(today);
-        startDate.setMonth(today.getMonth() - 6);
+      switch (period) {
+        case 'today':
+          startDate = new Date(today);
+          break;
+        case 'yesterday':
+          startDate = new Date(today);
+          startDate.setDate(today.getDate() - 1);
+          endDate = new Date(startDate);
+          break;
+        case 'daily':
+          startDate = new Date(today);
+          startDate.setDate(today.getDate() - 6);
+          break;
+        case 'weekly':
+          startDate = new Date(today);
+          startDate.setDate(today.getDate() - 27);
+          break;
+        case 'monthly':
+        default:
+          startDate = new Date(today);
+          startDate.setMonth(today.getMonth() - 6);
+          break;
       }
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
 
       // Fetch bills (exclude deleted)
       const { data: billsData } = await supabase
         .from('bills')
         .select('total_amount, date, discount')
-        .gte('date', startDate.toISOString().split('T')[0])
+        .gte('date', startDateStr)
+        .lte('date', endDateStr)
         .or('is_deleted.is.null,is_deleted.eq.false')
         .order('date');
 
@@ -92,10 +112,14 @@ const DashboardAnalytics = () => {
       const { data: expensesData } = await supabase
         .from('expenses')
         .select('amount, date')
-        .gte('date', startDate.toISOString().split('T')[0])
+        .gte('date', startDateStr)
+        .lte('date', endDateStr)
         .order('date');
 
       // Fetch top selling items (exclude items from deleted bills)
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
       const { data: billItemsData } = await supabase
         .from('bill_items')
         .select(`
@@ -105,7 +129,8 @@ const DashboardAnalytics = () => {
           items(name),
           bills!inner(is_deleted)
         `)
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endOfDay.toISOString());
 
       // Process sales data
       const salesMap = new Map<string, { sales: number; expenses: number }>();
@@ -258,8 +283,10 @@ const DashboardAnalytics = () => {
       </div>
 
       {/* Period Selector */}
-      <Tabs value={period} onValueChange={(v) => setPeriod(v as any)}>
+      <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
         <TabsList>
+          <TabsTrigger value="today">Today</TabsTrigger>
+          <TabsTrigger value="yesterday">Yesterday</TabsTrigger>
           <TabsTrigger value="daily">Last 7 Days</TabsTrigger>
           <TabsTrigger value="weekly">Last 4 Weeks</TabsTrigger>
           <TabsTrigger value="monthly">Last 6 Months</TabsTrigger>
