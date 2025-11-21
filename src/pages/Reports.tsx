@@ -111,6 +111,9 @@ const Reports: React.FC = () => {
     yesterday.setDate(yesterday.getDate() - 1);
     
     switch (dateRange) {
+      case 'hourly':
+        // Last 12 hours from now
+        return { start: today.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
       case 'today':
         return { start: today.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
       case 'yesterday':
@@ -574,6 +577,7 @@ const Reports: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="hourly">Last 12 Hours</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
