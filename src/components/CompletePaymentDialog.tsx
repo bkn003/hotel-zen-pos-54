@@ -290,6 +290,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           {additionalCharges.length > 0 && (
             <div>
               <h3 className="font-medium mb-1.5 text-sm">Additional Charges</h3>
+              <p className="text-[10px] text-muted-foreground mb-2">Check/uncheck to enable or disable charges</p>
               <div className="space-y-1 max-h-24 overflow-y-auto">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
@@ -298,12 +299,12 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                                          cartSubtotal * charge.amount / 100;
                   
                   return (
-                    <div key={charge.id} className="flex items-center justify-between p-1 border rounded text-xs">
-                      <div className="flex items-center space-x-1 flex-1 min-w-0">
+                    <div key={charge.id} className="flex items-center justify-between p-1.5 border rounded text-xs hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => toggleAdditionalCharge(charge.id)}
-                          className="h-3 w-3 flex-shrink-0"
+                          className="h-4 w-4 flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
                         <div className="flex-1 min-w-0">
                           <span className="font-medium text-xs truncate block">{charge.name}</span>

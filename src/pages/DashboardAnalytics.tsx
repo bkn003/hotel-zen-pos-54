@@ -232,50 +232,50 @@ const DashboardAnalytics = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-success" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{formatCurrency(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground mt-1">For selected period</p>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-success">{formatCurrency(stats.totalRevenue)}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">For selected period</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingUp className="h-4 w-4 text-destructive" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Expenses</CardTitle>
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{formatCurrency(stats.totalExpenses)}</div>
-            <p className="text-xs text-muted-foreground mt-1">For selected period</p>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-destructive">{formatCurrency(stats.totalExpenses)}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">For selected period</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Net Profit</CardTitle>
+            <ShoppingBag className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(stats.totalProfit)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-primary">{formatCurrency(stats.totalProfit)}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
               {stats.totalRevenue > 0 ? `${((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1)}% margin` : '0% margin'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Bills</CardTitle>
-            <Package className="h-4 w-4 text-secondary" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Bills</CardTitle>
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-secondary" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalBills}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold">{stats.totalBills}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
               Avg: {stats.totalBills > 0 ? formatCurrency(stats.totalRevenue / stats.totalBills) : '₹0'}
             </p>
           </CardContent>
@@ -284,23 +284,23 @@ const DashboardAnalytics = () => {
 
       {/* Period Selector */}
       <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-        <TabsList>
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="yesterday">Yesterday</TabsTrigger>
-          <TabsTrigger value="daily">Last 7 Days</TabsTrigger>
-          <TabsTrigger value="weekly">Last 4 Weeks</TabsTrigger>
-          <TabsTrigger value="monthly">Last 6 Months</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 gap-1">
+          <TabsTrigger value="today" className="text-xs sm:text-sm">Today</TabsTrigger>
+          <TabsTrigger value="yesterday" className="text-xs sm:text-sm">Yesterday</TabsTrigger>
+          <TabsTrigger value="daily" className="text-xs sm:text-sm">7 Days</TabsTrigger>
+          <TabsTrigger value="weekly" className="text-xs sm:text-sm">4 Weeks</TabsTrigger>
+          <TabsTrigger value="monthly" className="text-xs sm:text-sm">6 Months</TabsTrigger>
         </TabsList>
 
         <TabsContent value={period} className="space-y-6">
           {/* Sales & Expenses Trend */}
           <Card>
-            <CardHeader>
-              <CardTitle>Sales & Expenses Trend</CardTitle>
-              <CardDescription>Track your revenue, expenses, and profit over time</CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-sm sm:text-base">Sales & Expenses Trend</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Track your revenue, expenses, and profit over time</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={salesData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
@@ -317,13 +317,13 @@ const DashboardAnalytics = () => {
 
           {/* Top Selling Items */}
           <Card>
-            <CardHeader>
-              <CardTitle>Top Selling Items</CardTitle>
-              <CardDescription>Best performing products by revenue</CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-sm sm:text-base">Top Selling Items</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Best performing products by revenue</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {topItems.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={topItems} margin={{ bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
