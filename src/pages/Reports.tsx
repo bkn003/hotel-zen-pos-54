@@ -62,6 +62,7 @@ const Reports: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('today');
+  const [hourRange, setHourRange] = useState(12);
   const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [bills, setBills] = useState<Bill[]>([]);
@@ -73,7 +74,7 @@ const Reports: React.FC = () => {
 
   const fetchReportsCallback = useCallback(() => {
     fetchReports();
-  }, [dateRange, customStartDate, customEndDate, billFilter]);
+  }, [dateRange, customStartDate, customEndDate, billFilter, hourRange]);
 
   useEffect(() => {
     fetchReportsCallback();
@@ -81,8 +82,6 @@ const Reports: React.FC = () => {
 
   // Real-time subscription for bills changes
   useEffect(() => {
-    console.log('Setting up real-time bills subscription in Reports...');
-    
     const channel = supabase
       .channel('reports-bills-realtime')
       .on(
@@ -90,17 +89,15 @@ const Reports: React.FC = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'bills'
+          table: 'bills',
         },
-        (payload) => {
-          console.log('Bill change detected in Reports:', payload);
+        () => {
           fetchReportsCallback();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time bills subscription in Reports...');
       supabase.removeChannel(channel);
     };
   }, [fetchReportsCallback]);
@@ -111,9 +108,13 @@ const Reports: React.FC = () => {
     yesterday.setDate(yesterday.getDate() - 1);
     
     switch (dateRange) {
-      case 'hourly':
-        // Last 12 hours from now
-        return { start: today.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+      case 'hourly': {
+        const startByHours = new Date(today);
+        const safeHours = Math.max(1, Math.min(hourRange, 24));
+        startByHours.setHours(startByHours.getHours() - safeHours);
+        return { start: startByHours.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+      }
+
       case 'today':
         return { start: today.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
       case 'yesterday':
@@ -156,7 +157,7 @@ const Reports: React.FC = () => {
     
     try {
       const { start, end } = getDateFilter();
-      const cacheKey = `${CACHE_KEYS.REPORTS}_${billFilter}_${start}_${end}`;
+      const cacheKey = `${CACHE_KEYS.REPORTS}_${billFilter}_${start}_${end}_${dateRange === 'hourly' ? hourRange : ''}`;
 
       const reportData = await cachedFetch(
         cacheKey,
@@ -189,6 +190,19 @@ const Reports: React.FC = () => {
           const { data: billsData, error: billsError } = await billsQuery;
           if (billsError) throw billsError;
 
+          let filteredBillsData = billsData || [];
+
+          if (dateRange === 'hourly') {
+            const now = new Date();
+            const safeHours = Math.max(1, Math.min(hourRange, 24));
+            const fromTime = new Date(now.getTime() - safeHours * 60 * 60 * 1000);
+
+            filteredBillsData = filteredBillsData.filter((bill: any) => {
+              const createdAt = bill.created_at ? new Date(bill.created_at) : new Date(bill.date);
+              return createdAt >= fromTime && createdAt <= now;
+            });
+          }
+
           let expensesData = [];
           let itemReportMap = new Map();
 
@@ -206,7 +220,7 @@ const Reports: React.FC = () => {
             expensesData = expensesResult || [];
 
             // Generate item reports
-            billsData?.forEach(bill => {
+            filteredBillsData.forEach((bill: any) => {
               bill.bill_items?.forEach(item => {
                 const key = item.items?.name || 'Unknown';
                 const existing = itemReportMap.get(key);
@@ -227,7 +241,7 @@ const Reports: React.FC = () => {
           }
 
           return {
-            bills: billsData || [],
+            bills: filteredBillsData,
             expenses: expensesData,
             itemReports: Array.from(itemReportMap.values())
           };
@@ -577,7 +591,7 @@ const Reports: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="hourly">Last 12 Hours</SelectItem>
+                  <SelectItem value="hourly">Last X Hours</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
@@ -588,6 +602,24 @@ const Reports: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {dateRange === 'hourly' && (
+              <div>
+                <Label className="text-xs">Hours</Label>
+                <Input
+                  type="number"
+                  value={hourRange}
+                  min={1}
+                  max={24}
+                  onChange={(e) => {
+                    const value = Number(e.target.value) || 1;
+                    const clamped = Math.max(1, Math.min(24, value));
+                    setHourRange(clamped);
+                  }}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
 
             {dateRange === 'custom' && (
               <>
