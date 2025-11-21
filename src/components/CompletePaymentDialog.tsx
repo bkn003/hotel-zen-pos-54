@@ -173,27 +173,22 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
   // Initialize defaults when dialog opens or payment types change
   React.useEffect(() => {
-    if (open && paymentTypes.length > 0) {
-      // Reset initialization when payment types change to allow re-initialization
-      hasInitialized.current = false;
+    if (open && paymentTypes.length > 0 && !hasInitialized.current) {
+      hasInitialized.current = true;
       
-      if (!hasInitialized.current) {
-        hasInitialized.current = true;
-        
-        // Initialize default charges - auto-enable all active charges
-        const defaultCharges: Record<string, boolean> = {};
-        additionalCharges.forEach(charge => {
-          if (charge.is_active) {
-            defaultCharges[charge.id] = true;
-          }
-        });
-        setSelectedCharges(defaultCharges);
-
-        // Auto-select default payment method
-        const defaultPayment = paymentTypes.find(p => p.is_default);
-        if (defaultPayment && total > 0) {
-          setPaymentAmounts({ [defaultPayment.payment_type]: total });
+      // Initialize default charges - auto-enable all active charges
+      const defaultCharges: Record<string, boolean> = {};
+      additionalCharges.forEach(charge => {
+        if (charge.is_active) {
+          defaultCharges[charge.id] = true;
         }
+      });
+      setSelectedCharges(defaultCharges);
+
+      // Auto-select default payment method
+      const defaultPayment = paymentTypes.find(p => p.is_default);
+      if (defaultPayment && total > 0) {
+        setPaymentAmounts({ [defaultPayment.payment_type]: total });
       }
     }
   }, [open, paymentTypes, additionalCharges, total]);
@@ -304,7 +299,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => toggleAdditionalCharge(charge.id)}
-                          className="h-4 w-4 flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          className="h-4 w-4 rounded-[3px] flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
                         <div className="flex-1 min-w-0">
                           <span className="font-medium text-xs truncate block">{charge.name}</span>

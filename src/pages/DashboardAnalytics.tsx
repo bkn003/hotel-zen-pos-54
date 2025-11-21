@@ -284,15 +284,15 @@ const DashboardAnalytics = () => {
 
       {/* Period Selector */}
       <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 gap-1">
-          <TabsTrigger value="today" className="text-xs sm:text-sm">Today</TabsTrigger>
-          <TabsTrigger value="yesterday" className="text-xs sm:text-sm">Yesterday</TabsTrigger>
-          <TabsTrigger value="daily" className="text-xs sm:text-sm">7 Days</TabsTrigger>
-          <TabsTrigger value="weekly" className="text-xs sm:text-sm">4 Weeks</TabsTrigger>
-          <TabsTrigger value="monthly" className="text-xs sm:text-sm">6 Months</TabsTrigger>
+        <TabsList className="flex w-full flex-wrap gap-1 sm:gap-2 justify-between sm:justify-start">
+          <TabsTrigger value="today" className="flex-1 min-w-[80px] text-xs sm:text-sm sm:flex-none">Today</TabsTrigger>
+          <TabsTrigger value="yesterday" className="flex-1 min-w-[80px] text-xs sm:text-sm sm:flex-none">Yesterday</TabsTrigger>
+          <TabsTrigger value="daily" className="flex-1 min-w-[80px] text-xs sm:text-sm sm:flex-none">7 Days</TabsTrigger>
+          <TabsTrigger value="weekly" className="flex-1 min-w-[80px] text-xs sm:text-sm sm:flex-none">4 Weeks</TabsTrigger>
+          <TabsTrigger value="monthly" className="flex-1 min-w-[80px] text-xs sm:text-sm sm:flex-none">6 Months</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={period} className="space-y-6">
+        <TabsContent value={period} className="mt-4 space-y-6">
           {/* Sales & Expenses Trend */}
           <Card>
             <CardHeader className="p-3 sm:p-6">
