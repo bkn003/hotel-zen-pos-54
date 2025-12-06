@@ -143,6 +143,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bluetooth_settings: {
+        Row: {
+          auto_print: boolean
+          created_at: string
+          id: string
+          is_enabled: boolean
+          printer_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_print?: boolean
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          printer_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_print?: boolean
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          printer_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       display_settings: {
         Row: {
           category_order: string[] | null
@@ -375,6 +405,33 @@ export type Database = {
           name?: string
           role?: Database["public"]["Enums"]["app_role"]
           status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          created_at: string
+          has_access: boolean
+          id: string
+          page_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          has_access?: boolean
+          id?: string
+          page_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          has_access?: boolean
+          id?: string
+          page_name?: string
           updated_at?: string
           user_id?: string
         }

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Minus, X, Trash2 } from 'lucide-react';
+import { Plus, Minus, Trash2 } from 'lucide-react';
 
 interface CartItem {
   id: string;
@@ -14,10 +14,8 @@ interface CartItem {
   unit?: string;
 }
 
-// Utility function to get simplified unit names
 const getSimplifiedUnit = (unit?: string): string => {
   if (!unit) return 'pc';
-  
   const unitMap: Record<string, string> = {
     'Piece (pc)': 'pc',
     'Kilogram (kg)': 'kg',
@@ -28,11 +26,9 @@ const getSimplifiedUnit = (unit?: string): string => {
     'Box (box)': 'box',
     'Packet (pkt)': 'pkt',
   };
-  
   return unitMap[unit] || unit.toLowerCase();
 };
 
-// Check if unit is weight/volume based
 const isWeightOrVolumeUnit = (unit?: string): boolean => {
   if (!unit) return false;
   const weightVolumeUnits = ['kg', 'Kilogram (kg)', 'g', 'Gram (g)', 'lt', 'Liter (L)', 'ml', 'Milliliter (mL)'];
@@ -90,10 +86,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [selectedCharges, setSelectedCharges] = useState<Record<string, boolean>>({});
   const hasInitialized = React.useRef(false);
 
-  // Calculate subtotal from cart
   const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Calculate additional charges based on their type
   const totalAdditionalCharges = additionalCharges
     .filter(charge => selectedCharges[charge.id])
     .reduce((sum, charge) => {
@@ -108,30 +102,21 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       return sum;
     }, 0);
   
-  // Subtotal includes cart items + additional charges
   const subtotal = cartSubtotal + totalAdditionalCharges;
-  
   const discountAmount = discountType === 'percentage' 
     ? (subtotal * discount) / 100 
     : discount;
-  
   const total = subtotal - discountAmount;
   const totalPaymentAmount = Object.values(paymentAmounts).reduce((sum, amount) => sum + amount, 0);
   const remaining = total - totalPaymentAmount;
 
-
   const handlePaymentAmountChange = (paymentType: string, amount: number) => {
-    setPaymentAmounts(prev => ({
-      ...prev,
-      [paymentType]: amount || 0
-    }));
+    setPaymentAmounts(prev => ({ ...prev, [paymentType]: amount || 0 }));
   };
 
   const handleCompletePayment = () => {
     const primaryPaymentMethod = Object.entries(paymentAmounts)
       .find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
-
-    // Filter out items with 0 quantity before completing payment
     const validCart = cart.filter(item => item.quantity > 0);
     
     const selectedAdditionalCharges = additionalCharges
@@ -153,14 +138,12 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     });
   };
 
-  const toggleAdditionalCharge = (chargeId: string) => {
-    setSelectedCharges(prev => ({
-      ...prev,
-      [chargeId]: !prev[chargeId]
-    }));
+  const handleChargeRowClick = (chargeId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedCharges(prev => ({ ...prev, [chargeId]: !prev[chargeId] }));
   };
 
-  // Reset state when dialog closes
   React.useEffect(() => {
     if (!open) {
       hasInitialized.current = false;
@@ -171,12 +154,10 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     }
   }, [open]);
 
-  // Initialize defaults when dialog opens or payment types change
   React.useEffect(() => {
     if (open && paymentTypes.length > 0 && !hasInitialized.current) {
       hasInitialized.current = true;
       
-      // Initialize default charges - auto-enable all active charges
       const defaultCharges: Record<string, boolean> = {};
       additionalCharges.forEach(charge => {
         if (charge.is_active) {
@@ -185,7 +166,6 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       });
       setSelectedCharges(defaultCharges);
 
-      // Auto-select default payment method
       const defaultPayment = paymentTypes.find(p => p.is_default);
       if (defaultPayment && total > 0) {
         setPaymentAmounts({ [defaultPayment.payment_type]: total });
@@ -193,7 +173,6 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     }
   }, [open, paymentTypes, additionalCharges, total]);
 
-  // Update payment amount when total changes (for already selected payment)
   React.useEffect(() => {
     if (open && hasInitialized.current) {
       const selectedPaymentType = Object.entries(paymentAmounts).find(([_, amount]) => amount > 0)?.[0];
@@ -205,32 +184,31 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md h-[95vh] flex flex-col">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-base">Complete Payment</DialogTitle>
+      <DialogContent className="max-w-md max-h-[95vh] flex flex-col p-0 gap-0 overflow-hidden border-2 border-primary/20">
+        <DialogHeader className="p-3 pb-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <span className="bg-white/20 p-1 rounded">💳</span>
+            Complete Payment
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-3">
-          {/* Order Summary */}
-          <div>
-            <h3 className="font-medium mb-2 text-sm">Order Summary</h3>
-            <div className="space-y-1 max-h-64 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {/* Order Summary - Collapsible */}
+          <details className="group">
+            <summary className="font-medium text-xs cursor-pointer flex items-center justify-between bg-muted/50 p-2 rounded-lg hover:bg-muted transition-colors">
+              <span>Order Summary ({cart.length} items)</span>
+              <span className="text-primary font-bold">₹{cartSubtotal.toFixed(2)}</span>
+            </summary>
+            <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
               {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-1.5 border rounded text-xs">
+                <div key={item.id} className="flex items-center justify-between p-1.5 bg-muted/30 rounded text-xs">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{item.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      ₹{item.price.toFixed(2)}/{getSimplifiedUnit(item.unit)}
-                    </div>
+                    <div className="font-medium truncate text-xs">{item.name}</div>
+                    <div className="text-[10px] text-muted-foreground">₹{item.price}/{getSimplifiedUnit(item.unit)}</div>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onUpdateQuantity(item.id, -1)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <Minus className="h-3 w-3" />
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" onClick={() => onUpdateQuantity(item.id, -1)} className="h-5 w-5 p-0 rounded-full bg-red-500 text-white border-0 hover:bg-red-600">
+                      <Minus className="h-2.5 w-2.5" />
                     </Button>
                     <Input
                       type="number"
@@ -238,55 +216,39 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       onChange={(e) => {
                         const value = e.target.value;
                         if (value === '' || value === '0') {
-                          // Keep item in cart with 0 quantity for easier editing
                           const diff = 0 - item.quantity;
                           onUpdateQuantity(item.id, diff);
                           return;
                         }
-                        
                         const isWeightUnit = isWeightOrVolumeUnit(item.unit);
                         const newQty = isWeightUnit ? parseFloat(value) : parseInt(value);
-                        
                         if (!isNaN(newQty) && newQty >= 0) {
                           const diff = newQty - item.quantity;
                           onUpdateQuantity(item.id, diff);
                         }
                       }}
-                      className="h-6 w-12 text-xs text-center p-0"
+                      className="h-5 w-10 text-[10px] text-center p-0 border-primary/30"
                       min="0"
                       step={isWeightOrVolumeUnit(item.unit) ? "0.001" : "1"}
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onUpdateQuantity(item.id, 1)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <Plus className="h-3 w-3" />
+                    <Button size="sm" variant="outline" onClick={() => onUpdateQuantity(item.id, 1)} className="h-5 w-5 p-0 rounded-full bg-green-500 text-white border-0 hover:bg-green-600">
+                      <Plus className="h-2.5 w-2.5" />
                     </Button>
-                    <div className="text-xs font-medium min-w-[3rem] text-right">
-                      ₹{(item.price * item.quantity).toFixed(2)}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onRemoveItem(item.id)}
-                      className="h-6 w-6 p-0 text-destructive"
-                    >
-                      <Trash2 className="h-3 w-3" />
+                    <span className="text-[10px] font-medium min-w-[2.5rem] text-right">₹{(item.price * item.quantity).toFixed(0)}</span>
+                    <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-5 w-5 p-0 text-destructive">
+                      <Trash2 className="h-2.5 w-2.5" />
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
-            <div>
-              <h3 className="font-medium mb-1.5 text-sm">Additional Charges</h3>
-              <p className="text-[10px] text-muted-foreground mb-2">Check/uncheck to enable or disable charges</p>
-              <div className="space-y-1 max-h-24 overflow-y-auto">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-lg p-2">
+              <h3 className="font-medium text-xs mb-1.5 text-primary">Additional Charges</h3>
+              <div className="space-y-1">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
                   const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
@@ -294,28 +256,35 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                                          cartSubtotal * charge.amount / 100;
                   
                   return (
-                    <div key={charge.id} className="flex items-center justify-between p-1.5 border rounded text-xs hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                    <div 
+                      key={charge.id} 
+                      onClick={(e) => handleChargeRowClick(charge.id, e)}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'bg-primary/10 border border-primary/30' 
+                          : 'bg-white/50 dark:bg-gray-800/50 border border-transparent hover:border-muted'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <Checkbox
                           checked={isSelected}
-                          onCheckedChange={() => toggleAdditionalCharge(charge.id)}
-                          className="h-4 w-4 rounded-[3px] flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          onCheckedChange={() => {}}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary pointer-events-none"
                         />
                         <div className="flex-1 min-w-0">
-                          <span className="font-medium text-xs truncate block">{charge.name}</span>
+                          <span className={`font-medium text-xs truncate block ${isSelected ? 'text-primary' : ''}`}>
+                            {charge.name}
+                          </span>
                           {charge.charge_type === 'per_unit' && (
-                            <span className="text-[10px] text-muted-foreground">
-                              ₹{charge.amount}/{charge.unit}
-                            </span>
+                            <span className="text-[10px] text-muted-foreground">₹{charge.amount}/{charge.unit}</span>
                           )}
                           {charge.charge_type === 'percentage' && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {charge.amount}%
-                            </span>
+                            <span className="text-[10px] text-muted-foreground">{charge.amount}%</span>
                           )}
                         </div>
                       </div>
-                      <span className="font-medium text-xs ml-2 flex-shrink-0">
+                      <span className={`font-bold text-xs ml-2 flex-shrink-0 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
                         ₹{calculatedAmount.toFixed(0)}
                       </span>
                     </div>
@@ -326,23 +295,23 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           )}
 
           {/* Discount */}
-          <div>
-            <h3 className="font-medium mb-2 text-sm">Discount (Optional)</h3>
-            <div className="flex items-center space-x-1">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg p-2">
+            <h3 className="font-medium text-xs mb-1.5 text-green-700 dark:text-green-400">Discount (Optional)</h3>
+            <div className="flex items-center gap-1">
               <Select value={discountType} onValueChange={(value: 'flat' | 'percentage') => setDiscountType(value)}>
-                <SelectTrigger className="w-20 h-7 text-xs">
+                <SelectTrigger className="w-16 h-7 text-[10px] bg-white dark:bg-gray-800">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="flat">₹ Flat</SelectItem>
-                  <SelectItem value="percentage">% Percent</SelectItem>
+                  <SelectItem value="percentage">%</SelectItem>
                 </SelectContent>
               </Select>
               <Input
                 type="number"
                 value={discount}
                 onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                className="flex-1 h-7 text-xs"
+                className="flex-1 h-7 text-xs bg-white dark:bg-gray-800"
                 placeholder="0"
                 min="0"
                 step={discountType === 'percentage' ? '1' : '0.01'}
@@ -352,21 +321,18 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           </div>
 
           {/* Payment Methods */}
-          <div>
-            <h3 className="font-medium mb-2 text-sm">Payment Methods *</h3>
-            <div className="grid grid-cols-3 gap-1 mb-2">
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg p-2">
+            <h3 className="font-medium text-xs mb-1.5 text-orange-700 dark:text-orange-400">Payment Methods *</h3>
+            <div className="grid grid-cols-3 gap-1 mb-1.5">
               {paymentTypes.map((payment) => (
                 <Button
                   key={payment.id}
                   variant={paymentAmounts[payment.payment_type] > 0 ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    // Clear all other payment amounts and set this one to full amount
-                    setPaymentAmounts({ [payment.payment_type]: total });
-                  }}
-                  className="capitalize text-xs h-6"
+                  onClick={() => setPaymentAmounts({ [payment.payment_type]: total })}
+                  className={`capitalize text-[10px] h-6 ${paymentAmounts[payment.payment_type] > 0 ? 'bg-primary shadow-md' : 'bg-white dark:bg-gray-800'}`}
                 >
-                  {payment.payment_type.toUpperCase()}
+                  {payment.payment_type}
                 </Button>
               ))}
             </div>
@@ -377,33 +343,36 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   type="number"
                   value={paymentAmounts[payment.payment_type] || 0}
                   onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
-                  className="h-6 text-xs text-center"
+                  className="h-6 text-[10px] text-center bg-white dark:bg-gray-800"
                   placeholder="0.00"
                   min="0"
                   step="0.01"
                 />
               ))}
             </div>
-            <div className="text-right mt-1">
-              <span className="text-xs">Remaining: <span className="font-medium">₹{remaining.toFixed(2)}</span></span>
-            </div>
+            {remaining !== 0 && (
+              <div className="text-right mt-1">
+                <span className={`text-[10px] font-medium ${remaining > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                  Remaining: ₹{remaining.toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
-
         </div>
         
         {/* Summary - Fixed at bottom */}
-        <div className="border-t pt-2 space-y-2">
-          <div className="space-y-1 text-xs">
+        <div className="border-t-2 border-primary/20 p-3 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900">
+          <div className="space-y-0.5 text-[10px]">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>₹{subtotal.toFixed(2)}</span>
+              <span>₹{cartSubtotal.toFixed(2)}</span>
             </div>
             {additionalCharges.filter(charge => selectedCharges[charge.id]).map((charge) => {
               const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
                                      charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
                                      cartSubtotal * charge.amount / 100;
               return (
-                <div key={charge.id} className="flex justify-between">
+                <div key={charge.id} className="flex justify-between text-primary">
                   <span>{charge.name}:</span>
                   <span>+₹{calculatedAmount.toFixed(2)}</span>
                 </div>
@@ -416,24 +385,19 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               </div>
             )}
           </div>
-          <div className="flex justify-between font-semibold text-sm pt-1 border-t">
+          <div className="flex justify-between font-bold text-sm pt-1 mt-1 border-t border-primary/20">
             <span>Total:</span>
-            <span>₹{total.toFixed(2)}</span>
+            <span className="text-primary text-base">₹{total.toFixed(2)}</span>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex space-x-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1 h-8 text-xs"
-            >
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 h-8 text-xs">
               Cancel
             </Button>
             <Button
               onClick={handleCompletePayment}
               disabled={remaining !== 0}
-              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+              className="flex-1 h-8 text-xs bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg"
             >
               Complete Payment
             </Button>

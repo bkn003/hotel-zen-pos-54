@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { Users as UsersIcon, Search, User, Shield } from 'lucide-react';
 import { AddUserDialog } from '@/components/AddUserDialog';
 import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
+import { UserPermissions } from '@/components/UserPermissions';
 import type { UserProfile, UserStatus } from '@/types/user';
 
 const Users: React.FC = () => {
@@ -24,7 +24,6 @@ const Users: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Filter users based on search term
     if (!searchTerm.trim()) {
       setFilteredUsers(users);
     } else {
@@ -50,9 +49,8 @@ const Users: React.FC = () => {
 
       if (error) throw error;
       
-      // Filter out super_admin users and type cast the data to ensure proper typing
       const typedUsers = (data || [])
-        .filter(user => user.role !== 'super_admin') // Filter out any remaining super_admin users
+        .filter(user => user.role !== 'super_admin')
         .map(user => ({
           id: user.id,
           user_id: user.user_id,
@@ -144,15 +142,22 @@ const Users: React.FC = () => {
         <PaymentTypesManagement />
       )}
 
+      {/* User Permissions */}
+      {profile?.role === 'admin' && users.length > 0 && (
+        <div className="mb-6">
+          <UserPermissions users={users} />
+        </div>
+      )}
+
       {/* Search Bar */}
       <Card className="mb-6">
-        <CardHeader>
+        <CardHeader className="py-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Search className="w-5 h-5" />
             Search Users
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="py-3">
           <Input
             placeholder="Search by name, role, hotel, or status..."
             value={searchTerm}
@@ -164,7 +169,7 @@ const Users: React.FC = () => {
 
       {/* Users List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="py-3">
           <CardTitle className="text-lg">All Users ({filteredUsers.length})</CardTitle>
         </CardHeader>
         <CardContent>
