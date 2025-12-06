@@ -3,14 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Settings as SettingsIcon, DollarSign, Monitor, Plus, X, Edit, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Monitor, Plus, Edit, Trash2, Printer } from 'lucide-react';
 import { AddAdditionalChargeDialog } from '@/components/AddAdditionalChargeDialog';
 import { EditAdditionalChargeDialog } from '@/components/EditAdditionalChargeDialog';
 import { DisplaySettings } from '@/components/DisplaySettings';
 import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
+import { BluetoothPrinterSettings } from '@/components/BluetoothPrinterSettings';
 
 interface AdditionalCharge {
   id: string;
@@ -256,6 +256,9 @@ const Settings = () => {
 
           {/* Payment Types Management */}
           <PaymentTypesManagement />
+
+          {/* Bluetooth Printer Settings */}
+          <BluetoothPrinterSettings />
 
           {/* Display Settings */}
           <Card>
