@@ -68,13 +68,13 @@ const CategoryScrollBar: React.FC<{
   });
 
   return (
-    <div className="mb-3 overflow-x-auto scrollbar-hide">
-      <div className="flex gap-2 pb-2 min-w-max">
+    <div className="mb-3 w-full overflow-hidden">
+      <div className="flex gap-2 pb-2 overflow-x-auto scrollbar-hide" style={{ maxWidth: '100%' }}>
         <Button
           variant={selectedCategory === 'all' ? 'default' : 'outline'}
           size="sm"
           onClick={() => onSelectCategory('all')}
-          className={`whitespace-nowrap h-8 px-4 ${
+          className={`whitespace-nowrap flex-shrink-0 h-8 px-4 ${
             selectedCategory === 'all' 
               ? 'bg-primary text-primary-foreground shadow-md' 
               : 'hover:bg-muted'
@@ -88,7 +88,7 @@ const CategoryScrollBar: React.FC<{
             variant={selectedCategory === category.name ? 'default' : 'outline'}
             size="sm"
             onClick={() => onSelectCategory(category.name)}
-            className={`whitespace-nowrap h-8 px-4 ${
+            className={`whitespace-nowrap flex-shrink-0 h-8 px-4 ${
               selectedCategory === category.name 
                 ? 'bg-primary text-primary-foreground shadow-md' 
                 : 'hover:bg-muted'
