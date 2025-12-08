@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -13,26 +14,24 @@ import {
   Settings
 } from 'lucide-react';
 
-const adminNavItems = [
-  { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
-  { to: '/billing', icon: ShoppingCart, label: 'Billing' },
-  { to: '/items', icon: Package, label: 'Items' },
-  { to: '/expenses', icon: Receipt, label: 'Expenses' },
-  { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-];
-
-const userNavItems = [
-  { to: '/billing', icon: ShoppingCart, label: 'Billing' },
+const allNavItems = [
+  { to: '/analytics', icon: TrendingUp, label: 'Analytics', page: 'analytics' as const },
+  { to: '/billing', icon: ShoppingCart, label: 'Billing', page: 'billing' as const },
+  { to: '/items', icon: Package, label: 'Items', page: 'items' as const },
+  { to: '/expenses', icon: Receipt, label: 'Expenses', page: 'expenses' as const },
+  { to: '/reports', icon: BarChart3, label: 'Reports', page: 'reports' as const },
+  { to: '/settings', icon: Settings, label: 'Settings', page: 'settings' as const },
 ];
 
 export const BottomNavigation: React.FC = () => {
   const { profile } = useAuth();
   const location = useLocation();
+  const { hasAccess, loading } = useUserPermissions();
 
-  if (!profile) return null;
+  if (!profile || loading) return null;
 
-  const navItems = profile.role === 'admin' ? adminNavItems : userNavItems;
+  // Filter nav items based on permissions
+  const navItems = allNavItems.filter(item => hasAccess(item.page));
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t md:hidden">

@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -14,28 +14,26 @@ import {
   Settings
 } from 'lucide-react';
 
-const adminNavItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
-  { to: '/billing', icon: ShoppingCart, label: 'Billing' },
-  { to: '/items', icon: Package, label: 'Items' },
-  { to: '/expenses', icon: Receipt, label: 'Expenses' },
-  { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/users', icon: Users, label: 'Users' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-];
-
-const userNavItems = [
-  { to: '/billing', icon: ShoppingCart, label: 'Billing' },
+const allNavItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' as const },
+  { to: '/analytics', icon: TrendingUp, label: 'Analytics', page: 'analytics' as const },
+  { to: '/billing', icon: ShoppingCart, label: 'Billing', page: 'billing' as const },
+  { to: '/items', icon: Package, label: 'Items', page: 'items' as const },
+  { to: '/expenses', icon: Receipt, label: 'Expenses', page: 'expenses' as const },
+  { to: '/reports', icon: BarChart3, label: 'Reports', page: 'reports' as const },
+  { to: '/users', icon: Users, label: 'Users', page: 'users' as const },
+  { to: '/settings', icon: Settings, label: 'Settings', page: 'settings' as const },
 ];
 
 export const Sidebar: React.FC = () => {
   const { profile } = useAuth();
   const location = useLocation();
+  const { hasAccess, loading } = useUserPermissions();
 
-  if (!profile) return null;
+  if (!profile || loading) return null;
 
-  const navItems = profile.role === 'admin' ? adminNavItems : userNavItems;
+  // Filter nav items based on permissions
+  const navItems = allNavItems.filter(item => hasAccess(item.page));
 
   return (
     <div className="hidden md:flex flex-col w-64 bg-sidebar border-r border-sidebar-border">

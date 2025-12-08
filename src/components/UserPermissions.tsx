@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Shield } from 'lucide-react';
+import { Shield, User } from 'lucide-react';
 import type { UserProfile } from '@/types/user';
 
 interface UserPermission {
@@ -14,13 +15,13 @@ interface UserPermission {
 }
 
 const AVAILABLE_PAGES = [
-  { name: 'dashboard', label: 'Dashboard' },
-  { name: 'billing', label: 'Billing' },
-  { name: 'items', label: 'Items' },
-  { name: 'expenses', label: 'Expenses' },
-  { name: 'reports', label: 'Reports' },
-  { name: 'analytics', label: 'Analytics' },
-  { name: 'settings', label: 'Settings' },
+  { name: 'dashboard', label: 'Dashboard', description: 'View dashboard overview' },
+  { name: 'analytics', label: 'Analytics', description: 'View sales analytics' },
+  { name: 'billing', label: 'Billing', description: 'Create and manage bills' },
+  { name: 'items', label: 'Items', description: 'Manage menu items' },
+  { name: 'expenses', label: 'Expenses', description: 'Track expenses' },
+  { name: 'reports', label: 'Reports', description: 'View bill reports' },
+  { name: 'settings', label: 'Settings', description: 'App settings' },
 ];
 
 interface UserPermissionsProps {
@@ -97,8 +98,8 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Permission updated successfully",
+        title: "Updated",
+        description: `${pageName} access ${!currentValue ? 'enabled' : 'disabled'}`,
       });
     } catch (error) {
       console.error('Error updating permission:', error);
@@ -135,52 +136,68 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
       <CardHeader className="p-4">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Shield className="w-5 h-5" />
-          User Permissions
+          Page Access Permissions
         </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Control which pages each user can access. Toggle on to allow access.
+        </p>
       </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-2 font-medium text-muted-foreground">USER</th>
-                {AVAILABLE_PAGES.map(page => (
-                  <th key={page.name} className="text-center py-3 px-2 font-medium text-muted-foreground uppercase text-xs">
-                    {page.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user.id} className="border-b last:border-0">
-                  <td className="py-3 px-2">
-                    <div className="font-medium text-primary">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{user.hotel_name}</div>
-                    <div className="text-xs text-primary/70 capitalize">{user.role}</div>
-                  </td>
-                  {AVAILABLE_PAGES.map(page => (
-                    <td key={page.name} className="text-center py-3 px-2">
-                      <Switch
-                        checked={permissions[user.user_id]?.[page.name] ?? false}
-                        onCheckedChange={() => togglePermission(
-                          user.user_id, 
-                          page.name, 
-                          permissions[user.user_id]?.[page.name] ?? false
-                        )}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {users.length === 0 && (
+      <CardContent className="p-4 pt-0 space-y-4">
+        {users.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
+            <User className="w-10 h-10 mx-auto mb-2 opacity-50" />
             No users available
           </div>
+        ) : (
+          users.map(user => (
+            <div key={user.id} className="border rounded-lg overflow-hidden">
+              {/* User Header */}
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-3 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-base">{user.name}</div>
+                    <div className="text-xs text-muted-foreground">{user.hotel_name}</div>
+                  </div>
+                  <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                    {user.role}
+                  </Badge>
+                </div>
+              </div>
+              
+              {/* Permission Toggles */}
+              <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {AVAILABLE_PAGES.map(page => {
+                  const hasAccess = permissions[user.user_id]?.[page.name] ?? false;
+                  
+                  return (
+                    <div 
+                      key={page.name}
+                      onClick={() => togglePermission(user.user_id, page.name, hasAccess)}
+                      className={`p-2 rounded-lg border cursor-pointer transition-all ${
+                        hasAccess 
+                          ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800' 
+                          : 'bg-gray-50 border-gray-200 dark:bg-gray-900/30 dark:border-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`font-medium text-sm ${hasAccess ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}>
+                          {page.label}
+                        </span>
+                        <Switch
+                          checked={hasAccess}
+                          onCheckedChange={() => {}}
+                          className="pointer-events-none scale-75"
+                        />
+                      </div>
+                      <div className={`text-[10px] ${hasAccess ? 'text-green-600 dark:text-green-500' : 'text-muted-foreground'}`}>
+                        {hasAccess ? '✓ Allowed' : '✗ Denied'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </CardContent>
     </Card>

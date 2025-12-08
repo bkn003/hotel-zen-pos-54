@@ -322,37 +322,39 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
           {/* Payment Methods */}
           <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg p-2">
-            <h3 className="font-medium text-xs mb-1.5 text-orange-700 dark:text-orange-400">Payment Methods *</h3>
-            <div className="grid grid-cols-3 gap-1 mb-1.5">
+            <h3 className="font-medium text-xs mb-2 text-orange-700 dark:text-orange-400">Payment Methods *</h3>
+            <div className="flex flex-wrap gap-1.5 mb-2">
               {paymentTypes.map((payment) => (
                 <Button
                   key={payment.id}
                   variant={paymentAmounts[payment.payment_type] > 0 ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPaymentAmounts({ [payment.payment_type]: total })}
-                  className={`capitalize text-[10px] h-6 ${paymentAmounts[payment.payment_type] > 0 ? 'bg-primary shadow-md' : 'bg-white dark:bg-gray-800'}`}
+                  className={`capitalize text-sm h-8 px-4 min-w-[70px] ${paymentAmounts[payment.payment_type] > 0 ? 'bg-primary shadow-md' : 'bg-white dark:bg-gray-800'}`}
                 >
                   {payment.payment_type}
                 </Button>
               ))}
             </div>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {paymentTypes.map((payment) => (
-                <Input
-                  key={`amount-${payment.id}`}
-                  type="number"
-                  value={paymentAmounts[payment.payment_type] || 0}
-                  onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
-                  className="h-6 text-[10px] text-center bg-white dark:bg-gray-800"
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                />
+                <div key={`amount-${payment.id}`} className="flex-1 min-w-[70px]">
+                  <div className="text-[10px] text-muted-foreground text-center mb-0.5 capitalize">{payment.payment_type}</div>
+                  <Input
+                    type="number"
+                    value={paymentAmounts[payment.payment_type] || 0}
+                    onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
+                    className="h-8 text-sm text-center bg-white dark:bg-gray-800 font-medium"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
               ))}
             </div>
             {remaining !== 0 && (
-              <div className="text-right mt-1">
-                <span className={`text-[10px] font-medium ${remaining > 0 ? 'text-red-500' : 'text-green-500'}`}>
+              <div className="text-right mt-1.5">
+                <span className={`text-xs font-medium ${remaining > 0 ? 'text-red-500' : 'text-green-500'}`}>
                   Remaining: ₹{remaining.toFixed(2)}
                 </span>
               </div>

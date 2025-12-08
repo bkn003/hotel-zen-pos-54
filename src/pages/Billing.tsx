@@ -50,6 +50,57 @@ interface ItemCategory {
   name: string;
   is_deleted: boolean;
 }
+
+const CategoryScrollBar: React.FC<{
+  categories: ItemCategory[];
+  selectedCategory: string;
+  onSelectCategory: (category: string) => void;
+  categoryOrder: string[];
+}> = ({ categories, selectedCategory, onSelectCategory, categoryOrder }) => {
+  // Sort categories based on saved order
+  const sortedCategories = [...categories].sort((a, b) => {
+    const indexA = categoryOrder.indexOf(a.name);
+    const indexB = categoryOrder.indexOf(b.name);
+    if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
+  return (
+    <div className="mb-3 overflow-x-auto scrollbar-hide">
+      <div className="flex gap-2 pb-2 min-w-max">
+        <Button
+          variant={selectedCategory === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => onSelectCategory('all')}
+          className={`whitespace-nowrap h-8 px-4 ${
+            selectedCategory === 'all' 
+              ? 'bg-primary text-primary-foreground shadow-md' 
+              : 'hover:bg-muted'
+          }`}
+        >
+          All Categories
+        </Button>
+        {sortedCategories.map((category) => (
+          <Button
+            key={category.id}
+            variant={selectedCategory === category.name ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onSelectCategory(category.name)}
+            className={`whitespace-nowrap h-8 px-4 ${
+              selectedCategory === category.name 
+                ? 'bg-primary text-primary-foreground shadow-md' 
+                : 'hover:bg-muted'
+            }`}
+          >
+            {category.name}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+};
 interface Bill {
   id: string;
   bill_no: string;
@@ -100,6 +151,8 @@ const Billing = () => {
     items_per_row: 3,
     category_order: [] as string[]
   });
+  const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Enable real-time updates
   useRealTimeUpdates();
@@ -187,10 +240,25 @@ const Billing = () => {
       console.error('Error fetching display settings:', error);
     }
   };
+
+  const fetchItemCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('item_categories')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('name');
+      if (error) throw error;
+      setItemCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
   useEffect(() => {
     fetchItems();
     fetchPaymentTypes();
     fetchAdditionalCharges();
+    fetchItemCategories();
     if (profile?.user_id) {
       fetchDisplaySettings();
     }
@@ -253,7 +321,8 @@ const Billing = () => {
   };
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
   });
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -574,12 +643,20 @@ const Billing = () => {
         </div>
 
         {/* Search */}
-        <div className="mb-4">
+        <div className="mb-3">
           <div className="flex items-center relative">
             <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search items..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
         </div>
+
+        {/* Category Horizontal Scroll */}
+        <CategoryScrollBar
+          categories={itemCategories}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          categoryOrder={displaySettings.category_order}
+        />
 
         {/* Items Grid - Scrollable */}
         <div className="overflow-y-auto" style={{
