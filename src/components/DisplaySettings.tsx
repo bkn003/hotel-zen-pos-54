@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -111,19 +111,39 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
     }));
   };
 
-  const moveCategory = (index: number, direction: 'up' | 'down') => {
-    const newOrder = [...settings.category_order];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    if (targetIndex >= 0 && targetIndex < newOrder.length) {
-      [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
-      setSettings(prev => ({ ...prev, category_order: newOrder }));
-    }
-  };
-
   const unorderedCategories = availableCategories.filter(
     cat => !settings.category_order.includes(cat)
   );
+
+  // Drag and drop handlers
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    dragItem.current = index;
+  };
+
+  const handleDragEnter = (index: number) => {
+    dragOverItem.current = index;
+  };
+
+  const handleDragEnd = () => {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    if (dragItem.current === dragOverItem.current) {
+      dragItem.current = null;
+      dragOverItem.current = null;
+      return;
+    }
+
+    const newOrder = [...settings.category_order];
+    const draggedItem = newOrder[dragItem.current];
+    newOrder.splice(dragItem.current, 1);
+    newOrder.splice(dragOverItem.current, 0, draggedItem);
+    
+    setSettings(prev => ({ ...prev, category_order: newOrder }));
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
 
   return (
     <div className="space-y-6">
@@ -165,7 +185,7 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
           <div>
             <Label>Category Display Order</Label>
             <div className="mt-2 space-y-4">
-              {/* Ordered Categories */}
+              {/* Ordered Categories with Drag and Drop */}
               {settings.category_order.length > 0 && (
                 <div className="p-4 border rounded-lg">
                   <h4 className="text-sm font-medium mb-3">Drag to reorder categories:</h4>
@@ -173,40 +193,25 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
                     {settings.category_order.map((category, index) => (
                       <div
                         key={category}
-                        className="flex items-center space-x-2 p-2 bg-muted rounded"
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragEnter={() => handleDragEnter(index)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={(e) => e.preventDefault()}
+                        className="flex items-center space-x-2 p-2 bg-muted rounded cursor-grab active:cursor-grabbing hover:bg-muted/80 transition-colors"
                       >
-                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
                         <Badge variant="secondary" className="flex-1">
                           {category}
                         </Badge>
-                        <div className="flex space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveCategory(index, 'up')}
-                            disabled={index === 0}
-                            className="h-6 w-6 p-0"
-                          >
-                            ↑
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveCategory(index, 'down')}
-                            disabled={index === settings.category_order.length - 1}
-                            className="h-6 w-6 p-0"
-                          >
-                            ↓
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeCategoryFromOrder(category)}
-                            className="h-6 w-6 p-0 text-destructive"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCategoryFromOrder(category)}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
                     ))}
                   </div>

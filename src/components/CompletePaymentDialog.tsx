@@ -336,15 +336,15 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                 </Button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${paymentTypes.length}, minmax(0, 1fr))` }}>
               {paymentTypes.map((payment) => (
-                <div key={`amount-${payment.id}`} className="flex-1 min-w-[70px]">
-                  <div className="text-[10px] text-muted-foreground text-center mb-0.5 capitalize">{payment.payment_type}</div>
+                <div key={`amount-${payment.id}`} className="flex flex-col">
+                  <div className="text-xs text-muted-foreground text-center mb-1 capitalize font-medium">{payment.payment_type}</div>
                   <Input
                     type="number"
                     value={paymentAmounts[payment.payment_type] || 0}
                     onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
-                    className="h-8 text-sm text-center bg-white dark:bg-gray-800 font-medium"
+                    className="h-9 text-sm text-center bg-white dark:bg-gray-800 font-semibold"
                     placeholder="0.00"
                     min="0"
                     step="0.01"
