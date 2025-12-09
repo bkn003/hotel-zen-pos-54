@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,13 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Printer, Bluetooth, AlertCircle, CheckCircle2, RefreshCw, FileText } from 'lucide-react';
+import { Printer, Bluetooth, AlertCircle, CheckCircle2, RefreshCw, FileText, Zap } from 'lucide-react';
+
+// Local storage key for device persistence
+const BLUETOOTH_DEVICE_KEY = 'hotel_pos_bluetooth_printer';
 
 interface BluetoothSettings {
   id?: string;
   is_enabled: boolean;
   printer_name: string | null;
   auto_print: boolean;
+}
+
+interface SavedDevice {
+  name: string;
+  lastConnected: number;
 }
 
 export const BluetoothPrinterSettings: React.FC = () => {
@@ -25,8 +33,11 @@ export const BluetoothPrinterSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState<'good' | 'fair' | 'poor' | null>(null);
   const deviceRef = useRef<any>(null);
   const characteristicRef = useRef<any>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 3;
 
   useEffect(() => {
     if (profile?.user_id) {
@@ -43,7 +54,7 @@ export const BluetoothPrinterSettings: React.FC = () => {
         .maybeSingle();
 
       if (error) throw error;
-      
+
       if (data) {
         setSettings({
           id: data.id,
@@ -129,7 +140,7 @@ export const BluetoothPrinterSettings: React.FC = () => {
       });
 
       deviceRef.current = device;
-      
+
       // Connect to GATT server
       const server = await device.gatt?.connect();
       if (!server) throw new Error('Failed to connect to GATT server');
@@ -147,9 +158,9 @@ export const BluetoothPrinterSettings: React.FC = () => {
         if (characteristicRef.current) break;
       }
 
-      await updateSettings({ 
+      await updateSettings({
         printer_name: device.name || 'Bluetooth Printer',
-        is_enabled: true 
+        is_enabled: true
       });
 
       toast({
@@ -220,40 +231,40 @@ export const BluetoothPrinterSettings: React.FC = () => {
       const encoder = new TextEncoder();
       const ESC = 0x1B;
       const GS = 0x1D;
-      
+
       // Initialize printer
       const init = new Uint8Array([ESC, 0x40]);
       await characteristicRef.current.writeValue(init);
-      
+
       // Center align
       const center = new Uint8Array([ESC, 0x61, 0x01]);
       await characteristicRef.current.writeValue(center);
-      
+
       // Bold on
       const boldOn = new Uint8Array([ESC, 0x45, 0x01]);
       await characteristicRef.current.writeValue(boldOn);
-      
+
       // Print header
       const header = encoder.encode('=== TEST PRINT ===\n');
       await characteristicRef.current.writeValue(header);
-      
+
       // Bold off
       const boldOff = new Uint8Array([ESC, 0x45, 0x00]);
       await characteristicRef.current.writeValue(boldOff);
-      
+
       // Left align
       const left = new Uint8Array([ESC, 0x61, 0x00]);
       await characteristicRef.current.writeValue(left);
-      
+
       // Print details
       const details = encoder.encode(`\nPrinter: ${settings.printer_name}\nDate: ${new Date().toLocaleString()}\n\nConnection successful!\nPrinter is ready to use.\n\n`);
       await characteristicRef.current.writeValue(details);
-      
+
       // Center and print footer
       await characteristicRef.current.writeValue(center);
       const footer = encoder.encode('================\n\n\n');
       await characteristicRef.current.writeValue(footer);
-      
+
       // Cut paper (if supported)
       const cut = new Uint8Array([GS, 0x56, 0x00]);
       await characteristicRef.current.writeValue(cut);
@@ -332,8 +343,8 @@ export const BluetoothPrinterSettings: React.FC = () => {
             <div className="text-center py-2">
               <Bluetooth className="w-10 h-10 mx-auto mb-2 text-blue-500" />
               <p className="text-sm text-muted-foreground mb-3">No printer connected</p>
-              <Button 
-                onClick={connectPrinter} 
+              <Button
+                onClick={connectPrinter}
                 disabled={connecting || !isBluetoothSupported}
                 className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
               >
@@ -388,8 +399,8 @@ export const BluetoothPrinterSettings: React.FC = () => {
               />
             </div>
 
-            <Button 
-              onClick={printTestPage} 
+            <Button
+              onClick={printTestPage}
               disabled={printing || !settings.is_enabled}
               variant="outline"
               className="w-full"

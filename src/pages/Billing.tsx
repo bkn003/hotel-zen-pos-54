@@ -74,11 +74,10 @@ const CategoryScrollBar: React.FC<{
           variant={selectedCategory === 'all' ? 'default' : 'outline'}
           size="sm"
           onClick={() => onSelectCategory('all')}
-          className={`whitespace-nowrap flex-shrink-0 h-8 px-4 ${
-            selectedCategory === 'all' 
-              ? 'bg-primary text-primary-foreground shadow-md' 
-              : 'hover:bg-muted'
-          }`}
+          className={`whitespace-nowrap flex-shrink-0 h-8 px-4 ${selectedCategory === 'all'
+            ? 'bg-primary text-primary-foreground shadow-md'
+            : 'hover:bg-muted'
+            }`}
         >
           All Categories
         </Button>
@@ -88,11 +87,10 @@ const CategoryScrollBar: React.FC<{
             variant={selectedCategory === category.name ? 'default' : 'outline'}
             size="sm"
             onClick={() => onSelectCategory(category.name)}
-            className={`whitespace-nowrap flex-shrink-0 h-8 px-4 ${
-              selectedCategory === category.name 
-                ? 'bg-primary text-primary-foreground shadow-md' 
-                : 'hover:bg-muted'
-            }`}
+            className={`whitespace-nowrap flex-shrink-0 h-8 px-4 ${selectedCategory === category.name
+              ? 'bg-primary text-primary-foreground shadow-md'
+              : 'hover:bg-muted'
+              }`}
           >
             {category.name}
           </Button>
@@ -589,7 +587,7 @@ const Billing = () => {
           .select('stock_quantity')
           .eq('id', item.id)
           .single();
-        
+
         if (currentItem) {
           await supabase
             .from('items')
@@ -618,52 +616,52 @@ const Billing = () => {
   };
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>;
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>;
   }
-  return <div className="min-h-screen flex">
-      {/* Main Items Area */}
-      <div className="flex-1 p-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <img src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png" alt="Restaurant" className="w-8 h-8 mr-3" />
-            <h1 className="text-2xl font-bold">
-              {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => handleViewModeChange('grid')}>
-              <Grid className="w-4 h-4" />
-            </Button>
-            <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => handleViewModeChange('list')}>
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
+  return <div className="min-h-screen flex overflow-x-hidden max-w-[100vw]">
+    {/* Main Items Area */}
+    <div className="flex-1 p-4 overflow-hidden max-w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          <img src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png" alt="Restaurant" className="w-8 h-8 mr-3" />
+          <h1 className="text-2xl font-bold">
+            {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
+          </h1>
         </div>
-
-        {/* Search */}
-        <div className="mb-3">
-          <div className="flex items-center relative">
-            <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search items..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
-          </div>
+        <div className="flex items-center space-x-2">
+          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => handleViewModeChange('grid')}>
+            <Grid className="w-4 h-4" />
+          </Button>
+          <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => handleViewModeChange('list')}>
+            <List className="w-4 h-4" />
+          </Button>
         </div>
+      </div>
 
-        {/* Category Horizontal Scroll */}
-        <CategoryScrollBar
-          categories={itemCategories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          categoryOrder={displaySettings.category_order}
-        />
+      {/* Search */}
+      <div className="mb-3">
+        <div className="flex items-center relative">
+          <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search items..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
+        </div>
+      </div>
 
-        {/* Items Grid - Scrollable */}
-        <div className="overflow-y-auto" style={{
+      {/* Category Horizontal Scroll */}
+      <CategoryScrollBar
+        categories={itemCategories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        categoryOrder={displaySettings.category_order}
+      />
+
+      {/* Items Grid - Scrollable */}
+      <div className="overflow-y-auto" style={{
         height: 'calc(100vh - 200px)'
       }}>
-          {viewMode === 'grid' ? <div className={`grid gap-2 ${displaySettings.items_per_row === 1 ? 'grid-cols-1' : displaySettings.items_per_row === 2 ? 'grid-cols-2' : displaySettings.items_per_row === 3 ? 'grid-cols-3' : displaySettings.items_per_row === 4 ? 'grid-cols-4' : displaySettings.items_per_row === 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
-              {filteredItems.map(item => {
+        {viewMode === 'grid' ? <div className={`grid gap-2 ${displaySettings.items_per_row === 1 ? 'grid-cols-1' : displaySettings.items_per_row === 2 ? 'grid-cols-2' : displaySettings.items_per_row === 3 ? 'grid-cols-3' : displaySettings.items_per_row === 4 ? 'grid-cols-4' : displaySettings.items_per_row === 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
+          {filteredItems.map(item => {
             const cartItem = cart.find(c => c.id === item.id);
             const cachedImageUrl = getCachedImageUrl(item.id);
             const imageUrl = item.image_url || cachedImageUrl;
@@ -672,179 +670,179 @@ const Billing = () => {
             if (item.image_url && !cachedImageUrl) {
               cacheImageUrl(item.id, item.image_url);
             }
-            return <div key={item.id} className="bg-card rounded-lg border p-1 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
-                    <div className="relative aspect-square mb-1 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                      {item.image_url ? <img src={getCachedImageUrl(item.id)} alt={item.name} className="w-full h-full object-cover" onError={e => {
+            return <div key={item.id} className="item-card bg-card rounded-xl border p-2 flex flex-col h-full shadow-sm">
+              <div className="relative aspect-square mb-2 bg-gradient-to-br from-muted to-muted/50 rounded-lg overflow-hidden flex-shrink-0">
+                {item.image_url ? <img src={getCachedImageUrl(item.id)} alt={item.name} className="w-full h-full object-cover" onError={e => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                   target.nextElementSibling?.classList.remove('hidden');
                 }} /> : null}
-                      <div className={`${item.image_url ? 'hidden' : ''} w-full h-full flex items-center justify-center text-muted-foreground`}>
-                        <Package className="w-8 h-8" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col min-h-0 px-1">
-                      <h3 className="font-medium text-sm mb-0.5 line-clamp-2 flex-shrink-0">{item.name}</h3>
-                      <p className="text-primary mb-1 flex-shrink-0 font-bold text-base">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
-                      
-                      {cartItem ? <div className="flex items-center justify-between mt-auto">
-                          <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 bg-red-50 hover:bg-red-100 border-red-200">
-                            <Minus className="h-3 w-3 text-red-600" />
-                          </Button>
-                          <span className="mx-1 font-semibold min-w-[1.5rem] text-center text-sm">{cartItem.quantity}</span>
-                          <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 bg-green-50 hover:bg-green-100 border-green-200">
-                            <Plus className="h-3 w-3 text-green-600" />
-                          </Button>
-                        </div> : <Button onClick={() => addToCart(item)} className="w-full h-6 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium mt-auto">
-                          Add
-                        </Button>}
-                    </div>
-                  </div>;
-          })}
-            </div> :
-        // List View
-        <div className="space-y-2">
-              {filteredItems.map(item => {
-            const cartItem = cart.find(c => c.id === item.id);
-            const cachedImageUrl = getCachedImageUrl(item.id);
-            const imageUrl = item.image_url || cachedImageUrl;
-            if (item.image_url && !cachedImageUrl) {
-              cacheImageUrl(item.id, item.image_url);
-            }
-            return <Card key={item.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          {/* Image */}
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                            {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                <Package className="w-6 h-6" />
-                              </div>}
-                          </div>
-                          
-                          {/* Name and Price */}
-                          <div>
-                            <h3 className="font-semibold text-sm">{item.name}</h3>
-                            <p className="text-lg font-bold text-primary">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
-                          </div>
-                        </div>
-                        
-                        {/* Controls */}
-                        <div className="flex items-center space-x-2">
-                          {cartItem ? <div className="flex items-center space-x-2 bg-primary/10 rounded-full py-1 px-3">
-                              <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full">
-                                <Minus className="w-3 h-3" />
-                              </Button>
-                              <span className="font-semibold min-w-[20px] text-center">
-                                {cartItem.quantity}
-                              </span>
-                              <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full">
-                                <Plus className="w-3 h-3" />
-                              </Button>
-                            </div> : <Button onClick={() => addToCart(item)} className="bg-primary hover:bg-primary/90 text-white">
-                              Add
-                            </Button>}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>;
-          })}
-            </div>}
-        </div>
-      </div>
-
-      {/* Desktop Cart Section */}
-      <div className="hidden md:flex w-80 bg-card border-l flex-col">
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-bold flex items-center">
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Cart ({cart.length})
-            </h2>
-            {cart.length > 0 && <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                <Trash2 className="w-4 h-4" />
-              </Button>}
-          </div>
-          
-          {cart.length > 0 && <div className="flex justify-between items-center text-sm">
-              <span>Total: ₹{total.toFixed(0)}</span>
-              <Button onClick={() => setPaymentDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white" size="sm">
-                Pay
-              </Button>
-            </div>}
-        </div>
-
-        {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {cart.length === 0 ? <div className="text-center py-8">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p className="text-gray-500">Cart is empty</p>
-            </div> : <div className="space-y-3">
-              {cart.map(item => <div key={item.id} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-sm line-clamp-2 flex-1">{item.name}</h3>
-                    <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-red-600 hover:text-red-700 ml-2">
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-primary">₹{item.price}</span>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0">
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                      
-                      {editingQuantity === item.id ? <div className="flex items-center space-x-1">
-                          <Input type="number" value={tempQuantity} onChange={e => setTempQuantity(e.target.value)} className="w-12 h-8 text-center p-0" autoFocus />
-                          <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0">
-                            <Check className="w-3 h-3" />
-                          </Button>
-                        </div> : <span className="font-semibold min-w-[30px] text-center cursor-pointer hover:bg-gray-200 rounded px-2 py-1" onClick={() => startEditingQuantity(item.id, item.quantity)}>
-                          {item.quantity}
-                        </span>}
-                      
-                      <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0">
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end mt-2">
-                    <span className="text-sm font-semibold">
-                      Total: ₹{(item.price * item.quantity).toFixed(0)}
-                    </span>
-                  </div>
-                </div>)}
-            </div>}
-        </div>
-      </div>
-
-      {/* Mobile Cart Button - Simple Pay button like image-60.png */}
-      {cart.length > 0 && <div className="fixed bottom-20 left-0 right-0 md:hidden z-50 px-4">
-          <div className="bg-card border rounded-lg shadow-lg p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <ShoppingCart className="w-5 h-5" />
-                <span className="font-semibold">{cart.length} pc</span>
-                <span className="text-lg font-bold">₹{total.toFixed(0)}</span>
+                <div className={`${item.image_url ? 'hidden' : ''} w-full h-full flex items-center justify-center text-muted-foreground`}>
+                  <Package className="w-8 h-8" />
+                </div>
               </div>
+
+              <div className="flex-1 flex flex-col min-h-0 px-1">
+                <h3 className="font-medium text-sm mb-0.5 line-clamp-2 flex-shrink-0">{item.name}</h3>
+                <p className="text-primary mb-1 flex-shrink-0 font-bold text-base">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
+
+                {cartItem ? <div className="flex items-center justify-between mt-auto">
+                  <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 bg-red-50 hover:bg-red-100 border-red-200">
+                    <Minus className="h-3 w-3 text-red-600" />
+                  </Button>
+                  <span className="mx-1 font-semibold min-w-[1.5rem] text-center text-sm">{cartItem.quantity}</span>
+                  <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 bg-green-50 hover:bg-green-100 border-green-200">
+                    <Plus className="h-3 w-3 text-green-600" />
+                  </Button>
+                </div> : <Button onClick={() => addToCart(item)} className="w-full h-7 btn-vibrant text-primary-foreground text-xs font-semibold mt-auto rounded-lg">
+                  Add
+                </Button>}
+              </div>
+            </div>;
+          })}
+        </div> :
+          // List View
+          <div className="space-y-2">
+            {filteredItems.map(item => {
+              const cartItem = cart.find(c => c.id === item.id);
+              const cachedImageUrl = getCachedImageUrl(item.id);
+              const imageUrl = item.image_url || cachedImageUrl;
+              if (item.image_url && !cachedImageUrl) {
+                cacheImageUrl(item.id, item.image_url);
+              }
+              return <Card key={item.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {/* Image */}
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {imageUrl ? <img src={imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <Package className="w-6 h-6" />
+                        </div>}
+                      </div>
+
+                      {/* Name and Price */}
+                      <div>
+                        <h3 className="font-semibold text-sm">{item.name}</h3>
+                        <p className="text-lg font-bold text-primary">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
+                      </div>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex items-center space-x-2">
+                      {cartItem ? <div className="flex items-center space-x-2 bg-primary/10 rounded-full py-1 px-3">
+                        <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full">
+                          <Minus className="w-3 h-3" />
+                        </Button>
+                        <span className="font-semibold min-w-[20px] text-center">
+                          {cartItem.quantity}
+                        </span>
+                        <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full">
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div> : <Button onClick={() => addToCart(item)} className="bg-primary hover:bg-primary/90 text-white">
+                        Add
+                      </Button>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>;
+            })}
+          </div>}
+      </div>
+    </div>
+
+    {/* Desktop Cart Section */}
+    <div className="hidden md:flex w-80 bg-card border-l flex-col">
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold flex items-center">
+            <ShoppingCart className="w-5 h-5 mr-2" />
+            Cart ({cart.length})
+          </h2>
+          {cart.length > 0 && <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+            <Trash2 className="w-4 h-4" />
+          </Button>}
+        </div>
+
+        {cart.length > 0 && <div className="flex justify-between items-center text-sm">
+          <span>Total: ₹{total.toFixed(0)}</span>
+          <Button onClick={() => setPaymentDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white" size="sm">
+            Pay
+          </Button>
+        </div>}
+      </div>
+
+      {/* Cart Items */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {cart.length === 0 ? <div className="text-center py-8">
+          <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-500">Cart is empty</p>
+        </div> : <div className="space-y-3">
+          {cart.map(item => <div key={item.id} className="bg-gray-50 rounded-lg p-3">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-semibold text-sm line-clamp-2 flex-1">{item.name}</h3>
+              <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-red-600 hover:text-red-700 ml-2">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-primary">₹{item.price}</span>
+
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={clearCart} className="h-8 px-3">
-                  <Trash2 className="w-4 h-4" />
+                <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0">
+                  <Minus className="w-4 h-4" />
                 </Button>
-                <Button onClick={() => setPaymentDialogOpen(true)} className="h-8 px-4 bg-green-600 hover:bg-green-700">
-                  Pay
+
+                {editingQuantity === item.id ? <div className="flex items-center space-x-1">
+                  <Input type="number" value={tempQuantity} onChange={e => setTempQuantity(e.target.value)} className="w-12 h-8 text-center p-0" autoFocus />
+                  <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0">
+                    <Check className="w-3 h-3" />
+                  </Button>
+                </div> : <span className="font-semibold min-w-[30px] text-center cursor-pointer hover:bg-gray-200 rounded px-2 py-1" onClick={() => startEditingQuantity(item.id, item.quantity)}>
+                  {item.quantity}
+                </span>}
+
+                <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0">
+                  <Plus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
-          </div>
-        </div>}
 
-      {/* Payment Dialog */}
-      <CompletePaymentDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} cart={cart} paymentTypes={paymentTypes} additionalCharges={additionalCharges} onUpdateQuantity={updateQuantity} onRemoveItem={removeFromCart} onCompletePayment={handleCompletePayment} />
-    </div>;
+            <div className="flex justify-end mt-2">
+              <span className="text-sm font-semibold">
+                Total: ₹{(item.price * item.quantity).toFixed(0)}
+              </span>
+            </div>
+          </div>)}
+        </div>}
+      </div>
+    </div>
+
+    {/* Mobile Cart Button - Simple Pay button like image-60.png */}
+    {cart.length > 0 && <div className="fixed bottom-20 left-0 right-0 md:hidden z-50 px-4">
+      <div className="bg-card border rounded-lg shadow-lg p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <ShoppingCart className="w-5 h-5" />
+            <span className="font-semibold">{cart.length} pc</span>
+            <span className="text-lg font-bold">₹{total.toFixed(0)}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={clearCart} className="h-8 px-3">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <Button onClick={() => setPaymentDialogOpen(true)} className="h-8 px-4 bg-green-600 hover:bg-green-700">
+              Pay
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {/* Payment Dialog */}
+    <CompletePaymentDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} cart={cart} paymentTypes={paymentTypes} additionalCharges={additionalCharges} onUpdateQuantity={updateQuantity} onRemoveItem={removeFromCart} onCompletePayment={handleCompletePayment} />
+  </div>;
 };
 export default Billing;

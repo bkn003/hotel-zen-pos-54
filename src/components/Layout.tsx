@@ -5,6 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { BottomNavigation } from './BottomNavigation';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
+import { OfflineIndicator } from './OfflineIndicator';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -55,14 +56,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
-      
+
       <div className="flex flex-col flex-1">
         <Header />
-        
+
+        {/* Offline Status Indicator */}
+        <div className="px-4 py-2">
+          <OfflineIndicator />
+        </div>
+
         <main className="flex-1 pb-20 md:pb-6">
           {children}
         </main>
-        
+
         <BottomNavigation />
       </div>
     </div>
