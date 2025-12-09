@@ -230,7 +230,7 @@ const Expenses: React.FC = () => {
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
-    <div className="container mx-auto py-4 px-4 max-w-full">
+    <div className="container mx-auto py-4 px-4 max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center">
@@ -368,10 +368,10 @@ const Expenses: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Mobile & Desktop Table View - Horizontal Scroll */}
-              <div className="overflow-x-auto -mx-4 px-4">
-                <div className="min-w-[700px]">
-                  <Table>
+              {/* Mobile & Desktop Table View - Horizontal Scroll ONLY within this container */}
+              <div className="w-full overflow-hidden">
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="whitespace-nowrap">Name</TableHead>
