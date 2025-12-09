@@ -72,6 +72,22 @@ const Reports: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [billFilter, setBillFilter] = useState('processed');
+  const [billSettings, setBillSettings] = useState<{
+    shopName: string;
+    address: string;
+    contactNumber: string;
+    logoUrl: string;
+    facebook: string;
+    instagram: string;
+    whatsapp: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('hotel_pos_bill_header');
+    if (savedSettings) {
+      setBillSettings(JSON.parse(savedSettings));
+    }
+  }, []);
 
   const fetchReportsCallback = useCallback(() => {
     fetchReports();
@@ -400,7 +416,10 @@ const Reports: React.FC = () => {
           total: item.total
         })) || [],
         subtotal: bill.bill_items?.reduce((sum, item) => sum + item.total, 0) || 0,
-        additionalCharges: bill.additional_charges || [],
+        additionalCharges: (bill.additional_charges as any[])?.map(charge => ({
+          name: charge.name,
+          amount: charge.amount
+        })) || [],
         discount: bill.discount,
         total: bill.total_amount,
         paymentMethod: bill.payment_mode.toUpperCase(),
@@ -1011,19 +1030,55 @@ const Reports: React.FC = () => {
       {/* Bill Details Dialog */}
       {selectedBill && (
         <Dialog open={!!selectedBill} onOpenChange={() => setSelectedBill(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-sm sm:text-base">Bill Details - {selectedBill.bill_no}</DialogTitle>
+              <DialogTitle className="text-sm sm:text-base hidden">Bill Details</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Header - Shop Name & Logo */}
+              <div className="text-center mb-6">
+                {billSettings?.logoUrl && (
+                  <div className="w-20 h-20 mx-auto mb-2">
+                    <img src={billSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                  </div>
+                )}
+                {billSettings?.shopName ? (
+                  <h2 className="text-xl font-bold uppercase tracking-wide">{billSettings.shopName}</h2>
+                ) : (
+                  <h2 className="text-xl font-bold uppercase tracking-wide">{profile?.hotel_name || 'BISMILLAH'}</h2>
+                )}
+
+                {/* Address */}
+                {billSettings?.address && (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap px-8">{billSettings.address}</p>
+                )}
+
+                {/* Contact */}
+                {billSettings?.contactNumber && (
+                  <p className="text-sm font-medium mt-1">{billSettings.contactNumber}</p>
+                )}
+
+                {/* Social Media */}
+                {(billSettings?.facebook || billSettings?.instagram || billSettings?.whatsapp) && (
+                  <div className="flex justify-center gap-3 mt-2 text-xs text-muted-foreground">
+                    {billSettings.facebook && <span>fb:{billSettings.facebook}</span>}
+                    {billSettings.instagram && <span>ig:{billSettings.instagram}</span>}
+                    {billSettings.whatsapp && <span>wa:{billSettings.whatsapp}</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Bill Info */}
+              <div className="text-center mb-6 pb-4 border-b">
+                <h3 className="font-semibold text-lg">Bill Details - {selectedBill.bill_no}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(selectedBill.created_at), 'MMM dd, yyyy hh:mm a')}
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
                 <div>
                   <p className="font-medium">Date:</p>
                   <p>{format(new Date(selectedBill.date), 'MMM dd, yyyy')}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Processed Time:</p>
-                  <p>{format(new Date(selectedBill.created_at), 'MMM dd, yyyy hh:mm a')}</p>
                 </div>
                 <div>
                   <p className="font-medium">Payment Mode:</p>
@@ -1034,14 +1089,6 @@ const Reports: React.FC = () => {
                   <p className="font-bold text-lg">₹{selectedBill.total_amount.toFixed(2)}</p>
                 </div>
               </div>
-
-              {selectedBill.discount > 0 && (
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-xs sm:text-sm font-medium text-green-800">
-                    Discount Applied: ₹{selectedBill.discount.toFixed(2)}
-                  </p>
-                </div>
-              )}
 
               <div>
                 <h4 className="font-medium mb-3 text-sm">Items ({selectedBill.bill_items?.length || 0})</h4>
@@ -1069,6 +1116,29 @@ const Reports: React.FC = () => {
                   ))}
                 </div>
               </div>
+
+              {selectedBill.additional_charges && (selectedBill.additional_charges as any[]).length > 0 && (
+                <div className="space-y-1 pt-2 border-t">
+                  <h4 className="font-medium text-sm">Additional Charges</h4>
+                  {(selectedBill.additional_charges as any[]).map((charge, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-muted/30 p-2 rounded text-sm">
+                      <span className="text-muted-foreground">{charge.name}</span>
+                      <span className="font-medium">₹{charge.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedBill.discount > 0 && (
+                <div className="p-3 bg-green-50 rounded-lg flex justify-between items-center">
+                  <p className="text-xs sm:text-sm font-medium text-green-800">
+                    Discount Applied
+                  </p>
+                  <p className="text-sm font-bold text-green-800">
+                    -₹{selectedBill.discount.toFixed(2)}
+                  </p>
+                </div>
+              )}
 
               {/* Payment Details (Split Payment) */}
               {selectedBill.payment_details && Object.keys(selectedBill.payment_details).length > 0 && (

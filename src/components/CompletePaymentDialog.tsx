@@ -344,7 +344,11 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   const displayAmount = chargeAmountOverrides[charge.id] !== undefined ? chargeAmountOverrides[charge.id] : baseAmount;
 
                   return (
-                    <div key={charge.id} className="flex items-center gap-2 p-1.5 rounded bg-white/50 dark:bg-gray-800/50">
+                    <div
+                      key={charge.id}
+                      className="flex items-center gap-2 p-1.5 rounded bg-white/50 dark:bg-gray-800/50 cursor-pointer hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors"
+                      onClick={() => handleChargeToggle(charge.id)}
+                    >
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => handleChargeToggle(charge.id)}
@@ -358,6 +362,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       <Input
                         type="number"
                         value={displayAmount}
+                        onClick={(e) => e.stopPropagation()}
                         onChange={(e) => {
                           const newAmount = Number(e.target.value) || 0;
                           setChargeAmountOverrides(prev => ({ ...prev, [charge.id]: newAmount }));

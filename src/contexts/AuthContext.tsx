@@ -43,26 +43,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchOrCreateProfile = async (user: User): Promise<Profile> => {
     try {
       console.log('Fetching profile for user:', user.id);
-      
-      // Try to fetch existing profile with a timeout
+
+      // 1. Try to get from localStorage first (fastest & works offline)
+      const cachedProfileStr = localStorage.getItem(`profile_${user.id}`);
+      let cachedProfile: Profile | null = null;
+
+      if (cachedProfileStr) {
+        try {
+          cachedProfile = JSON.parse(cachedProfileStr);
+          // If we have a cached profile, we can return it immediately if we're offline
+          // or we can use it as a fallback if the network request fails
+          if (!navigator.onLine && cachedProfile) {
+            console.log('Using cached profile (offline):', cachedProfile);
+            return cachedProfile;
+          }
+        } catch (e) {
+          console.error('Error parsing cached profile:', e);
+        }
+      }
+
+      // 2. Try to fetch existing profile from Supabase with a timeout
       const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
       );
 
-      const { data: existingProfile, error: fetchError } = await Promise.race([
-        profilePromise,
-        timeoutPromise
-      ]) as any;
+      let existingProfile = null;
+      let fetchError = null;
+
+      try {
+        const result: any = await Promise.race([
+          profilePromise,
+          timeoutPromise
+        ]);
+        existingProfile = result.data;
+        fetchError = result.error;
+      } catch (e) {
+        console.warn('Network request failed or timed out:', e);
+        // If network fails and we have cache, RETURN CACHE
+        if (cachedProfile) {
+          console.log('Network failed, using cached profile:', cachedProfile);
+          return cachedProfile;
+        }
+      }
 
       if (!fetchError && existingProfile) {
         console.log('Found existing profile:', existingProfile);
-        return {
+        const profile: Profile = {
           id: existingProfile.id,
           user_id: existingProfile.user_id,
           name: existingProfile.name || 'User',
@@ -70,9 +102,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           hotel_name: existingProfile.hotel_name || undefined,
           status: existingProfile.status as UserStatus
         };
+        // Update cache
+        localStorage.setItem(`profile_${user.id}`, JSON.stringify(profile));
+        return profile;
       }
 
-      // If no profile exists, try to create one (but don't block if it fails)
+      // 3. If no profile exists in DB, try to create one
+      // (Only if we are online/connected, otherwise we might just return basic profile)
       console.log('No profile found, attempting to create...');
       try {
         const profileData = {
@@ -89,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select()
           .single();
 
-        const createTimeoutPromise = new Promise((_, reject) => 
+        const createTimeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Profile creation timeout')), 3000)
         );
 
@@ -100,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!error && data) {
           console.log('Profile created successfully:', data);
-          return {
+          const newProfile: Profile = {
             id: data.id,
             user_id: data.user_id,
             name: data.name,
@@ -108,24 +144,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             hotel_name: data.hotel_name,
             status: data.status as UserStatus
           };
+          localStorage.setItem(`profile_${user.id}`, JSON.stringify(newProfile));
+          return newProfile;
         }
       } catch (createError) {
         console.log('Profile creation failed, using basic profile:', createError);
       }
 
-      // Always return a basic profile if database operations fail
+      // 4. Fallback: If everything failed (no cache, no DB, no creation), use basic metadata
       console.log('Returning basic profile from metadata');
-      return createBasicProfile(user);
+      const basicProfile = createBasicProfile(user);
+      // Even cache this basic profile so next time we load faster
+      localStorage.setItem(`profile_${user.id}`, JSON.stringify(basicProfile));
+      return basicProfile;
 
     } catch (error) {
       console.error('Error in fetchOrCreateProfile:', error);
+      // Last resort
       return createBasicProfile(user);
     }
   };
 
   useEffect(() => {
     console.log('AuthProvider initializing...');
-    
+
     let mounted = true;
     let initializationTimeout: NodeJS.Timeout;
 
@@ -139,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleAuthStateChange = async (event: string, newSession: Session | null) => {
       console.log('Auth state changed:', event, !!newSession?.user);
-      
+
       if (!mounted) return;
 
       try {
@@ -148,14 +190,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (newSession?.user) {
           console.log('User found, fetching/creating profile...');
-          
+
           // Use setTimeout to avoid blocking the auth state change
           setTimeout(async () => {
             if (!mounted) return;
-            
+
             try {
               const userProfile = await fetchOrCreateProfile(newSession.user);
-              
+
               if (mounted) {
                 setProfile(userProfile);
                 console.log('Profile set:', userProfile?.status);
@@ -197,10 +239,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         console.log('Getting initial session...');
-        
+
         // Add timeout to getSession call
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
         );
 
@@ -244,10 +286,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, name: string, role: string = 'user', hotelName?: string) => {
     console.log('Sign up attempt for:', email, 'with role:', role);
-    
+
     const userData: any = { name, role };
     if (hotelName && role === 'admin') userData.hotel_name = hotelName;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -256,23 +298,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: userData
       }
     });
-    
+
     console.log('Sign up result:', error ? 'Error' : 'Success');
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
     console.log('Sign in attempt for:', email);
-    
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    
+
     console.log('Sign in result:', error ? 'Error' : 'Success');
     return { error };
   };
 
   const signOut = async () => {
     console.log('Signing out...');
-    
+
     setLoading(true);
     await supabase.auth.signOut();
     setUser(null);

@@ -5,8 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Printer, Bluetooth, AlertCircle, CheckCircle2, RefreshCw, FileText, Zap } from 'lucide-react';
+import { Printer, Bluetooth, AlertCircle, CheckCircle2, RefreshCw, FileText, Zap, Upload, Image as ImageIcon, X } from 'lucide-react';
 
 // Local storage key for device persistence
 const BLUETOOTH_DEVICE_KEY = 'hotel_pos_bluetooth_printer';
@@ -34,8 +37,22 @@ export const BluetoothPrinterSettings: React.FC = () => {
   const [connecting, setConnecting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [connectionQuality, setConnectionQuality] = useState<'good' | 'fair' | 'poor' | null>(null);
+
+  // Local settings state
+  const [printerWidth, setPrinterWidth] = useState<'58mm' | '80mm'>('58mm');
+  const [shopName, setShopName] = useState('');
+  const [address, setAddress] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+
+  // Social Media
+  const [facebook, setFacebook] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+
   const deviceRef = useRef<any>(null);
   const characteristicRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 3;
 
@@ -43,7 +60,49 @@ export const BluetoothPrinterSettings: React.FC = () => {
     if (profile?.user_id) {
       fetchSettings();
     }
+    // Load local settings
+    const savedWidth = localStorage.getItem('hotel_pos_printer_width');
+    if (savedWidth === '80mm') setPrinterWidth('80mm');
+
+    const savedHeader = localStorage.getItem('hotel_pos_bill_header');
+    if (savedHeader) {
+      try {
+        const parsed = JSON.parse(savedHeader);
+        setShopName(parsed.shopName || '');
+        setContactNumber(parsed.contactNumber || '');
+        setAddress(parsed.address || '');
+        setLogoUrl(parsed.logoUrl || '');
+        if (parsed.printerWidth) setPrinterWidth(parsed.printerWidth);
+
+        // Load Socials
+        setFacebook(parsed.facebook || '');
+        setInstagram(parsed.instagram || '');
+        setWhatsapp(parsed.whatsapp || '');
+      } catch (e) {
+        console.error("Failed to parse local bill header settings:", e);
+        // Optionally clear corrupted data
+        localStorage.removeItem('hotel_pos_bill_header');
+      }
+    }
   }, [profile?.user_id]);
+
+  const saveLocalSettings = () => {
+    localStorage.setItem('hotel_pos_printer_width', printerWidth);
+    localStorage.setItem('hotel_pos_bill_header', JSON.stringify({
+      shopName,
+      address,
+      contactNumber,
+      logoUrl,
+      facebook,
+      instagram,
+      whatsapp,
+      printerWidth // Also save printerWidth here for consistency
+    }));
+    toast({
+      title: "Settings Saved",
+      description: "Printer and header settings saved to this device."
+    });
+  };
 
   const fetchSettings = async () => {
     try {
@@ -178,6 +237,60 @@ export const BluetoothPrinterSettings: React.FC = () => {
       }
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1024 * 1024) { // 1MB limit
+      toast({
+        title: "File too large",
+        description: "Please select an image under 1MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Resize image
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 384; // Standard thermal printer width in pixels
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = (height * MAX_WIDTH) / width;
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Convert to base64
+          const dataUrl = canvas.toDataURL('image/png');
+          setLogoUrl(dataUrl);
+          toast({
+            title: "Logo Processed",
+            description: "Logo resized and ready for printing"
+          });
+        }
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -399,6 +512,8 @@ export const BluetoothPrinterSettings: React.FC = () => {
               />
             </div>
 
+
+
             <Button
               onClick={printTestPage}
               disabled={printing || !settings.is_enabled}
@@ -419,6 +534,143 @@ export const BluetoothPrinterSettings: React.FC = () => {
             </Button>
           </>
         )}
+
+        {/* Printer Configuration (Local) - Moved outside so it's always visible */}
+        <div className="space-y-4 pt-2 border-t">
+          <h3 className="font-semibold text-sm">Shop Details & Printer Settings</h3>
+
+          <div className="grid gap-4">
+            <div className="space-y-3">
+              <Label>Bill Header Details</Label>
+              <p className="text-xs text-muted-foreground mb-2">Configure how your bill header looks.</p>
+
+              <div className="grid gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Shop Name</Label>
+                  <Input
+                    placeholder="e.g. My Hotel"
+                    value={shopName}
+                    onChange={(e) => setShopName(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Address</Label>
+                  <Input
+                    placeholder="Shop Address (e.g. 123 Main St, City)"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Contact Number</Label>
+                  <Input
+                    placeholder="Phone Number"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                  />
+                </div>
+
+                {/* Social Media Section */}
+                <div className="space-y-2 pt-2 border-t border-dashed">
+                  <Label className="text-xs font-semibold text-primary">Social Media (Optional)</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Facebook</Label>
+                      <Input
+                        placeholder="@username"
+                        value={facebook}
+                        onChange={(e) => setFacebook(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Instagram</Label>
+                      <Input
+                        placeholder="@username"
+                        value={instagram}
+                        onChange={(e) => setInstagram(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">WhatsApp</Label>
+                      <Input
+                        placeholder="Number"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Shop Logo</Label>
+                  <div className="flex items-center gap-3">
+                    {logoUrl ? (
+                      <div className="relative group">
+                        <div className="w-16 h-16 border rounded-lg overflow-hidden bg-white">
+                          <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                        </div>
+                        <button
+                          onClick={removeLogo}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/50 text-muted-foreground">
+                        <ImageIcon className="w-6 h-6" />
+                      </div>
+                    )}
+
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleLogoUpload}
+                      />
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      >
+                        <Upload className="w-3 h-3 mr-2" />
+                        {logoUrl ? 'Change Logo' : 'Upload Logo'}
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Max 1MB. Resized to 384px for printing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="width">Printer Paper Width</Label>
+              <Select value={printerWidth} onValueChange={(val: '58mm' | '80mm') => setPrinterWidth(val)}>
+                <SelectTrigger id="width">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="58mm">58mm (Standard Thermal)</SelectItem>
+                  <SelectItem value="80mm">80mm (Wide Thermal)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button onClick={saveLocalSettings} size="sm" variant="secondary">
+              Save Local Settings
+            </Button>
+          </div>
+        </div>
 
         {/* Help */}
         <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">

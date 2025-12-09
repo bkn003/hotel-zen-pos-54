@@ -11,6 +11,8 @@ import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
+import { printReceipt } from '@/utils/bluetoothPrinter';
+import { format } from 'date-fns';
 interface Item {
   id: string;
   name: string;
@@ -151,6 +153,16 @@ const Billing = () => {
   });
   const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [billSettings, setBillSettings] = useState<{
+    shopName: string;
+    address: string;
+    contactNumber: string;
+    logoUrl: string;
+    facebook: string;
+    instagram: string;
+    whatsapp: string;
+    printerWidth: '58mm' | '80mm';
+  } | null>(null);
 
   // Enable real-time updates
   useRealTimeUpdates();
@@ -267,6 +279,16 @@ const Billing = () => {
       setEditingBill(billData);
       setIsEditMode(true);
       loadBillData(billData.id);
+    }
+
+    // Load local settings
+    const savedHeader = localStorage.getItem('hotel_pos_bill_header');
+    const savedWidth = localStorage.getItem('hotel_pos_printer_width') as '58mm' | '80mm';
+    if (savedHeader || savedWidth) {
+      setBillSettings({
+        ...JSON.parse(savedHeader || '{}'),
+        printerWidth: savedWidth || '58mm'
+      });
     }
   }, [location.state, profile?.user_id]);
   const loadBillData = async (billId: string) => {
@@ -602,6 +624,50 @@ const Billing = () => {
         description: `Bill ${billNumber} generated successfully!`
       });
 
+      // Trigger Auto Print
+      try {
+        const printData = {
+          billNo: billNumber,
+          date: format(new Date(), 'MMM dd, yyyy'),
+          time: format(new Date(), 'hh:mm a'),
+          items: validCart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity
+          })),
+          subtotal: subtotal,
+          additionalCharges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
+          discount: paymentData.discount,
+          total: totalAmount,
+          paymentMethod: paymentData.paymentMethod.toUpperCase(),
+          hotelName: profile?.hotel_name || 'BISMILLAH',
+          hotelName: profile?.hotel_name || 'BISMILLAH',
+          shopName: billSettings?.shopName,
+          address: billSettings?.address,
+          contactNumber: billSettings?.contactNumber,
+          facebook: billSettings?.facebook,
+          instagram: billSettings?.instagram,
+          whatsapp: billSettings?.whatsapp,
+          printerWidth: billSettings?.printerWidth || '58mm',
+          logoUrl: billSettings?.logoUrl
+        };
+
+        toast({
+          title: "Printing...",
+          description: "Sending receipt to printer"
+        });
+
+        // Don't await this if you don't want to block UI clearing, but might be safer to await slightly
+        // or let it run in background. We'll fire and forget but log.
+        printReceipt(printData).then(success => {
+          if (!success) console.log("Auto-print skipped or failed");
+        });
+
+      } catch (printErr) {
+        console.error("Auto print error", printErr);
+      }
+
       // Clear cart and close dialog
       clearCart();
       setPaymentDialogOpen(false);
@@ -625,10 +691,28 @@ const Billing = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
-          <img src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png" alt="Restaurant" className="w-8 h-8 mr-3" />
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
-          </h1>
+          <img
+            src={billSettings?.logoUrl || "/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"}
+            alt="Restaurant"
+            className="w-8 h-8 mr-3 object-contain"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.src !== "/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png") {
+                target.src = "/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png";
+              }
+            }}
+          />
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold leading-none">
+              {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : (billSettings?.shopName || 'Point of Sale')}
+            </h1>
+            {billSettings?.address && (
+              <p className="text-xs text-muted-foreground">{billSettings.address}</p>
+            )}
+            {billSettings?.contactNumber && (
+              <p className="text-xs text-muted-foreground">{billSettings.contactNumber}</p>
+            )}
+          </div>
         </div>
       </div>
 
