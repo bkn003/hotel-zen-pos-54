@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { CalendarDays, TrendingUp, TrendingDown, DollarSign, Package, Receipt, CreditCard, BarChart3, Edit, Trash2, Eye, Download, FileSpreadsheet, Printer } from 'lucide-react';
+import { FacebookIcon, InstagramIcon, WhatsAppIcon } from '@/components/SocialIcons';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { exportAllReportsToExcel, exportAllReportsToPDF } from '@/utils/exportUtils';
@@ -78,15 +79,66 @@ const Reports: React.FC = () => {
     contactNumber: string;
     logoUrl: string;
     facebook: string;
+    showFacebook?: boolean;
     instagram: string;
+    showInstagram?: boolean;
     whatsapp: string;
+    showWhatsapp?: boolean;
   } | null>(null);
 
+  // Cache-first loading: localStorage first, then Supabase sync
   useEffect(() => {
+    // 1. Instant load from localStorage (cache)
     const savedSettings = localStorage.getItem('hotel_pos_bill_header');
     if (savedSettings) {
-      setBillSettings(JSON.parse(savedSettings));
+      try {
+        const parsed = JSON.parse(savedSettings);
+        setBillSettings({
+          shopName: parsed.shopName || '',
+          address: parsed.address || '',
+          contactNumber: parsed.contactNumber || '',
+          logoUrl: parsed.logoUrl || '',
+          facebook: parsed.facebook || '',
+          showFacebook: parsed.showFacebook !== false,
+          instagram: parsed.instagram || '',
+          showInstagram: parsed.showInstagram !== false,
+          whatsapp: parsed.whatsapp || '',
+          showWhatsapp: parsed.showWhatsapp !== false
+        });
+      } catch (e) { /* ignore parse errors */ }
     }
+
+    // 2. Background sync from Supabase
+    const syncFromSupabase = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('shop_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) {
+        const settings = {
+          shopName: data.shop_name || '',
+          address: data.address || '',
+          contactNumber: data.contact_number || '',
+          logoUrl: data.logo_url || '',
+          facebook: data.facebook || '',
+          showFacebook: data.show_facebook,
+          instagram: data.instagram || '',
+          showInstagram: data.show_instagram,
+          whatsapp: data.whatsapp || '',
+          showWhatsapp: data.show_whatsapp
+        };
+        setBillSettings(settings);
+        // Update cache
+        localStorage.setItem('hotel_pos_bill_header', JSON.stringify(settings));
+      }
+    };
+
+    syncFromSupabase();
   }, []);
 
   const fetchReportsCallback = useCallback(() => {
@@ -1059,13 +1111,32 @@ const Reports: React.FC = () => {
                 )}
 
                 {/* Social Media */}
-                {(billSettings?.facebook || billSettings?.instagram || billSettings?.whatsapp) && (
-                  <div className="flex justify-center gap-3 mt-2 text-xs text-muted-foreground">
-                    {billSettings.facebook && <span>fb:{billSettings.facebook}</span>}
-                    {billSettings.instagram && <span>ig:{billSettings.instagram}</span>}
-                    {billSettings.whatsapp && <span>wa:{billSettings.whatsapp}</span>}
-                  </div>
-                )}
+                {(
+                  (billSettings?.showFacebook !== false && billSettings?.facebook) ||
+                  (billSettings?.showInstagram !== false && billSettings?.instagram) ||
+                  (billSettings?.showWhatsapp !== false && billSettings?.whatsapp)
+                ) && (
+                    <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 mt-3 text-xs text-muted-foreground px-4">
+                      {billSettings?.showFacebook !== false && billSettings?.facebook && (
+                        <div className="flex items-center gap-1.5 min-w-fit">
+                          <FacebookIcon className="w-3.5 h-3.5 text-[#1877F2] shrink-0" />
+                          <span className="truncate max-w-[150px]">{billSettings.facebook}</span>
+                        </div>
+                      )}
+                      {billSettings?.showInstagram !== false && billSettings?.instagram && (
+                        <div className="flex items-center gap-1.5 min-w-fit">
+                          <InstagramIcon className="w-3.5 h-3.5 text-[#E4405F] shrink-0" />
+                          <span className="truncate max-w-[150px]">{billSettings.instagram}</span>
+                        </div>
+                      )}
+                      {billSettings?.showWhatsapp !== false && billSettings?.whatsapp && (
+                        <div className="flex items-center gap-1.5 min-w-fit">
+                          <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366] shrink-0" />
+                          <span className="truncate max-w-[150px]">{billSettings.whatsapp}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
 
               {/* Bill Info */}

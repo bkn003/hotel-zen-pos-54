@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Printer, Bluetooth, AlertCircle, CheckCircle2, RefreshCw, FileText, Zap, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { FacebookIcon, InstagramIcon, WhatsAppIcon } from './SocialIcons';
 
 // Local storage key for device persistence
 const BLUETOOTH_DEVICE_KEY = 'hotel_pos_bluetooth_printer';
@@ -47,62 +48,17 @@ export const BluetoothPrinterSettings: React.FC = () => {
 
   // Social Media
   const [facebook, setFacebook] = useState('');
+  const [showFacebook, setShowFacebook] = useState(true);
   const [instagram, setInstagram] = useState('');
+  const [showInstagram, setShowInstagram] = useState(true);
   const [whatsapp, setWhatsapp] = useState('');
+  const [showWhatsapp, setShowWhatsapp] = useState(true);
 
   const deviceRef = useRef<any>(null);
   const characteristicRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 3;
-
-  useEffect(() => {
-    if (profile?.user_id) {
-      fetchSettings();
-    }
-    // Load local settings
-    const savedWidth = localStorage.getItem('hotel_pos_printer_width');
-    if (savedWidth === '80mm') setPrinterWidth('80mm');
-
-    const savedHeader = localStorage.getItem('hotel_pos_bill_header');
-    if (savedHeader) {
-      try {
-        const parsed = JSON.parse(savedHeader);
-        setShopName(parsed.shopName || '');
-        setContactNumber(parsed.contactNumber || '');
-        setAddress(parsed.address || '');
-        setLogoUrl(parsed.logoUrl || '');
-        if (parsed.printerWidth) setPrinterWidth(parsed.printerWidth);
-
-        // Load Socials
-        setFacebook(parsed.facebook || '');
-        setInstagram(parsed.instagram || '');
-        setWhatsapp(parsed.whatsapp || '');
-      } catch (e) {
-        console.error("Failed to parse local bill header settings:", e);
-        // Optionally clear corrupted data
-        localStorage.removeItem('hotel_pos_bill_header');
-      }
-    }
-  }, [profile?.user_id]);
-
-  const saveLocalSettings = () => {
-    localStorage.setItem('hotel_pos_printer_width', printerWidth);
-    localStorage.setItem('hotel_pos_bill_header', JSON.stringify({
-      shopName,
-      address,
-      contactNumber,
-      logoUrl,
-      facebook,
-      instagram,
-      whatsapp,
-      printerWidth // Also save printerWidth here for consistency
-    }));
-    toast({
-      title: "Settings Saved",
-      description: "Printer and header settings saved to this device."
-    });
-  };
 
   const fetchSettings = async () => {
     try {
@@ -128,6 +84,157 @@ export const BluetoothPrinterSettings: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (profile?.user_id) {
+      fetchSettings();
+      // Load from cache first, then sync from Supabase
+      loadFromLocalStorage(); // Instant load from cache
+      fetchShopSettings();    // Background sync from Supabase
+    }
+  }, [profile?.user_id]);
+
+
+
+  // Fetch Shop Settings from Supabase (background sync)
+  const fetchShopSettings = async () => {
+    if (!profile?.user_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('shop_settings')
+        .select('*')
+        .eq('user_id', profile.user_id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Error fetching shop settings:', error);
+        return; // Keep using cached data
+      }
+
+      if (data) {
+        // Update from Supabase
+        setShopName(data.shop_name || '');
+        setAddress(data.address || '');
+        setContactNumber(data.contact_number || '');
+        setLogoUrl(data.logo_url || '');
+        setPrinterWidth(data.printer_width as '58mm' | '80mm' || '58mm');
+        setFacebook(data.facebook || '');
+        setShowFacebook(data.show_facebook);
+        setInstagram(data.instagram || '');
+        setShowInstagram(data.show_instagram);
+        setWhatsapp(data.whatsapp || '');
+        setShowWhatsapp(data.show_whatsapp);
+      }
+    } catch (e) {
+      console.error('Error in fetchShopSettings:', e);
+      // Keep using cached data
+    }
+  };
+
+  // Load from localStorage (instant cache)
+  const loadFromLocalStorage = () => {
+    const savedWidth = localStorage.getItem('hotel_pos_printer_width');
+    if (savedWidth === '80mm') setPrinterWidth('80mm');
+
+    const savedHeader = localStorage.getItem('hotel_pos_bill_header');
+    if (savedHeader) {
+      try {
+        const parsed = JSON.parse(savedHeader);
+        setShopName(parsed.shopName || '');
+        setContactNumber(parsed.contactNumber || '');
+        setAddress(parsed.address || '');
+        setLogoUrl(parsed.logoUrl || '');
+        if (parsed.printerWidth) setPrinterWidth(parsed.printerWidth);
+        setFacebook(parsed.facebook || '');
+        setShowFacebook(parsed.showFacebook !== false);
+        setInstagram(parsed.instagram || '');
+        setShowInstagram(parsed.showInstagram !== false);
+        setWhatsapp(parsed.whatsapp || '');
+        setShowWhatsapp(parsed.showWhatsapp !== false);
+      } catch (e) {
+        console.error("Failed to parse local bill header settings:", e);
+        localStorage.removeItem('hotel_pos_bill_header');
+      }
+    }
+  };
+
+  const saveShopSettings = async () => {
+    if (!profile?.user_id) {
+      toast({ title: "Error", description: "You must be logged in to save settings.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const settingsData = {
+        user_id: profile.user_id,
+        shop_name: shopName || null,
+        address: address || null,
+        contact_number: contactNumber || null,
+        logo_url: logoUrl || null,
+        facebook: facebook || null,
+        show_facebook: showFacebook,
+        instagram: instagram || null,
+        show_instagram: showInstagram,
+        whatsapp: whatsapp || null,
+        show_whatsapp: showWhatsapp,
+        printer_width: printerWidth,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('shop_settings')
+        .upsert(settingsData, { onConflict: 'user_id' });
+
+      if (error) {
+        console.error('Error saving to Supabase:', error);
+        // Fallback to localStorage
+        saveToLocalStorage();
+        toast({
+          title: "Settings Saved Locally",
+          description: "Cloud sync failed. Settings saved to this device only.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Also save to localStorage as backup
+      saveToLocalStorage();
+
+      toast({
+        title: "Settings Saved",
+        description: "Shop settings synced to cloud and available on all devices."
+      });
+    } catch (e) {
+      console.error('Error in saveShopSettings:', e);
+      saveToLocalStorage();
+      toast({
+        title: "Settings Saved Locally",
+        description: "Cloud sync failed. Settings saved to this device only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Helper to save to localStorage (backup)
+  const saveToLocalStorage = () => {
+    localStorage.setItem('hotel_pos_printer_width', printerWidth);
+    localStorage.setItem('hotel_pos_bill_header', JSON.stringify({
+      shopName,
+      address,
+      contactNumber,
+      logoUrl,
+      facebook,
+      showFacebook,
+      instagram,
+      showInstagram,
+      whatsapp,
+      showWhatsapp,
+      printerWidth
+    }));
+  };
+
+
 
   const updateSettings = async (updates: Partial<BluetoothSettings>) => {
     try {
@@ -573,35 +680,84 @@ export const BluetoothPrinterSettings: React.FC = () => {
                 </div>
 
                 {/* Social Media Section */}
-                <div className="space-y-2 pt-2 border-t border-dashed">
-                  <Label className="text-xs font-semibold text-primary">Social Media (Optional)</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">Facebook</Label>
-                      <Input
-                        placeholder="@username"
-                        value={facebook}
-                        onChange={(e) => setFacebook(e.target.value)}
-                        className="h-8 text-xs"
-                      />
+                <div className="space-y-4 pt-2 border-t border-dashed">
+                  <Label className="text-xs font-semibold text-primary">Social Media Links</Label>
+                  <p className="text-[10px] text-muted-foreground mb-2">Enable to show on digital and printed bills.</p>
+
+                  <div className="grid gap-3">
+                    {/* Facebook */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Facebook</Label>
+                        <Switch
+                          checked={showFacebook}
+                          onCheckedChange={setShowFacebook}
+                          className="scale-75"
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#1877F2]">
+                          <FacebookIcon className="w-5 h-5" />
+                        </div>
+                        <Input
+                          placeholder="username"
+                          value={facebook}
+                          onChange={(e) => setFacebook(e.target.value)}
+                          className="h-9 text-xs pl-10"
+                          disabled={!showFacebook}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">Instagram</Label>
-                      <Input
-                        placeholder="@username"
-                        value={instagram}
-                        onChange={(e) => setInstagram(e.target.value)}
-                        className="h-8 text-xs"
-                      />
+
+                    {/* Instagram */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Instagram</Label>
+                        <Switch
+                          checked={showInstagram}
+                          onCheckedChange={setShowInstagram}
+                          className="scale-75"
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#E4405F]">
+                          <InstagramIcon className="w-5 h-5" />
+                        </div>
+                        <Input
+                          placeholder="username"
+                          value={instagram}
+                          onChange={(e) => setInstagram(e.target.value)}
+                          className="h-9 text-xs pl-10"
+                          disabled={!showInstagram}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">WhatsApp</Label>
-                      <Input
-                        placeholder="Number"
-                        value={whatsapp}
-                        onChange={(e) => setWhatsapp(e.target.value)}
-                        className="h-8 text-xs"
-                      />
+
+                    {/* WhatsApp */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">WhatsApp</Label>
+                        <Switch
+                          checked={showWhatsapp}
+                          onCheckedChange={setShowWhatsapp}
+                          className="scale-75"
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#25D366]">
+                          <WhatsAppIcon className="w-5 h-5" />
+                        </div>
+                        <Input
+                          placeholder="number"
+                          value={whatsapp}
+                          onChange={(e) => setWhatsapp(e.target.value)}
+                          className="h-9 text-xs pl-10"
+                          disabled={!showWhatsapp}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -666,8 +822,8 @@ export const BluetoothPrinterSettings: React.FC = () => {
               </Select>
             </div>
 
-            <Button onClick={saveLocalSettings} size="sm" variant="secondary">
-              Save Local Settings
+            <Button onClick={saveShopSettings} size="sm" variant="secondary">
+              Save Cloud Settings
             </Button>
           </div>
         </div>

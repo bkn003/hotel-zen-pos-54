@@ -34,6 +34,9 @@ const Settings = () => {
   useEffect(() => {
     if (profile?.role === 'admin') {
       fetchAdditionalCharges();
+    } else if (profile) {
+      // Non-admin user, stop loading
+      setLoading(false);
     }
   }, [profile]);
 
@@ -227,7 +230,7 @@ const Settings = () => {
                   ))}
                 </div>
               )}
-              
+
               <AddAdditionalChargeDialog
                 open={chargeDialogOpen}
                 onOpenChange={setChargeDialogOpen}
@@ -240,7 +243,7 @@ const Settings = () => {
                   });
                 }}
               />
-              
+
               <EditAdditionalChargeDialog
                 open={editChargeDialogOpen}
                 onOpenChange={setEditChargeDialogOpen}

@@ -159,8 +159,11 @@ const Billing = () => {
     contactNumber: string;
     logoUrl: string;
     facebook: string;
+    showFacebook?: boolean;
     instagram: string;
+    showInstagram?: boolean;
     whatsapp: string;
+    showWhatsapp?: boolean;
     printerWidth: '58mm' | '80mm';
   } | null>(null);
 
@@ -264,11 +267,72 @@ const Billing = () => {
       console.error('Error fetching categories:', error);
     }
   };
+
+  // Cache-first shop settings loading
+  const loadShopSettingsFromCache = () => {
+    const saved = localStorage.getItem('hotel_pos_bill_header');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setBillSettings({
+          shopName: parsed.shopName || '',
+          address: parsed.address || '',
+          contactNumber: parsed.contactNumber || '',
+          logoUrl: parsed.logoUrl || '',
+          facebook: parsed.facebook || '',
+          showFacebook: parsed.showFacebook !== false,
+          instagram: parsed.instagram || '',
+          showInstagram: parsed.showInstagram !== false,
+          whatsapp: parsed.whatsapp || '',
+          showWhatsapp: parsed.showWhatsapp !== false,
+          printerWidth: parsed.printerWidth || '58mm'
+        });
+      } catch (e) { /* ignore */ }
+    }
+  };
+
+  // Fetch shop settings from Supabase (background sync)
+  const fetchShopSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('shop_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) {
+        const settings = {
+          shopName: data.shop_name || '',
+          address: data.address || '',
+          contactNumber: data.contact_number || '',
+          logoUrl: data.logo_url || '',
+          facebook: data.facebook || '',
+          showFacebook: data.show_facebook,
+          instagram: data.instagram || '',
+          showInstagram: data.show_instagram,
+          whatsapp: data.whatsapp || '',
+          showWhatsapp: data.show_whatsapp,
+          printerWidth: data.printer_width as '58mm' | '80mm' || '58mm'
+        };
+        setBillSettings(settings);
+        // Update cache
+        localStorage.setItem('hotel_pos_bill_header', JSON.stringify(settings));
+      }
+    } catch (error) {
+      console.error('Error fetching shop settings:', error);
+    }
+  };
+
   useEffect(() => {
     fetchItems();
     fetchPaymentTypes();
     fetchAdditionalCharges();
     fetchItemCategories();
+    loadShopSettingsFromCache(); // Instant load from cache
+    fetchShopSettings();          // Background sync from Supabase
     if (profile?.user_id) {
       fetchDisplaySettings();
     }
@@ -646,9 +710,9 @@ const Billing = () => {
           shopName: billSettings?.shopName,
           address: billSettings?.address,
           contactNumber: billSettings?.contactNumber,
-          facebook: billSettings?.facebook,
-          instagram: billSettings?.instagram,
-          whatsapp: billSettings?.whatsapp,
+          facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
+          instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
+          whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined,
           printerWidth: billSettings?.printerWidth || '58mm',
           logoUrl: billSettings?.logoUrl
         };
