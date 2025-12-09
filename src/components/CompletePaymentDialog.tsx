@@ -87,7 +87,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const hasInitialized = React.useRef(false);
 
   const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
+
   const totalAdditionalCharges = additionalCharges
     .filter(charge => selectedCharges[charge.id])
     .reduce((sum, charge) => {
@@ -101,10 +101,10 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       }
       return sum;
     }, 0);
-  
+
   const subtotal = cartSubtotal + totalAdditionalCharges;
-  const discountAmount = discountType === 'percentage' 
-    ? (subtotal * discount) / 100 
+  const discountAmount = discountType === 'percentage'
+    ? (subtotal * discount) / 100
     : discount;
   const total = subtotal - discountAmount;
   const totalPaymentAmount = Object.values(paymentAmounts).reduce((sum, amount) => sum + amount, 0);
@@ -118,14 +118,14 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
     const primaryPaymentMethod = Object.entries(paymentAmounts)
       .find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
     const validCart = cart.filter(item => item.quantity > 0);
-    
+
     const selectedAdditionalCharges = additionalCharges
       .filter(charge => selectedCharges[charge.id])
       .map(charge => ({
         name: charge.name,
         amount: charge.charge_type === 'fixed' ? charge.amount :
-                charge.charge_type === 'per_unit' ? charge.amount * validCart.reduce((qty, item) => qty + item.quantity, 0) :
-                cartSubtotal * charge.amount / 100,
+          charge.charge_type === 'per_unit' ? charge.amount * validCart.reduce((qty, item) => qty + item.quantity, 0) :
+            cartSubtotal * charge.amount / 100,
         enabled: true
       }));
 
@@ -157,7 +157,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   React.useEffect(() => {
     if (open && paymentTypes.length > 0 && !hasInitialized.current) {
       hasInitialized.current = true;
-      
+
       const defaultCharges: Record<string, boolean> = {};
       additionalCharges.forEach(charge => {
         if (charge.is_active) {
@@ -252,23 +252,22 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
                   const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
-                                         charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
-                                         cartSubtotal * charge.amount / 100;
-                  
+                    charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
+                      cartSubtotal * charge.amount / 100;
+
                   return (
-                    <div 
-                      key={charge.id} 
+                    <div
+                      key={charge.id}
                       onClick={(e) => handleChargeRowClick(charge.id, e)}
-                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'bg-primary/10 border border-primary/30' 
-                          : 'bg-white/50 dark:bg-gray-800/50 border border-transparent hover:border-muted'
-                      }`}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${isSelected
+                        ? 'bg-primary/10 border border-primary/30'
+                        : 'bg-white/50 dark:bg-gray-800/50 border border-transparent hover:border-muted'
+                        }`}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <Checkbox
                           checked={isSelected}
-                          onCheckedChange={() => {}}
+                          onCheckedChange={() => { }}
                           onClick={(e) => e.stopPropagation()}
                           className="h-4 w-4 rounded-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary pointer-events-none"
                         />
@@ -323,14 +322,14 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           {/* Payment Methods */}
           <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg p-2">
             <h3 className="font-medium text-xs mb-2 text-orange-700 dark:text-orange-400">Payment Methods *</h3>
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="flex flex-wrap gap-2 mb-3">
               {paymentTypes.map((payment) => (
                 <Button
                   key={payment.id}
                   variant={paymentAmounts[payment.payment_type] > 0 ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPaymentAmounts({ [payment.payment_type]: total })}
-                  className={`capitalize text-sm h-8 px-4 min-w-[70px] ${paymentAmounts[payment.payment_type] > 0 ? 'bg-primary shadow-md' : 'bg-white dark:bg-gray-800'}`}
+                  className={`capitalize text-base h-10 px-5 min-w-[80px] font-bold rounded-xl transition-all duration-200 ${paymentAmounts[payment.payment_type] > 0 ? 'bg-gradient-to-r from-primary to-primary/80 shadow-lg scale-105' : 'bg-white dark:bg-gray-800 hover:scale-102'}`}
                 >
                   {payment.payment_type}
                 </Button>
@@ -339,13 +338,12 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${paymentTypes.length}, minmax(0, 1fr))` }}>
               {paymentTypes.map((payment) => (
                 <div key={`amount-${payment.id}`} className="flex flex-col">
-                  <div className="text-xs text-muted-foreground text-center mb-1 capitalize font-medium">{payment.payment_type}</div>
                   <Input
                     type="number"
                     value={paymentAmounts[payment.payment_type] || 0}
                     onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
-                    className="h-9 text-sm text-center bg-white dark:bg-gray-800 font-semibold"
-                    placeholder="0.00"
+                    className="h-10 text-base text-center bg-white dark:bg-gray-800 font-bold border-2 border-primary/20 focus:border-primary rounded-xl"
+                    placeholder="0"
                     min="0"
                     step="0.01"
                   />
@@ -361,7 +359,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             )}
           </div>
         </div>
-        
+
         {/* Summary - Fixed at bottom */}
         <div className="border-t-2 border-primary/20 p-3 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900">
           <div className="space-y-0.5 text-[10px]">
@@ -371,8 +369,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             </div>
             {additionalCharges.filter(charge => selectedCharges[charge.id]).map((charge) => {
               const calculatedAmount = charge.charge_type === 'fixed' ? charge.amount :
-                                     charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
-                                     cartSubtotal * charge.amount / 100;
+                charge.charge_type === 'per_unit' ? charge.amount * cart.reduce((qty, item) => qty + item.quantity, 0) :
+                  cartSubtotal * charge.amount / 100;
               return (
                 <div key={charge.id} className="flex justify-between text-primary">
                   <span>{charge.name}:</span>

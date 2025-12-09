@@ -3,14 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  Package, 
-  Receipt, 
+import {
+  ShoppingCart,
+  Package,
+  Receipt,
   BarChart3,
   TrendingUp,
-  Users,
   Settings
 } from 'lucide-react';
 
@@ -34,25 +32,44 @@ export const BottomNavigation: React.FC = () => {
   const navItems = allNavItems.filter(item => hasAccess(item.page));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t md:hidden">
-      <div className="flex justify-around p-1">
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50">
+      {/* Glassmorphism background */}
+      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/90 to-background/80 backdrop-blur-xl border-t border-primary/10" />
+
+      <div className="relative flex justify-around items-center py-2 px-1">
         {navItems.map(({ to, icon: Icon, label }) => {
-          const isActive = location.pathname === to || 
-                          (to === '/billing' && location.pathname === '/');
-          
+          const isActive = location.pathname === to ||
+            (to === '/billing' && location.pathname === '/');
+
           return (
             <NavLink
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center justify-center py-1 px-1 rounded-lg transition-all duration-200 min-w-0 flex-1",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                "flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-300 min-w-0 flex-1 mx-0.5",
+                isActive
+                  ? "bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30 scale-105 -translate-y-1"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95"
               )}
             >
-              <Icon className="w-4 h-4 mb-1" />
-              <span className="text-xs font-medium truncate">{label}</span>
+              <div className={cn(
+                "p-1.5 rounded-xl transition-all duration-300",
+                isActive ? "bg-white/20" : ""
+              )}>
+                <Icon className={cn(
+                  "transition-all duration-300",
+                  isActive ? "w-5 h-5" : "w-4 h-4"
+                )} />
+              </div>
+              <span className={cn(
+                "font-medium truncate transition-all duration-300",
+                isActive ? "text-[11px] mt-0.5" : "text-[10px] mt-0.5"
+              )}>{label}</span>
+
+              {/* Active indicator dot */}
+              {isActive && (
+                <div className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-primary-foreground animate-pulse" />
+              )}
             </NavLink>
           );
         })}

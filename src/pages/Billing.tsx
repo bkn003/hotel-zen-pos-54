@@ -630,14 +630,6 @@ const Billing = () => {
             {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Point of Sale'}
           </h1>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => handleViewModeChange('grid')}>
-            <Grid className="w-4 h-4" />
-          </Button>
-          <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => handleViewModeChange('list')}>
-            <List className="w-4 h-4" />
-          </Button>
-        </div>
       </div>
 
       {/* Search */}
@@ -670,7 +662,7 @@ const Billing = () => {
             if (item.image_url && !cachedImageUrl) {
               cacheImageUrl(item.id, item.image_url);
             }
-            return <div key={item.id} className="item-card bg-card rounded-xl border p-2 flex flex-col h-full shadow-sm">
+            return <div key={item.id} className={`item-card bg-card rounded-xl border-2 p-2 flex flex-col h-full shadow-sm transition-all duration-300 ${cartItem ? 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-400 shadow-green-200/50 shadow-md ring-2 ring-green-300/50' : 'border-transparent'}`}>
               <div className="relative aspect-square mb-2 bg-gradient-to-br from-muted to-muted/50 rounded-lg overflow-hidden flex-shrink-0">
                 {item.image_url ? <img src={getCachedImageUrl(item.id)} alt={item.name} className="w-full h-full object-cover" onError={e => {
                   const target = e.target as HTMLImageElement;
@@ -775,43 +767,46 @@ const Billing = () => {
 
       {/* Cart Items */}
       <div className="flex-1 overflow-y-auto p-4">
-        {cart.length === 0 ? <div className="text-center py-8">
-          <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500">Cart is empty</p>
+        {cart.length === 0 ? <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center">
+            <ShoppingCart className="w-8 h-8 text-gray-400" />
+          </div>
+          <p className="text-gray-500 font-medium">Your cart is empty</p>
+          <p className="text-gray-400 text-sm mt-1">Add items to get started</p>
         </div> : <div className="space-y-3">
-          {cart.map(item => <div key={item.id} className="bg-gray-50 rounded-lg p-3">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-sm line-clamp-2 flex-1">{item.name}</h3>
-              <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-red-600 hover:text-red-700 ml-2">
+          {cart.map(item => <div key={item.id} className="bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
+            <div className="flex justify-between items-start mb-3">
+              <h3 className="font-bold text-sm line-clamp-2 flex-1 text-gray-800 dark:text-white">{item.name}</h3>
+              <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 ml-2 rounded-full h-8 w-8 p-0">
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="font-bold text-primary">₹{item.price}</span>
+              <span className="font-bold text-lg bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">₹{item.price}</span>
 
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0">
+              <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-600 rounded-full p-1">
+                <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-sm">
                   <Minus className="w-4 h-4" />
                 </Button>
 
                 {editingQuantity === item.id ? <div className="flex items-center space-x-1">
-                  <Input type="number" value={tempQuantity} onChange={e => setTempQuantity(e.target.value)} className="w-12 h-8 text-center p-0" autoFocus />
-                  <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0">
+                  <Input type="number" value={tempQuantity} onChange={e => setTempQuantity(e.target.value)} className="w-12 h-8 text-center p-0 rounded-lg" autoFocus />
+                  <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0 rounded-full bg-green-500 text-white">
                     <Check className="w-3 h-3" />
                   </Button>
-                </div> : <span className="font-semibold min-w-[30px] text-center cursor-pointer hover:bg-gray-200 rounded px-2 py-1" onClick={() => startEditingQuantity(item.id, item.quantity)}>
+                </div> : <span className="font-bold min-w-[40px] text-center cursor-pointer hover:bg-white dark:hover:bg-gray-500 rounded-full px-3 py-1 transition-colors" onClick={() => startEditingQuantity(item.id, item.quantity)}>
                   {item.quantity}
                 </span>}
 
-                <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0">
+                <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0 rounded-full bg-green-500 text-white hover:bg-green-600 shadow-sm">
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="flex justify-end mt-2">
-              <span className="text-sm font-semibold">
+            <div className="flex justify-end mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
+              <span className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                 Total: ₹{(item.price * item.quantity).toFixed(0)}
               </span>
             </div>
