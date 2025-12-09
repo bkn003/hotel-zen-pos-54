@@ -84,9 +84,14 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('flat');
   const [selectedCharges, setSelectedCharges] = useState<Record<string, boolean>>({});
+  const [itemPriceOverrides, setItemPriceOverrides] = useState<Record<string, number>>({});
   const hasInitialized = React.useRef(false);
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate subtotal with price overrides
+  const cartSubtotal = cart.reduce((sum, item) => {
+    const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
+    return sum + (effectivePrice * item.quantity);
+  }, 0);
 
   const totalAdditionalCharges = additionalCharges
     .filter(charge => selectedCharges[charge.id])
@@ -151,6 +156,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       setPaymentAmounts({});
       setDiscount(0);
       setDiscountType('flat');
+      setItemPriceOverrides({});
     }
   }, [open]);
 
@@ -192,62 +198,58 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {/* Order Summary - Collapsible */}
-          <details className="group">
-            <summary className="font-medium text-xs cursor-pointer flex items-center justify-between bg-muted/50 p-2 rounded-lg hover:bg-muted transition-colors">
+          <details className="group" open>
+            <summary className="font-semibold text-sm cursor-pointer flex items-center justify-between bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
               <span>Order Summary ({cart.length} items)</span>
-              <span className="text-primary font-bold">₹{cartSubtotal.toFixed(2)}</span>
+              <span className="text-primary font-bold text-base">₹{cartSubtotal.toFixed(2)}</span>
             </summary>
-            <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-              {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-1.5 bg-muted/30 rounded text-xs">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate text-xs">{item.name}</div>
-                    <div className="text-[10px] text-muted-foreground">₹{item.price}/{getSimplifiedUnit(item.unit)}</div>
+            <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+              {cart.map((item) => {
+                const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm">
+                    <div className="flex-1 min-w-0 mr-2">
+                      <div className="font-semibold truncate text-sm">{item.name}</div>
+                      <div className="text-xs text-muted-foreground">₹{item.price}/{getSimplifiedUnit(item.unit)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="outline" onClick={() => onUpdateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full bg-red-500 text-white border-0 hover:bg-red-600">
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
+                      <Button size="sm" variant="outline" onClick={() => onUpdateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full bg-green-500 text-white border-0 hover:bg-green-600">
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground mx-1">×</span>
+                      <Input
+                        type="number"
+                        value={effectivePrice}
+                        onChange={(e) => {
+                          const newPrice = Number(e.target.value) || 0;
+                          setItemPriceOverrides(prev => ({ ...prev, [item.id]: newPrice }));
+                        }}
+                        className="h-6 w-14 text-xs text-center p-0 border-orange-400 bg-orange-50 dark:bg-orange-900/30 rounded font-bold"
+                        min="0"
+                        step="1"
+                        title="Edit price"
+                      />
+                      <span className="text-sm font-bold min-w-[2.5rem] text-right text-primary">₹{(effectivePrice * item.quantity).toFixed(0)}</span>
+                      <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-6 w-6 p-0 text-destructive hover:bg-red-50">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button size="sm" variant="outline" onClick={() => onUpdateQuantity(item.id, -1)} className="h-5 w-5 p-0 rounded-full bg-red-500 text-white border-0 hover:bg-red-600">
-                      <Minus className="h-2.5 w-2.5" />
-                    </Button>
-                    <Input
-                      type="number"
-                      value={item.quantity === 0 ? '' : item.quantity}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || value === '0') {
-                          const diff = 0 - item.quantity;
-                          onUpdateQuantity(item.id, diff);
-                          return;
-                        }
-                        const isWeightUnit = isWeightOrVolumeUnit(item.unit);
-                        const newQty = isWeightUnit ? parseFloat(value) : parseInt(value);
-                        if (!isNaN(newQty) && newQty >= 0) {
-                          const diff = newQty - item.quantity;
-                          onUpdateQuantity(item.id, diff);
-                        }
-                      }}
-                      className="h-5 w-10 text-[10px] text-center p-0 border-primary/30"
-                      min="0"
-                      step={isWeightOrVolumeUnit(item.unit) ? "0.001" : "1"}
-                    />
-                    <Button size="sm" variant="outline" onClick={() => onUpdateQuantity(item.id, 1)} className="h-5 w-5 p-0 rounded-full bg-green-500 text-white border-0 hover:bg-green-600">
-                      <Plus className="h-2.5 w-2.5" />
-                    </Button>
-                    <span className="text-[10px] font-medium min-w-[2.5rem] text-right">₹{(item.price * item.quantity).toFixed(0)}</span>
-                    <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-5 w-5 p-0 text-destructive">
-                      <Trash2 className="h-2.5 w-2.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </details>
 
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-lg p-2">
-              <h3 className="font-medium text-xs mb-1.5 text-primary">Additional Charges</h3>
+              <h3 className="font-medium text-sm mb-1.5 text-primary">Additional Charges</h3>
               <div className="space-y-1">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
@@ -260,8 +262,8 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       key={charge.id}
                       onClick={(e) => handleChargeRowClick(charge.id, e)}
                       className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${isSelected
-                        ? 'bg-primary/10 border border-primary/30'
-                        : 'bg-white/50 dark:bg-gray-800/50 border border-transparent hover:border-muted'
+                          ? 'bg-primary/10 border border-primary/30'
+                          : 'bg-white/50 dark:bg-gray-800/50 border border-transparent hover:border-muted'
                         }`}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -295,7 +297,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
           {/* Discount */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg p-2">
-            <h3 className="font-medium text-xs mb-1.5 text-green-700 dark:text-green-400">Discount (Optional)</h3>
+            <h3 className="font-medium text-sm mb-1.5 text-green-700 dark:text-green-400">Discount (Optional)</h3>
             <div className="flex items-center gap-1">
               <Select value={discountType} onValueChange={(value: 'flat' | 'percentage') => setDiscountType(value)}>
                 <SelectTrigger className="w-16 h-7 text-[10px] bg-white dark:bg-gray-800">
@@ -319,30 +321,25 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             </div>
           </div>
 
-          {/* Payment Methods */}
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg p-2">
-            <h3 className="font-medium text-xs mb-2 text-orange-700 dark:text-orange-400">Payment Methods *</h3>
-            <div className="flex flex-wrap gap-2 mb-3">
+          {/* Payment Methods - Fixed alignment */}
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg p-3">
+            <h3 className="font-semibold text-sm mb-3 text-orange-700 dark:text-orange-400">Payment Methods *</h3>
+            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(paymentTypes.length, 4)}, minmax(0, 1fr))` }}>
               {paymentTypes.map((payment) => (
-                <Button
-                  key={payment.id}
-                  variant={paymentAmounts[payment.payment_type] > 0 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaymentAmounts({ [payment.payment_type]: total })}
-                  className={`capitalize text-base h-10 px-5 min-w-[80px] font-bold rounded-xl transition-all duration-200 ${paymentAmounts[payment.payment_type] > 0 ? 'bg-gradient-to-r from-primary to-primary/80 shadow-lg scale-105' : 'bg-white dark:bg-gray-800 hover:scale-102'}`}
-                >
-                  {payment.payment_type}
-                </Button>
-              ))}
-            </div>
-            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${paymentTypes.length}, minmax(0, 1fr))` }}>
-              {paymentTypes.map((payment) => (
-                <div key={`amount-${payment.id}`} className="flex flex-col">
+                <div key={payment.id} className="flex flex-col items-center">
+                  <Button
+                    variant={paymentAmounts[payment.payment_type] > 0 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPaymentAmounts({ [payment.payment_type]: total })}
+                    className={`capitalize text-xs h-8 w-full font-bold rounded-lg transition-all duration-200 mb-1.5 ${paymentAmounts[payment.payment_type] > 0 ? 'bg-gradient-to-r from-primary to-primary/80 shadow-md' : 'bg-white dark:bg-gray-800'}`}
+                  >
+                    {payment.payment_type}
+                  </Button>
                   <Input
                     type="number"
                     value={paymentAmounts[payment.payment_type] || 0}
                     onChange={(e) => handlePaymentAmountChange(payment.payment_type, Number(e.target.value))}
-                    className="h-10 text-base text-center bg-white dark:bg-gray-800 font-bold border-2 border-primary/20 focus:border-primary rounded-xl"
+                    className="h-8 text-sm text-center bg-white dark:bg-gray-800 font-bold border-2 border-primary/20 focus:border-primary rounded-lg w-full"
                     placeholder="0"
                     min="0"
                     step="0.01"
@@ -351,7 +348,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               ))}
             </div>
             {remaining !== 0 && (
-              <div className="text-right mt-1.5">
+              <div className="text-right mt-2">
                 <span className={`text-xs font-medium ${remaining > 0 ? 'text-red-500' : 'text-green-500'}`}>
                   Remaining: ₹{remaining.toFixed(2)}
                 </span>
@@ -362,7 +359,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
 
         {/* Summary - Fixed at bottom */}
         <div className="border-t-2 border-primary/20 p-3 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900">
-          <div className="space-y-0.5 text-[10px]">
+          <div className="space-y-0.5 text-xs">
             <div className="flex justify-between">
               <span>Subtotal:</span>
               <span>₹{cartSubtotal.toFixed(2)}</span>

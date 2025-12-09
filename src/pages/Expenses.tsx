@@ -76,7 +76,7 @@ const Expenses: React.FC = () => {
     // Search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(expense => 
+      filtered = filtered.filter(expense =>
         expense.expense_name?.toLowerCase().includes(searchLower) ||
         expense.category.toLowerCase().includes(searchLower) ||
         expense.note?.toLowerCase().includes(searchLower) ||
@@ -88,7 +88,7 @@ const Expenses: React.FC = () => {
     if (dateFilter === 'custom' && startDate && endDate) {
       const startDateObj = new Date(startDate);
       const endDateObj = new Date(endDate);
-      
+
       if (endDateObj < startDateObj) {
         toast({
           title: "Error",
@@ -97,7 +97,7 @@ const Expenses: React.FC = () => {
         });
         return;
       }
-      
+
       filtered = filtered.filter(expense => {
         const expenseDate = new Date(expense.date);
         return expenseDate >= startDateObj && expenseDate <= endDateObj;
@@ -166,7 +166,7 @@ const Expenses: React.FC = () => {
         note: expense.note
       }));
 
-      const dateRangeText = dateFilter === 'custom' 
+      const dateRangeText = dateFilter === 'custom'
         ? `${startDate} to ${endDate}`
         : dateFilter.charAt(0).toUpperCase() + dateFilter.slice(1);
 
@@ -196,7 +196,7 @@ const Expenses: React.FC = () => {
         note: expense.note
       }));
 
-      const dateRangeText = dateFilter === 'custom' 
+      const dateRangeText = dateFilter === 'custom'
         ? `${startDate} to ${endDate}`
         : dateFilter.charAt(0).toUpperCase() + dateFilter.slice(1);
 
@@ -300,7 +300,7 @@ const Expenses: React.FC = () => {
               </Button>
             ))}
           </div>
-          
+
           {dateFilter === 'custom' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -368,113 +368,60 @@ const Expenses: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-4">
-                {filteredExpenses.map((expense) => (
-                  <Card key={expense.id} className="shadow-sm">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-base">{expense.expense_name || 'Unnamed Expense'}</h3>
-                            <Badge variant="secondary" className="mt-1">{expense.category}</Badge>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-destructive">-₹{expense.amount.toFixed(2)}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Date</p>
-                            <p className="font-medium">{new Date(expense.date).toLocaleDateString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Created</p>
-                            <p className="font-medium text-xs">{new Date(expense.created_at).toLocaleString()}</p>
-                          </div>
-                        </div>
-
-                        {expense.note && (
-                          <div>
-                            <p className="text-muted-foreground text-sm">Note</p>
-                            <p className="text-sm">{expense.note}</p>
-                          </div>
-                        )}
-
-                        {profile?.role === 'admin' && (
-                          <div className="flex gap-2 pt-2 border-t">
-                            <EditExpenseDialog
-                              expense={expense}
-                              onExpenseUpdated={fetchExpenses}
-                            />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => deleteExpense(expense.id)}
-                              className="flex-1"
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Note</TableHead>
-                      <TableHead>Created</TableHead>
-                      {profile?.role === 'admin' && <TableHead className="text-right">Actions</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredExpenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell className="font-medium">{expense.expense_name || 'Unnamed Expense'}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{expense.category}</Badge>
-                        </TableCell>
-                        <TableCell className="font-bold text-destructive">
-                          -₹{expense.amount.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">{new Date(expense.date).toLocaleDateString()}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{expense.note || '-'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {new Date(expense.created_at).toLocaleString()}
-                        </TableCell>
-                        {profile?.role === 'admin' && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <EditExpenseDialog
-                                expense={expense}
-                                onExpenseUpdated={fetchExpenses}
-                              />
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => deleteExpense(expense.id)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
+              {/* Mobile & Desktop Table View - Horizontal Scroll */}
+              <div className="overflow-x-auto -mx-4 px-4">
+                <div className="min-w-[700px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">Name</TableHead>
+                        <TableHead className="whitespace-nowrap">Category</TableHead>
+                        <TableHead className="whitespace-nowrap">Amount</TableHead>
+                        <TableHead className="whitespace-nowrap">Date</TableHead>
+                        <TableHead className="whitespace-nowrap">Note</TableHead>
+                        <TableHead className="whitespace-nowrap">Created</TableHead>
+                        {profile?.role === 'admin' && <TableHead className="text-right whitespace-nowrap">Actions</TableHead>}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredExpenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{expense.expense_name || 'Unnamed Expense'}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{expense.category}</Badge>
+                          </TableCell>
+                          <TableCell className="font-bold text-destructive whitespace-nowrap">
+                            -₹{expense.amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{new Date(expense.date).toLocaleDateString()}</TableCell>
+                          <TableCell className="max-w-[150px] truncate">{expense.note || '-'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                            {new Date(expense.created_at).toLocaleString()}
+                          </TableCell>
+                          {profile?.role === 'admin' && (
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <EditExpenseDialog
+                                  expense={expense}
+                                  onExpenseUpdated={fetchExpenses}
+                                />
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => deleteExpense(expense.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
+
             </>
           )}
         </CardContent>
