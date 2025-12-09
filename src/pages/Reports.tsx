@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { CalendarDays, TrendingUp, TrendingDown, DollarSign, Package, Receipt, CreditCard, BarChart3, Edit, Trash2, Eye, Download, FileSpreadsheet } from 'lucide-react';
+import { CalendarDays, TrendingUp, TrendingDown, DollarSign, Package, Receipt, CreditCard, BarChart3, Edit, Trash2, Eye, Download, FileSpreadsheet, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { exportAllReportsToExcel, exportAllReportsToPDF } from '@/utils/exportUtils';
 import { cachedFetch, CACHE_KEYS, invalidateRelatedData } from '@/utils/cacheUtils';
+import { printReceipt } from '@/utils/bluetoothPrinter';
 
 interface Bill {
   id: string;
@@ -106,7 +107,7 @@ const Reports: React.FC = () => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     switch (dateRange) {
       case 'hourly': {
         const startByHours = new Date(today);
@@ -152,9 +153,9 @@ const Reports: React.FC = () => {
 
   const fetchReports = async () => {
     if (dateRange === 'custom' && (!customStartDate || !customEndDate)) return;
-    
+
     setLoading(true);
-    
+
     try {
       const { start, end } = getDateFilter();
       const cacheKey = `${CACHE_KEYS.REPORTS}_${billFilter}_${start}_${end}_${dateRange === 'hourly' ? hourRange : ''}`;
@@ -224,7 +225,7 @@ const Reports: React.FC = () => {
               bill.bill_items?.forEach(item => {
                 const key = item.items?.name || 'Unknown';
                 const existing = itemReportMap.get(key);
-                
+
                 if (existing) {
                   existing.total_quantity += item.quantity;
                   existing.total_revenue += item.total;
@@ -378,12 +379,61 @@ const Reports: React.FC = () => {
   };
 
   const editBill = (bill: Bill) => {
-    navigate('/billing', { 
-      state: { 
+    navigate('/billing', {
+      state: {
         editBill: bill,
-        editMode: true 
-      } 
+        editMode: true
+      }
     });
+  };
+
+  const quickPrintBill = async (bill: Bill) => {
+    try {
+      const printData = {
+        billNo: bill.bill_no,
+        date: format(new Date(bill.date), 'MMM dd, yyyy'),
+        time: format(new Date(bill.created_at), 'hh:mm a'),
+        items: bill.bill_items?.map(item => ({
+          name: item.items?.name || 'Unknown Item',
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total
+        })) || [],
+        subtotal: bill.bill_items?.reduce((sum, item) => sum + item.total, 0) || 0,
+        additionalCharges: bill.additional_charges || [],
+        discount: bill.discount,
+        total: bill.total_amount,
+        paymentMethod: bill.payment_mode.toUpperCase(),
+        hotelName: profile?.hotel_name || 'BISMILLAH'
+      };
+
+      toast({
+        title: "Printing...",
+        description: `Sending ${bill.bill_no} to printer`,
+      });
+
+      const success = await printReceipt(printData);
+
+      if (success) {
+        toast({
+          title: "Success",
+          description: `${bill.bill_no} printed successfully!`,
+        });
+      } else {
+        toast({
+          title: "Print Failed",
+          description: "Unable to print. Check Bluetooth connection.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      toast({
+        title: "Print Error",
+        description: "Failed to connect to printer",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportAllExcel = () => {
@@ -430,7 +480,7 @@ const Reports: React.FC = () => {
         { description: 'Total Expenses', amount: totalExpenses, type: 'expense' as const }
       ];
 
-      const dateRangeText = dateRange === 'custom' 
+      const dateRangeText = dateRange === 'custom'
         ? `${customStartDate} to ${customEndDate}`
         : dateRange.charAt(0).toUpperCase() + dateRange.slice(1);
 
@@ -500,7 +550,7 @@ const Reports: React.FC = () => {
         { description: 'Total Expenses', amount: totalExpenses, type: 'expense' as const }
       ];
 
-      const dateRangeText = dateRange === 'custom' 
+      const dateRangeText = dateRange === 'custom'
         ? `${customStartDate} to ${customEndDate}`
         : dateRange.charAt(0).toUpperCase() + dateRange.slice(1);
 
@@ -552,10 +602,10 @@ const Reports: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center">
-          <img 
-            src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png" 
-            alt="Restaurant" 
-            className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-3" 
+          <img
+            src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"
+            alt="Restaurant"
+            className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-3"
           />
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Reports & Analytics</h1>
@@ -725,13 +775,12 @@ const Reports: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {bills.map((bill) => (
-                    <div 
-                      key={bill.id} 
-                      className={`flex items-center justify-between p-3 rounded-lg ${
-                        billFilter === 'deleted' 
-                          ? 'bg-destructive/10 border border-destructive/20' 
-                          : 'bg-muted/50'
-                      }`}
+                    <div
+                      key={bill.id}
+                      className={`flex items-center justify-between p-3 rounded-lg ${billFilter === 'deleted'
+                        ? 'bg-destructive/10 border border-destructive/20'
+                        : 'bg-muted/50'
+                        }`}
                     >
                       <div className="flex-1 min-w-0 mr-2">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -761,15 +810,28 @@ const Reports: React.FC = () => {
                             variant="outline"
                             onClick={() => setSelectedBill(bill)}
                             className="h-7 w-7 p-0 flex-shrink-0"
+                            title="View Details"
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
+                          {billFilter === 'processed' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => quickPrintBill(bill)}
+                              className="h-7 w-7 p-0 flex-shrink-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="Quick Print"
+                            >
+                              <Printer className="w-3 h-3" />
+                            </Button>
+                          )}
                           {billFilter === 'processed' ? (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => deleteBill(bill.id)}
                               className="h-7 w-7 p-0 flex-shrink-0"
+                              title="Delete"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -851,21 +913,21 @@ const Reports: React.FC = () => {
                   {Object.entries(paymentMethodSummary)
                     .sort(([, amountA], [, amountB]) => amountB - amountA)
                     .map(([method, amount]) => (
-                    <div key={method} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div>
-                        <h3 className="font-semibold text-sm capitalize">{method}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {bills.filter(b => b.payment_mode === method).length} transactions
-                        </p>
+                      <div key={method} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <h3 className="font-semibold text-sm capitalize">{method}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {bills.filter(b => b.payment_mode === method).length} transactions
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-sm text-primary">₹{amount.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {((amount / totalSales) * 100).toFixed(1)}%
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-sm text-primary">₹{amount.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {((amount / totalSales) * 100).toFixed(1)}%
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                   {Object.keys(paymentMethodSummary).length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-xs">
                       No payment data for selected period
@@ -972,7 +1034,7 @@ const Reports: React.FC = () => {
                   <p className="font-bold text-lg">₹{selectedBill.total_amount.toFixed(2)}</p>
                 </div>
               </div>
-              
+
               {selectedBill.discount > 0 && (
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-xs sm:text-sm font-medium text-green-800">
