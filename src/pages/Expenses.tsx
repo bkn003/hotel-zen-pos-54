@@ -272,56 +272,46 @@ const Expenses: React.FC = () => {
         </div>
       </div>
 
-      {/* Date Filters */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="w-5 h-5" />
-            Date Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4 overflow-x-hidden">
-            {[
-              { key: 'today', label: 'Today' },
-              { key: 'yesterday', label: 'Yesterday' },
-              { key: 'week', label: 'This Week' },
-              { key: 'month', label: 'This Month' },
-              { key: 'all', label: 'All Time' },
-              { key: 'custom', label: 'Custom' }
-            ].map(filter => (
-              <Button
-                key={filter.key}
-                variant={dateFilter === filter.key ? "default" : "outline"}
-                onClick={() => setDateFilter(filter.key)}
-                className="text-xs sm:text-sm min-w-0 px-2"
-              >
-                <span className="truncate">{filter.label}</span>
-              </Button>
-            ))}
-          </div>
+      {/* Date Filters - Dropdown to save space */}
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span className="font-semibold">Date Filter:</span>
+            </div>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="flex-1 sm:flex-none sm:w-48 h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="all">All Time</option>
+              <option value="custom">Custom Range</option>
+            </select>
 
-          {dateFilter === 'custom' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Start Date</label>
+            {dateFilter === 'custom' && (
+              <div className="flex gap-2 flex-wrap">
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className="w-36"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">End Date</label>
+                <span className="self-center text-muted-foreground">to</span>
                 <Input
                   type="date"
                   value={endDate}
                   min={startDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  className="w-36"
                 />
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -344,7 +334,7 @@ const Expenses: React.FC = () => {
       </Card>
 
       {/* Expenses Table */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
             <span className="text-base sm:text-lg">All Expenses ({filteredExpenses.length})</span>
@@ -357,7 +347,7 @@ const Expenses: React.FC = () => {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-0 overflow-hidden">
           {filteredExpenses.length === 0 ? (
             <div className="text-center py-16 px-4">
               <Receipt className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -369,8 +359,8 @@ const Expenses: React.FC = () => {
           ) : (
             <>
               {/* Mobile & Desktop Table View - Horizontal Scroll ONLY within this container */}
-              <div className="w-full overflow-hidden">
-                <div className="overflow-x-auto">
+              <div className="w-full overflow-hidden grid place-items-start">
+                <div className="overflow-x-auto w-full max-w-[85vw] sm:max-w-full pb-2">
                   <Table className="min-w-[700px]">
                     <TableHeader>
                       <TableRow>

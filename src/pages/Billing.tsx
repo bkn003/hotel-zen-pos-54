@@ -662,8 +662,16 @@ const Billing = () => {
             if (item.image_url && !cachedImageUrl) {
               cacheImageUrl(item.id, item.image_url);
             }
-            return <div key={item.id} className={`item-card bg-card rounded-xl border-2 p-2 flex flex-col h-full shadow-sm transition-all duration-300 ${cartItem ? 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-400 shadow-green-200/50 shadow-md ring-2 ring-green-300/50' : 'border-transparent'}`}>
-              <div className="relative aspect-square mb-2 bg-gradient-to-br from-muted to-muted/50 rounded-lg overflow-hidden flex-shrink-0">
+            const isInCart = cartItem && cartItem.quantity > 0;
+            return <div key={item.id} className={`relative bg-card rounded-xl border-2 p-1.5 flex flex-col shadow-sm transition-all duration-300 ${isInCart ? 'border-green-400 shadow-green-200/50 shadow-md' : 'border-gray-200 dark:border-gray-700 hover:border-primary/30'}`}>
+              {/* Checkmark Badge for items in cart */}
+              {isInCart && (
+                <div className="absolute -top-1 -left-1 z-10 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+              )}
+
+              <div className="relative aspect-[4/3] mb-1 bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden flex-shrink-0">
                 {item.image_url ? <img src={getCachedImageUrl(item.id)} alt={item.name} className="w-full h-full object-cover" onError={e => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
@@ -674,21 +682,25 @@ const Billing = () => {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col min-h-0 px-1">
-                <h3 className="font-medium text-sm mb-0.5 line-clamp-2 flex-shrink-0">{item.name}</h3>
-                <p className="text-primary mb-1 flex-shrink-0 font-bold text-base">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
+              <div className="flex-1 flex flex-col min-h-0 px-0.5">
+                <h3 className="font-semibold text-xs mb-0.5 line-clamp-1 flex-shrink-0">{item.name}</h3>
+                <p className="text-primary mb-1 flex-shrink-0 font-bold text-sm">₹{item.price.toFixed(2)} / {getSimplifiedUnit(item.unit)}</p>
 
-                {cartItem ? <div className="flex items-center justify-between mt-auto">
-                  <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 bg-red-50 hover:bg-red-100 border-red-200">
-                    <Minus className="h-3 w-3 text-red-600" />
+                {isInCart ? (
+                  <div className="flex items-center justify-center gap-1.5 mt-auto">
+                    <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full bg-red-500 text-white border-0 hover:bg-red-600">
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="font-bold min-w-[1.5rem] text-center text-base">{cartItem.quantity}</span>
+                    <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full bg-green-500 text-white border-0 hover:bg-green-600">
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={() => addToCart(item)} className="w-full h-7 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold mt-auto rounded-lg">
+                    Add
                   </Button>
-                  <span className="mx-1 font-semibold min-w-[1.5rem] text-center text-sm">{cartItem.quantity}</span>
-                  <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 bg-green-50 hover:bg-green-100 border-green-200">
-                    <Plus className="h-3 w-3 text-green-600" />
-                  </Button>
-                </div> : <Button onClick={() => addToCart(item)} className="w-full h-7 btn-vibrant text-primary-foreground text-xs font-semibold mt-auto rounded-lg">
-                  Add
-                </Button>}
+                )}
               </div>
             </div>;
           })}
@@ -815,20 +827,20 @@ const Billing = () => {
       </div>
     </div>
 
-    {/* Mobile Cart Button - Simple Pay button like image-60.png */}
-    {cart.length > 0 && <div className="fixed bottom-20 left-0 right-0 md:hidden z-50 px-4">
-      <div className="bg-card border rounded-lg shadow-lg p-3">
+    {/* Mobile Cart Button - Green gradient bar above bottom nav */}
+    {cart.length > 0 && <div className="fixed bottom-20 left-0 right-0 md:hidden z-40 px-3">
+      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-2xl px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-3 text-white">
             <ShoppingCart className="w-5 h-5" />
-            <span className="font-semibold">{cart.length} pc</span>
-            <span className="text-lg font-bold">₹{total.toFixed(0)}</span>
+            <span className="font-bold text-lg">{cart.reduce((sum, item) => sum + item.quantity, 0)} items</span>
+            <span className="font-bold text-xl">₹{total.toFixed(2)}</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={clearCart} className="h-8 px-3">
-              <Trash2 className="w-4 h-4" />
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={clearCart} className="h-9 w-9 p-0 text-white hover:bg-white/20 rounded-full">
+              <Trash2 className="w-5 h-5" />
             </Button>
-            <Button onClick={() => setPaymentDialogOpen(true)} className="h-8 px-4 bg-green-600 hover:bg-green-700">
+            <Button onClick={() => setPaymentDialogOpen(true)} className="h-9 px-5 bg-white text-green-600 hover:bg-gray-100 font-bold rounded-full shadow-md">
               Pay
             </Button>
           </div>

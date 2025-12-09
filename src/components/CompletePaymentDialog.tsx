@@ -268,7 +268,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               <span>Order Summary ({cart.length} items)</span>
               <span className="text-primary font-bold text-base">₹{cartSubtotal.toFixed(2)}</span>
             </summary>
-            <div className="mt-2 space-y-2 max-h-[120px] overflow-y-auto">
+            <div className="mt-2 space-y-2 max-h-[180px] overflow-y-auto">
               {cart.map((item) => {
                 const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
                 const effectiveQty = getEffectiveQty(item);
