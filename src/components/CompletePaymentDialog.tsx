@@ -145,9 +145,6 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   };
 
   const handleCompletePayment = () => {
-    const primaryPaymentMethod = Object.entries(paymentAmounts)
-      .find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
-
     const totalQuantity = cart.reduce((qty, item) => qty + getEffectiveQty(item), 0);
 
     const selectedAdditionalCharges = additionalCharges
@@ -172,18 +169,25 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       };
     });
 
-    // Recalculate paymentAmounts to match the CURRENT total at submit time
-    // This ensures even if the user edited items, the payment reflects the final total
-    const primaryPaymentType = Object.entries(paymentAmounts).find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
-    const correctedPaymentAmounts = { [primaryPaymentType]: total };
+    // Filter paymentAmounts to only include non-zero entries
+    const filteredPaymentAmounts: Record<string, number> = {};
+    Object.entries(paymentAmounts).forEach(([method, amount]) => {
+      if (amount > 0) {
+        filteredPaymentAmounts[method] = amount;
+      }
+    });
+
+    // Determine primary payment method (the one with highest amount)
+    const primaryPaymentMethod = Object.entries(filteredPaymentAmounts)
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || paymentTypes[0]?.payment_type || 'cash';
 
     onCompletePayment({
-      paymentMethod: primaryPaymentType,
-      paymentAmounts: correctedPaymentAmounts,
+      paymentMethod: primaryPaymentMethod,
+      paymentAmounts: filteredPaymentAmounts, // Preserve ALL payment method amounts
       discount: discountAmount,
       discountType,
       additionalCharges: selectedAdditionalCharges,
-      finalItems: finalItems // Pass the actual final items
+      finalItems: finalItems
     });
   };
 

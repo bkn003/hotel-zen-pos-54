@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { CalendarDays, TrendingUp, TrendingDown, DollarSign, Package, Receipt, CreditCard, BarChart3, Edit, Trash2, Eye, Download, FileSpreadsheet, Printer } from 'lucide-react';
+import { CalendarDays, TrendingUp, TrendingDown, DollarSign, Package, Receipt, CreditCard, BarChart3, Edit, Trash2, Eye, Download, FileSpreadsheet, Printer, Search } from 'lucide-react';
 import { FacebookIcon, InstagramIcon, WhatsAppIcon } from '@/components/SocialIcons';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -74,6 +74,7 @@ const Reports: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [billFilter, setBillFilter] = useState('processed');
+  const [searchQuery, setSearchQuery] = useState('');
   const [billSettings, setBillSettings] = useState<{
     shopName: string;
     address: string;
@@ -693,8 +694,18 @@ const Reports: React.FC = () => {
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const profit = totalSales - totalExpenses;
 
+  // Sum payment method amounts from payment_details (supports split payments)
   const paymentMethodSummary = activeBills.reduce((acc, bill) => {
-    acc[bill.payment_mode] = (acc[bill.payment_mode] || 0) + bill.total_amount;
+    // If payment_details exists and has entries, use those (split payments)
+    if (bill.payment_details && typeof bill.payment_details === 'object' && Object.keys(bill.payment_details).length > 0) {
+      Object.entries(bill.payment_details).forEach(([method, amount]) => {
+        const methodName = method.toLowerCase();
+        acc[methodName] = (acc[methodName] || 0) + (Number(amount) || 0);
+      });
+    } else {
+      // Fallback to primary payment_mode for older bills without split details
+      acc[bill.payment_mode] = (acc[bill.payment_mode] || 0) + bill.total_amount;
+    }
     return acc;
   }, {} as Record<string, number>);
 
@@ -724,16 +735,28 @@ const Reports: React.FC = () => {
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">Business insights and performance metrics</p>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-row gap-2">
           <Button onClick={handleExportAllExcel} variant="outline" size="sm" className="text-xs">
             <FileSpreadsheet className="w-3 h-3 mr-1" />
-            Export Excel
+            Excel
           </Button>
           <Button onClick={handleExportAllPDF} variant="outline" size="sm" className="text-xs">
             <Download className="w-3 h-3 mr-1" />
-            Export PDF
+            PDF
           </Button>
         </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search bills, items, payment methods..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 h-9 text-sm"
+        />
       </div>
 
       {/* Date Filter */}
@@ -886,82 +909,94 @@ const Reports: React.FC = () => {
                 <div className="text-center py-8 text-xs">Loading...</div>
               ) : (
                 <div className="space-y-3">
-                  {bills.map((bill) => (
-                    <div
-                      key={bill.id}
-                      className={`flex items-center justify-between p-3 rounded-lg ${billFilter === 'deleted'
-                        ? 'bg-destructive/10 border border-destructive/20'
-                        : 'bg-muted/50'
-                        }`}
-                    >
-                      <div className="flex-1 min-w-0 mr-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-sm">{bill.bill_no}</h3>
-                          {bill.is_deleted && (
-                            <Badge variant="destructive" className="text-xs">
-                              Deleted
-                            </Badge>
-                          )}
+                  {bills
+                    .filter(bill => {
+                      if (!searchQuery.trim()) return true;
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        bill.bill_no.toLowerCase().includes(query) ||
+                        bill.payment_mode.toLowerCase().includes(query) ||
+                        bill.total_amount.toString().includes(query) ||
+                        format(new Date(bill.date), 'MMM dd, yyyy').toLowerCase().includes(query) ||
+                        bill.bill_items?.some(item => item.items?.name?.toLowerCase().includes(query))
+                      );
+                    })
+                    .map((bill) => (
+                      <div
+                        key={bill.id}
+                        className={`flex items-center justify-between p-3 rounded-lg ${billFilter === 'deleted'
+                          ? 'bg-destructive/10 border border-destructive/20'
+                          : 'bg-muted/50'
+                          }`}
+                      >
+                        <div className="flex-1 min-w-0 mr-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-sm">{bill.bill_no}</h3>
+                            {bill.is_deleted && (
+                              <Badge variant="destructive" className="text-xs">
+                                Deleted
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                            <span>{format(new Date(bill.date), 'MMM dd, yyyy')}</span>
+                            <span>{format(new Date(bill.created_at), 'hh:mm a')}</span>
+                            <span>{bill.payment_mode.toUpperCase()} • {bill.bill_items?.length || 0} items</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                          <span>{format(new Date(bill.date), 'MMM dd, yyyy')}</span>
-                          <span>{format(new Date(bill.created_at), 'hh:mm a')}</span>
-                          <span>{bill.payment_mode.toUpperCase()} • {bill.bill_items?.length || 0} items</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="text-right">
+                            <p className="font-semibold text-sm text-primary whitespace-nowrap">₹{bill.total_amount.toFixed(2)}</p>
+                            {bill.discount > 0 && (
+                              <p className="text-xs text-success whitespace-nowrap">-₹{bill.discount.toFixed(2)}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedBill(bill)}
+                              className="h-7 w-7 p-0 flex-shrink-0"
+                              title="View Details"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            {billFilter === 'processed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => quickPrintBill(bill)}
+                                className="h-7 w-7 p-0 flex-shrink-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                title="Quick Print"
+                              >
+                                <Printer className="w-3 h-3" />
+                              </Button>
+                            )}
+                            {billFilter === 'processed' ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => deleteBill(bill.id)}
+                                className="h-7 w-7 p-0 flex-shrink-0"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => restoreBill(bill.id)}
+                                className="h-7 w-7 p-0 flex-shrink-0"
+                                title="Restore"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="text-right">
-                          <p className="font-semibold text-sm text-primary whitespace-nowrap">₹{bill.total_amount.toFixed(2)}</p>
-                          {bill.discount > 0 && (
-                            <p className="text-xs text-success whitespace-nowrap">-₹{bill.discount.toFixed(2)}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedBill(bill)}
-                            className="h-7 w-7 p-0 flex-shrink-0"
-                            title="View Details"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          {billFilter === 'processed' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => quickPrintBill(bill)}
-                              className="h-7 w-7 p-0 flex-shrink-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              title="Quick Print"
-                            >
-                              <Printer className="w-3 h-3" />
-                            </Button>
-                          )}
-                          {billFilter === 'processed' ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => deleteBill(bill.id)}
-                              className="h-7 w-7 p-0 flex-shrink-0"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => restoreBill(bill.id)}
-                              className="h-7 w-7 p-0 flex-shrink-0"
-                              title="Restore"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                   {bills.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-xs">
                       No {billFilter} bills found for selected period
@@ -986,18 +1021,27 @@ const Reports: React.FC = () => {
                 <div className="text-center py-8 text-xs">Loading...</div>
               ) : (
                 <div className="space-y-3">
-                  {itemReports.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm truncate">{item.item_name}</h3>
-                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                  {itemReports
+                    .filter(item => {
+                      if (!searchQuery.trim()) return true;
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        item.item_name.toLowerCase().includes(query) ||
+                        item.category.toLowerCase().includes(query)
+                      );
+                    })
+                    .map((item, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm truncate">{item.item_name}</h3>
+                          <p className="text-xs text-muted-foreground">{item.category}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-sm">Qty: {item.total_quantity}</p>
+                          <p className="text-xs text-primary">₹{item.total_revenue.toFixed(2)}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-sm">Qty: {item.total_quantity}</p>
-                        <p className="text-xs text-primary">₹{item.total_revenue.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                   {itemReports.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-xs">
                       No item sales data for selected period
@@ -1023,13 +1067,24 @@ const Reports: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {Object.entries(paymentMethodSummary)
+                    .filter(([method]) => {
+                      if (!searchQuery.trim()) return true;
+                      return method.toLowerCase().includes(searchQuery.toLowerCase());
+                    })
                     .sort(([, amountA], [, amountB]) => amountB - amountA)
                     .map(([method, amount]) => (
                       <div key={method} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div>
                           <h3 className="font-semibold text-sm capitalize">{method}</h3>
                           <p className="text-xs text-muted-foreground">
-                            {bills.filter(b => b.payment_mode === method).length} transactions
+                            {activeBills.filter(b => {
+                              // Count bills that have this method in payment_details
+                              if (b.payment_details && typeof b.payment_details === 'object') {
+                                return Object.keys(b.payment_details).some(key => key.toLowerCase() === method);
+                              }
+                              // Fallback to primary payment_mode for older bills
+                              return b.payment_mode === method;
+                            }).length} transactions
                           </p>
                         </div>
                         <div className="text-right">

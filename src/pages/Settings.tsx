@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Settings as SettingsIcon, DollarSign, Monitor, Plus, Edit, Trash2, Printer } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { AddAdditionalChargeDialog } from '@/components/AddAdditionalChargeDialog';
 import { EditAdditionalChargeDialog } from '@/components/EditAdditionalChargeDialog';
 import { DisplaySettings } from '@/components/DisplaySettings';
@@ -30,6 +32,21 @@ const Settings = () => {
   const [editChargeDialogOpen, setEditChargeDialogOpen] = useState(false);
   const [editingCharge, setEditingCharge] = useState<AdditionalCharge | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Auto-print setting
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(() => {
+    const saved = localStorage.getItem('hotel_pos_auto_print');
+    return saved !== null ? saved === 'true' : true; // Default to enabled
+  });
+
+  const handleAutoPrintToggle = (enabled: boolean) => {
+    setAutoPrintEnabled(enabled);
+    localStorage.setItem('hotel_pos_auto_print', String(enabled));
+    toast({
+      title: enabled ? "Auto-Print Enabled" : "Auto-Print Disabled",
+      description: enabled ? "Bills will be printed automatically after saving." : "Bills will be saved without printing.",
+    });
+  };
 
   useEffect(() => {
     if (profile?.role === 'admin') {
@@ -262,6 +279,35 @@ const Settings = () => {
 
           {/* Bluetooth Printer Settings */}
           <BluetoothPrinterSettings />
+
+          {/* Print Settings */}
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center space-x-2">
+                <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-base sm:text-lg">Print Settings</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-print" className="text-sm font-medium">
+                    Auto-Print on Bill Save
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {autoPrintEnabled
+                      ? "Bill will be printed automatically when payment is completed."
+                      : "Bill will be saved without printing. You can print later from Reports."}
+                  </p>
+                </div>
+                <Switch
+                  id="auto-print"
+                  checked={autoPrintEnabled}
+                  onCheckedChange={handleAutoPrintToggle}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Display Settings */}
           <Card>

@@ -648,12 +648,28 @@ const Billing = () => {
           return;
         }
 
-        // Generate Bill Number with timestamp for uniqueness
-        const now = new Date();
-        const datePrefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-        const timePrefix = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-        const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const billNumber = `BILL-${datePrefix}-${timePrefix}-${randomSuffix}`;
+        // Generate Bill Number - Sequential format (BILL-000056, etc.)
+        const { data: allBillNos } = await supabase
+          .from('bills')
+          .select('bill_no')
+          .order('created_at', { ascending: false })
+          .limit(100); // Get recent bills to find max number
+
+        let maxNumber = 55; // Start from 55 as per user's existing data
+        if (allBillNos && allBillNos.length > 0) {
+          allBillNos.forEach(bill => {
+            // Only match simple format: BILL-XXXXXX (6 digits, no other characters)
+            const match = bill.bill_no.match(/^BILL-(\d{6})$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNumber) {
+                maxNumber = num;
+              }
+            }
+          });
+        }
+        const billNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+        const now = new Date(); // Used for date field
 
         const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
@@ -749,15 +765,22 @@ const Billing = () => {
           logoUrl: billSettings?.logoUrl
         };
 
-        let printed = false;
-        try {
-          printed = await printReceipt(printData);
-        } catch (e) {
-          console.error("Bluetooth print failed:", e);
-        }
+        // Check auto-print setting
+        const autoPrintEnabled = localStorage.getItem('hotel_pos_auto_print') !== 'false'; // Default true
 
-        if (!printed) {
-          printBrowserReceipt(printData);
+        if (autoPrintEnabled) {
+          let printed = false;
+          try {
+            printed = await printReceipt(printData);
+          } catch (e) {
+            console.error("Bluetooth print failed:", e);
+          }
+
+          if (!printed) {
+            printBrowserReceipt(printData);
+          }
+        } else {
+          console.log("Auto-print disabled, bill saved without printing.");
         }
 
       } catch (error: any) {
