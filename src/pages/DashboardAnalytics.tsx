@@ -35,9 +35,7 @@ const DashboardAnalytics = () => {
     totalBills: 0,
   });
 
-  if (profile?.role !== 'admin') {
-    return <Navigate to="/billing" replace />;
-  }
+
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -134,7 +132,7 @@ const DashboardAnalytics = () => {
 
       // Process sales data
       const salesMap = new Map<string, { sales: number; expenses: number }>();
-      
+
       billsData?.forEach(bill => {
         const date = bill.date;
         const current = salesMap.get(date) || { sales: 0, expenses: 0 };
@@ -160,11 +158,11 @@ const DashboardAnalytics = () => {
 
       // Process top items (exclude items from deleted bills)
       const itemsMap = new Map<string, { quantity: number; revenue: number }>();
-      
+
       billItemsData?.forEach((item: any) => {
         // Skip items from deleted bills
         if (item.bills?.is_deleted) return;
-        
+
         const name = item.items?.name || 'Unknown';
         const current = itemsMap.get(name) || { quantity: 0, revenue: 0 };
         itemsMap.set(name, {
@@ -197,6 +195,8 @@ const DashboardAnalytics = () => {
     }
   };
 
+
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -204,6 +204,10 @@ const DashboardAnalytics = () => {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (profile?.role !== 'admin') {
+    return <Navigate to="/billing" replace />;
+  }
 
   if (loading) {
     return (
@@ -326,16 +330,16 @@ const DashboardAnalytics = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={topItems} margin={{ bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="name" 
-                      angle={-45} 
-                      textAnchor="end" 
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
                       height={100}
                       interval={0}
                       tick={{ fontSize: 12 }}
                     />
                     <YAxis />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value) => formatCurrency(Number(value))}
                       labelFormatter={(label) => `Item: ${label}`}
                     />

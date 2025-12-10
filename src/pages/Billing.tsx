@@ -677,7 +677,7 @@ const Billing = () => {
       };
 
       console.log("Creating bill via RPC...", rpcParams);
-      // @ts-ignore
+      // @ts-expect-error - RPC function type definition might be missing in generated types
       const { data: billData, error: billError } = await supabase.rpc('create_bill_transaction', rpcParams);
 
       if (billError) {

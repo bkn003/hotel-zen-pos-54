@@ -106,11 +106,11 @@ const generateSocialMediaImage = async (
   whatsapp?: string,
   targetWidth: number = 384
 ): Promise<Uint8Array | null> => {
-  return new Promise(async (resolve) => {
+  return (async () => {
     // 1. Create a canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) { resolve(null); return; }
+    if (!ctx) return null;
 
     // 2. Measure content
     ctx.font = 'bold 20px sans-serif';
@@ -124,7 +124,7 @@ const generateSocialMediaImage = async (
     if (instagram) items.push({ icon: IG_SVG, text: instagram, type: 'ig' });
     if (whatsapp) items.push({ icon: WA_SVG, text: whatsapp, type: 'wa' });
 
-    if (items.length === 0) { resolve(null); return; }
+    if (items.length === 0) return null;
 
     // Function to measure an item
     const measureItem = (item: any) => {
@@ -211,13 +211,13 @@ const generateSocialMediaImage = async (
 
       const dataUrl = canvas.toDataURL('image/png');
       const printBytes = await processImageForPrinting(dataUrl, targetWidth);
-      resolve(printBytes);
+      return printBytes;
 
     } catch (e) {
       console.error("Failed to generate social image", e);
-      resolve(null);
+      return null;
     }
-  });
+  })();
 };
 
 interface BillItem {

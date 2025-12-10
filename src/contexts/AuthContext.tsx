@@ -169,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider initializing...');
 
     let mounted = true;
-    let initializationTimeout: NodeJS.Timeout;
+
 
     // Ensure loading never gets stuck for more than 10 seconds
     const failsafeTimeout = setTimeout(() => {
@@ -266,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Add timeout for initialization
-    initializationTimeout = setTimeout(() => {
+    const initializationTimeout = setTimeout(() => {
       if (mounted) {
         console.log('Initialization timeout, proceeding without session');
         setLoading(false);

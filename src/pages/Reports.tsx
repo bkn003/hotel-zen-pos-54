@@ -188,16 +188,19 @@ const Reports: React.FC = () => {
         return { start: today.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
       case 'yesterday':
         return { start: yesterday.toISOString().split('T')[0], end: yesterday.toISOString().split('T')[0] };
-      case 'week':
+      case 'week': {
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - 7);
         return { start: weekStart.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
-      case 'month':
+      }
+      case 'month': {
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         return { start: monthStart.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
-      case 'year':
+      }
+      case 'year': {
         const yearStart = new Date(today.getFullYear(), 0, 1);
         return { start: yearStart.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+      }
       case 'all':
         return { start: '2000-01-01', end: today.toISOString().split('T')[0] };
       case 'custom':
@@ -273,7 +276,7 @@ const Reports: React.FC = () => {
           }
 
           let expensesData = [];
-          let itemReportMap = new Map();
+          const itemReportMap = new Map();
 
           // Only fetch expenses and item reports for processed bills
           if (billFilter === 'processed') {

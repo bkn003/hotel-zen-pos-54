@@ -217,7 +217,7 @@ export const exportAllReportsToPDF = (data: {
   doc.text(`Period: ${data.dateRange}`, 20, 45);
   doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 55);
 
-  let startY = 80;
+  const startY = 80;
 
   // Bills Report
   if (data.bills.length > 0) {

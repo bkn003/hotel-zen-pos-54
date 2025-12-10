@@ -24,10 +24,7 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Redirect non-admin users
-  if (profile?.role !== 'admin') {
-    return <Navigate to="/billing" replace />;
-  }
+
 
   useEffect(() => {
     fetchDashboardStats();
@@ -99,12 +96,18 @@ const Dashboard = () => {
     }
   };
 
+
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
     }).format(amount);
   };
+
+  if (profile?.role !== 'admin') {
+    return <Navigate to="/billing" replace />;
+  }
 
   if (loading) {
     return (
