@@ -241,6 +241,7 @@ interface PrintData {
   shopName?: string;
   address?: string;
   contactNumber?: string;
+  paymentDetails?: Record<string, number>;
   facebook?: string;
   instagram?: string;
   whatsapp?: string;
@@ -282,8 +283,8 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   // 1. Logo (if available) - Print First
   if (data.logoUrl) {
     try {
-      // Use slightly smaller width for safety margin (e.g. 90% of max)
-      const loopsWidth = Math.floor(IMAGE_WIDTH * 0.9);
+      // Use full width for logo (was 0.9)
+      const loopsWidth = Math.floor(IMAGE_WIDTH * 1.0);
       const imageBytes = await processImageForPrinting(data.logoUrl, loopsWidth);
       if (imageBytes) {
         commands.push(ALIGN_CENTER);

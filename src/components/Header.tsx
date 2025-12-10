@@ -25,7 +25,7 @@ export const Header: React.FC = () => {
             <Hotel className="h-6 w-6 text-primary" />
             <div>
               <h1 className="font-bold text-base text-foreground">
-                {profile.hotel_name || 'BISMILLAH'} POS
+                ZEN POS
               </h1>
               <p className="text-xs text-muted-foreground">Management System</p>
             </div>
@@ -80,7 +80,7 @@ export const Header: React.FC = () => {
               Confirm Sign Out
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to sign out from {profile.hotel_name || 'BISMILLAH'} POS?
+              Are you sure you want to sign out from ZEN POS?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:gap-0">

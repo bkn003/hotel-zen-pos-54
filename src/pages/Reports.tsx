@@ -468,6 +468,7 @@ const Reports: React.FC = () => {
           total: item.total
         })) || [],
         subtotal: bill.bill_items?.reduce((sum, item) => sum + item.total, 0) || 0,
+        paymentDetails: bill.payment_details as Record<string, number> | undefined,
         additionalCharges: (bill.additional_charges as any[])?.map(charge => ({
           name: charge.name,
           amount: charge.amount
@@ -475,7 +476,7 @@ const Reports: React.FC = () => {
         discount: bill.discount,
         total: bill.total_amount,
         paymentMethod: bill.payment_mode.toUpperCase(),
-        hotelName: profile?.hotel_name || 'BISMILLAH'
+        hotelName: profile?.hotel_name || 'ZEN POS'
       };
 
       toast({
@@ -1090,8 +1091,8 @@ const Reports: React.FC = () => {
               {/* Header - Shop Name & Logo */}
               <div className="text-center mb-6">
                 {billSettings?.logoUrl && (
-                  <div className="w-20 h-20 mx-auto mb-2">
-                    <img src={billSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                  <div className="w-[1.5in] h-[1.5in] mx-auto mb-2 flex items-center justify-center">
+                    <img src={billSettings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
                   </div>
                 )}
                 {billSettings?.shopName ? (
@@ -1146,17 +1147,13 @@ const Reports: React.FC = () => {
                   {format(new Date(selectedBill.created_at), 'MMM dd, yyyy hh:mm a')}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
-                <div>
+              <div className="flex justify-between items-center text-xs sm:text-sm mb-4 border-b pb-4">
+                <div className="flex items-center gap-2">
                   <p className="font-medium">Date:</p>
-                  <p>{format(new Date(selectedBill.date), 'MMM dd, yyyy')}</p>
+                  <p>{format(new Date(selectedBill.date), 'dd/MM/yyyy')}</p>
                 </div>
-                <div>
-                  <p className="font-medium">Payment Mode:</p>
-                  <p className="capitalize">{selectedBill.payment_mode}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Total Amount:</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">Total:</p>
                   <p className="font-bold text-lg">₹{selectedBill.total_amount.toFixed(2)}</p>
                 </div>
               </div>
@@ -1215,11 +1212,12 @@ const Reports: React.FC = () => {
               {selectedBill.payment_details && Object.keys(selectedBill.payment_details).length > 0 && (
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3 text-sm">Payment Split Details</h4>
-                  <div className="space-y-2">
-                    {Object.entries(selectedBill.payment_details).map(([method, amount]) => (
-                      <div key={method} className="flex justify-between items-center p-2 bg-muted/30 rounded text-sm">
-                        <span className="capitalize font-medium">{method}</span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm bg-muted/30 p-2 rounded">
+                    {Object.entries(selectedBill.payment_details).map(([method, amount], index, arr) => (
+                      <div key={method} className="flex items-center">
+                        <span className="capitalize font-medium text-muted-foreground mr-1">{method}:</span>
                         <span className="font-semibold">₹{Number(amount).toFixed(2)}</span>
+                        {index < arr.length - 1 && <span className="mx-2 text-muted-foreground">|</span>}
                       </div>
                     ))}
                   </div>

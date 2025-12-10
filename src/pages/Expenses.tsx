@@ -367,7 +367,6 @@ const Expenses: React.FC = () => {
                         <TableHead className="whitespace-nowrap">Name</TableHead>
                         <TableHead className="whitespace-nowrap">Category</TableHead>
                         <TableHead className="whitespace-nowrap">Amount</TableHead>
-                        <TableHead className="whitespace-nowrap">Date</TableHead>
                         <TableHead className="whitespace-nowrap">Note</TableHead>
                         <TableHead className="whitespace-nowrap">Created</TableHead>
                         {profile?.role === 'admin' && <TableHead className="text-right whitespace-nowrap">Actions</TableHead>}
@@ -383,10 +382,17 @@ const Expenses: React.FC = () => {
                           <TableCell className="font-bold text-destructive whitespace-nowrap">
                             -₹{expense.amount.toFixed(2)}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">{new Date(expense.date).toLocaleDateString()}</TableCell>
                           <TableCell className="max-w-[150px] truncate">{expense.note || '-'}</TableCell>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {new Date(expense.created_at).toLocaleString()}
+                            {new Date(expense.created_at).toLocaleString('en-US', {
+                              year: 'numeric',
+                              month: 'numeric',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: 'numeric',
+                              second: 'numeric',
+                              hour12: true
+                            })}
                           </TableCell>
                           {profile?.role === 'admin' && (
                             <TableCell className="text-right">

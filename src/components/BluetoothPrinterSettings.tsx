@@ -767,8 +767,8 @@ export const BluetoothPrinterSettings: React.FC = () => {
                   <div className="flex items-center gap-3">
                     {logoUrl ? (
                       <div className="relative group">
-                        <div className="w-16 h-16 border rounded-lg overflow-hidden bg-white">
-                          <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                        <div className="w-24 border rounded-lg overflow-hidden bg-white">
+                          <img src={logoUrl} alt="Logo" className="w-full h-auto object-contain" />
                         </div>
                         <button
                           onClick={removeLogo}

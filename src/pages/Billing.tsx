@@ -11,7 +11,8 @@ import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
-import { printReceipt } from '@/utils/bluetoothPrinter';
+import { printReceipt, PrintData } from '@/utils/bluetoothPrinter';
+import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { format } from 'date-fns';
 interface Item {
   id: string;
@@ -165,10 +166,36 @@ const Billing = () => {
     whatsapp: string;
     showWhatsapp?: boolean;
     printerWidth: '58mm' | '80mm';
+    auto_connect_printer?: boolean;
+    printer_name?: string;
   } | null>(null);
 
   // Enable real-time updates
   useRealTimeUpdates();
+
+  // Listen for custom real-time events
+  useEffect(() => {
+    const handleItemsUpdate = () => {
+      fetchItems();
+    };
+    const handleCategoriesUpdate = () => {
+      fetchItemCategories();
+      fetchDisplaySettings();
+    };
+    const handlePaymentsUpdate = () => {
+      fetchPaymentTypes();
+    };
+
+    window.addEventListener('items-updated', handleItemsUpdate);
+    window.addEventListener('categories-updated', handleCategoriesUpdate);
+    window.addEventListener('payment-types-updated', handlePaymentsUpdate);
+
+    return () => {
+      window.removeEventListener('items-updated', handleItemsUpdate);
+      window.removeEventListener('categories-updated', handleCategoriesUpdate);
+      window.removeEventListener('payment-types-updated', handlePaymentsUpdate);
+    };
+  }, []);
 
   // Fetch functions defined before useEffect
   const fetchItems = async () => {
@@ -605,145 +632,127 @@ const Billing = () => {
         return;
       }
 
-      // First, let's try to get the current max bill number and increment it
-      const {
-        data: maxBillData,
-        error: maxBillError
-      } = await supabase.from('bills').select('bill_no').order('created_at', {
-        ascending: false
-      }).limit(1);
-      let billNumber: string;
-      if (maxBillError) {
-        console.error('Error fetching max bill number:', maxBillError);
-        billNumber = `BILL-${Date.now()}`;
-      } else if (maxBillData && maxBillData.length > 0) {
+      // Generate Bill Number
+      const { data: maxBillData } = await supabase.from('bills').select('bill_no').order('created_at', { ascending: false }).limit(1);
+      let billNumber = 'BILL-000001';
+      if (maxBillData && maxBillData.length > 0) {
         const lastBillNo = maxBillData[0].bill_no;
         const lastNumber = parseInt(lastBillNo.replace(/\D/g, '')) || 0;
         billNumber = `BILL-${String(lastNumber + 1).padStart(6, '0')}`;
-      } else {
-        billNumber = 'BILL-000001';
       }
-      console.log('Generated bill number:', billNumber);
+
       const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
       const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
+
+      // Use helper to map payment mode if available, otherwise default
+      // Assuming mapPaymentMode is defined in this file or imported
+      const mapPaymentMode = (method: string): PaymentMode => {
+        const lower = method.toLowerCase();
+        if (lower.includes('cash')) return 'cash';
+        if (lower.includes('upi')) return 'upi';
+        if (lower === 'card' || lower.includes('card')) return 'card';
+        return 'other'; // default to 'other' or a valid enum value
+      };
       const paymentMode = mapPaymentMode(paymentData.paymentMethod);
-      console.log('Mapped payment mode:', paymentMode);
-      const {
-        data: billData,
-        error: billError
-      } = await supabase.from('bills').insert({
-        bill_no: billNumber,
-        total_amount: totalAmount,
-        discount: paymentData.discount,
-        payment_mode: paymentMode,
-        payment_details: paymentData.paymentAmounts,
-        additional_charges: paymentData.additionalCharges.map(c => ({
-          name: c.name,
-          amount: c.amount
-        })),
-        created_by: profile?.user_id
-      }).select().single();
+
+      // ---------------------------------------------------------
+      // OPTIMIZED: Use RPC Transaction
+      // ---------------------------------------------------------
+      const rpcParams = {
+        p_bill_no: billNumber,
+        p_created_by: profile?.user_id,
+        p_date: new Date().toISOString(),
+        p_discount: paymentData.discount,
+        p_payment_mode: paymentMode,
+        p_payment_details: paymentData.paymentAmounts,
+        p_additional_charges: JSON.stringify(paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }))),
+        p_total_amount: totalAmount,
+        p_items: validCart.map(item => ({
+          item_id: item.id,
+          price: item.price,
+          quantity: item.quantity,
+          total: item.price * item.quantity
+        }))
+      };
+
+      console.log("Creating bill via RPC...", rpcParams);
+      // @ts-ignore
+      const { data: billData, error: billError } = await supabase.rpc('create_bill_transaction', rpcParams);
+
       if (billError) {
-        console.error('Bill creation error:', billError);
-        throw billError;
-      }
-      console.log('Bill created successfully:', billData);
-
-      // Create bill items and reduce stock
-      const billItems = validCart.map(item => ({
-        bill_id: billData.id,
-        item_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.price * item.quantity
-      }));
-      const {
-        error: itemsError
-      } = await supabase.from('bill_items').insert(billItems);
-      if (itemsError) {
-        console.error('Bill items error:', itemsError);
-        throw itemsError;
+        console.error('RPC Error:', billError);
+        // Fallback or throw
+        throw new Error(billError.message);
       }
 
-      // Reduce stock for each item (parallel execution for better performance)
-      await Promise.all(validCart.map(async (item) => {
-        const { data: currentItem } = await supabase
-          .from('items')
-          .select('stock_quantity')
-          .eq('id', item.id)
-          .single();
-
-        if (currentItem) {
-          await supabase
-            .from('items')
-            .update({
-              stock_quantity: (currentItem.stock_quantity || 0) - item.quantity
-            })
-            .eq('id', item.id);
-        }
-      }));
       toast({
         title: "Success",
         description: `Bill ${billNumber} generated successfully!`
       });
 
-      // Trigger Auto Print
+      // ---------------------------------------------------------
+      // Printing Logic with Fallback
+      // ---------------------------------------------------------
+      const printData: PrintData = {
+        billNo: billNumber,
+        date: format(new Date(), 'MMM dd, yyyy'),
+        time: format(new Date(), 'hh:mm a'),
+        items: validCart.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity
+        })),
+        subtotal: subtotal,
+        additionalCharges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
+        discount: paymentData.discount,
+        total: totalAmount,
+        paymentMethod: paymentData.paymentMethod.toUpperCase(),
+        paymentDetails: paymentData.paymentAmounts,
+        hotelName: profile?.hotel_name || 'ZEN POS',
+        shopName: billSettings?.shopName,
+        address: billSettings?.address,
+        contactNumber: billSettings?.contactNumber,
+        facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
+        instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
+        whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined,
+        printerWidth: billSettings?.printerWidth || '58mm',
+        logoUrl: billSettings?.logoUrl
+      };
+
+      let printed = false;
+      // Try Auto-Print if Bluetooth is configured
+      // We check if printer_name is in settings or likely configured
+      // Note: printReceipt handles the actual connection/check
       try {
-        const printData = {
-          billNo: billNumber,
-          date: format(new Date(), 'MMM dd, yyyy'),
-          time: format(new Date(), 'hh:mm a'),
-          items: validCart.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.price * item.quantity
-          })),
-          subtotal: subtotal,
-          additionalCharges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
-          discount: paymentData.discount,
-          total: totalAmount,
-          paymentMethod: paymentData.paymentMethod.toUpperCase(),
-          hotelName: profile?.hotel_name || 'BISMILLAH',
-          hotelName: profile?.hotel_name || 'BISMILLAH',
-          shopName: billSettings?.shopName,
-          address: billSettings?.address,
-          contactNumber: billSettings?.contactNumber,
-          facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
-          instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
-          whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined,
-          printerWidth: billSettings?.printerWidth || '58mm',
-          logoUrl: billSettings?.logoUrl
-        };
-
-        toast({
-          title: "Printing...",
-          description: "Sending receipt to printer"
-        });
-
-        // Don't await this if you don't want to block UI clearing, but might be safer to await slightly
-        // or let it run in background. We'll fire and forget but log.
-        printReceipt(printData).then(success => {
-          if (!success) console.log("Auto-print skipped or failed");
-        });
-
-      } catch (printErr) {
-        console.error("Auto print error", printErr);
+        // Fire and forget print request if we want non-blocking, but for feedback we wait slightly?
+        // We'll trust printReceipt to return false if it can't print
+        printed = await printReceipt(printData);
+      } catch (e) {
+        console.error("Bluetooth print attempt failed:", e);
       }
 
-      // Clear cart and close dialog
+      if (!printed) {
+        console.log("Using Browser Print fallback");
+        printBrowserReceipt(printData);
+      }
+
       clearCart();
       setPaymentDialogOpen(false);
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Error completing payment:', error);
       toast({
         title: "Error",
-        description: "Failed to complete payment. Please try again.",
+        description: error.message || "Failed to complete payment.",
         variant: "destructive"
       });
     }
   };
+
+
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -755,27 +764,10 @@ const Billing = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
-          <img
-            src={billSettings?.logoUrl || "/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"}
-            alt="Restaurant"
-            className="w-8 h-8 mr-3 object-contain"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              if (target.src !== "/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png") {
-                target.src = "/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png";
-              }
-            }}
-          />
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold leading-none">
-              {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : (billSettings?.shopName || 'Point of Sale')}
+              {isEditMode ? `Edit Bill - ${editingBill?.bill_no}` : 'Billing'}
             </h1>
-            {billSettings?.address && (
-              <p className="text-xs text-muted-foreground">{billSettings.address}</p>
-            )}
-            {billSettings?.contactNumber && (
-              <p className="text-xs text-muted-foreground">{billSettings.contactNumber}</p>
-            )}
           </div>
         </div>
       </div>
@@ -910,14 +902,14 @@ const Billing = () => {
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-bold flex items-center">
             <ShoppingCart className="w-5 h-5 mr-2" />
-            Cart ({cart.length})
+            Cart ({cart.filter(i => i.quantity > 0).length})
           </h2>
-          {cart.length > 0 && <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+          {cart.some(i => i.quantity > 0) && <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
             <Trash2 className="w-4 h-4" />
           </Button>}
         </div>
 
-        {cart.length > 0 && <div className="flex justify-between items-center text-sm">
+        {cart.some(i => i.quantity > 0) && <div className="flex justify-between items-center text-sm">
           <span>Total: ₹{total.toFixed(0)}</span>
           <Button onClick={() => setPaymentDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white" size="sm">
             Pay
@@ -976,7 +968,7 @@ const Billing = () => {
     </div>
 
     {/* Mobile Cart Button - Green gradient bar above bottom nav */}
-    {cart.length > 0 && <div className="fixed bottom-20 left-0 right-0 md:hidden z-40 px-3">
+    {cart.some(i => i.quantity > 0) && <div className="fixed bottom-20 left-0 right-0 md:hidden z-40 px-3">
       <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-2xl px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 text-white">

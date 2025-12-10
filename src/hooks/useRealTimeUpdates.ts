@@ -21,7 +21,7 @@ export const useRealTimeUpdates = () => {
         (payload) => {
           console.log('Bills change detected:', payload);
           invalidateRelatedData('bills');
-          
+
           // Trigger a page reload for reports to update
           if (window.location.pathname === '/reports') {
             window.dispatchEvent(new CustomEvent('bills-updated'));
@@ -43,7 +43,8 @@ export const useRealTimeUpdates = () => {
         (payload) => {
           console.log('Items change detected:', payload);
           invalidateRelatedData('items');
-          
+          window.dispatchEvent(new CustomEvent('items-updated'));
+
           if (payload.eventType === 'INSERT') {
             toast({
               title: "New Item Added",
@@ -72,7 +73,7 @@ export const useRealTimeUpdates = () => {
         (payload) => {
           console.log('Expenses change detected:', payload);
           invalidateRelatedData('expenses');
-          
+
           if (payload.eventType === 'INSERT') {
             toast({
               title: "New Expense Added",
@@ -97,7 +98,8 @@ export const useRealTimeUpdates = () => {
           console.log('Payments change detected:', payload);
           invalidateRelatedData('payments');
           dataCache.invalidate(CACHE_KEYS.PAYMENT_METHODS);
-          
+          window.dispatchEvent(new CustomEvent('payment-types-updated'));
+
           toast({
             title: "Payment Methods Updated",
             description: "Data refreshed automatically",
@@ -131,6 +133,7 @@ export const useRealTimeUpdates = () => {
         (payload) => {
           console.log('Item categories change detected:', payload);
           dataCache.invalidate(CACHE_KEYS.ITEM_CATEGORIES);
+          window.dispatchEvent(new CustomEvent('categories-updated'));
         }
       )
       .subscribe();
