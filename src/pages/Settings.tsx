@@ -13,6 +13,7 @@ import { EditAdditionalChargeDialog } from '@/components/EditAdditionalChargeDia
 import { DisplaySettings } from '@/components/DisplaySettings';
 import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
 import { BluetoothPrinterSettings } from '@/components/BluetoothPrinterSettings';
+import { ShopSettingsForm } from '@/components/ShopSettingsForm';
 
 interface AdditionalCharge {
   id: string;
@@ -161,6 +162,9 @@ const Settings = () => {
         </div>
 
         <div className="space-y-4 sm:space-y-6">
+          {/* Shop Details */}
+          <ShopSettingsForm />
+
           {/* Additional Charges Management */}
           <Card>
             <CardHeader className="p-4 sm:p-6">

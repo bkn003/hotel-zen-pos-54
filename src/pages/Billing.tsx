@@ -185,15 +185,33 @@ const Billing = () => {
     const handlePaymentsUpdate = () => {
       fetchPaymentTypes();
     };
+    const handleAdditionalChargesUpdate = () => {
+      console.log('Additional charges updated, refreshing...');
+      fetchAdditionalCharges();
+    };
+    const handleShopSettingsUpdate = () => {
+      console.log('Shop settings updated, refreshing...');
+      fetchShopSettings();
+    };
+    const handleDisplaySettingsUpdate = () => {
+      console.log('Display settings updated, refreshing...');
+      fetchDisplaySettings();
+    };
 
     window.addEventListener('items-updated', handleItemsUpdate);
     window.addEventListener('categories-updated', handleCategoriesUpdate);
     window.addEventListener('payment-types-updated', handlePaymentsUpdate);
+    window.addEventListener('additional-charges-updated', handleAdditionalChargesUpdate);
+    window.addEventListener('shop-settings-updated', handleShopSettingsUpdate);
+    window.addEventListener('display-settings-updated', handleDisplaySettingsUpdate);
 
     return () => {
       window.removeEventListener('items-updated', handleItemsUpdate);
       window.removeEventListener('categories-updated', handleCategoriesUpdate);
       window.removeEventListener('payment-types-updated', handlePaymentsUpdate);
+      window.removeEventListener('additional-charges-updated', handleAdditionalChargesUpdate);
+      window.removeEventListener('shop-settings-updated', handleShopSettingsUpdate);
+      window.removeEventListener('display-settings-updated', handleDisplaySettingsUpdate);
     };
   }, []);
 
@@ -347,9 +365,12 @@ const Billing = () => {
         setBillSettings(settings);
         // Update cache
         localStorage.setItem('hotel_pos_bill_header', JSON.stringify(settings));
+        return settings;
       }
+      return null;
     } catch (error) {
       console.error('Error fetching shop settings:', error);
+      return null;
     }
   };
 
@@ -738,6 +759,10 @@ const Billing = () => {
         // ---------------------------------------------------------
         // PRINTING (Background)
         // ---------------------------------------------------------
+        // Fetch fresh settings to ensure no data is missing
+        const freshSettings = await fetchShopSettings();
+        const settingsToUse = freshSettings || billSettings;
+
         const printData: PrintData = {
           billNo: billNumber,
           date: format(new Date(), 'MMM dd, yyyy'),
@@ -755,14 +780,14 @@ const Billing = () => {
           paymentMethod: paymentData.paymentMethod.toUpperCase(),
           paymentDetails: paymentData.paymentAmounts,
           hotelName: profile?.hotel_name || 'ZEN POS',
-          shopName: billSettings?.shopName,
-          address: billSettings?.address,
-          contactNumber: billSettings?.contactNumber,
-          facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
-          instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
-          whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined,
-          printerWidth: billSettings?.printerWidth || '58mm',
-          logoUrl: billSettings?.logoUrl
+          shopName: settingsToUse?.shopName,
+          address: settingsToUse?.address,
+          contactNumber: settingsToUse?.contactNumber,
+          facebook: settingsToUse?.showFacebook !== false ? settingsToUse?.facebook : undefined,
+          instagram: settingsToUse?.showInstagram !== false ? settingsToUse?.instagram : undefined,
+          whatsapp: settingsToUse?.showWhatsapp !== false ? settingsToUse?.whatsapp : undefined,
+          printerWidth: settingsToUse?.printerWidth || '58mm',
+          logoUrl: settingsToUse?.logoUrl
         };
 
         // Check auto-print setting

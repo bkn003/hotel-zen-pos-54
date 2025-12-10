@@ -34,31 +34,76 @@ const queryClient = new QueryClient({
 
 import { InstallPrompt } from './components/InstallPrompt';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <InstallPrompt />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Layout><Billing /></Layout>} />
-            <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
-            <Route path="/analytics" element={<Layout><DashboardAnalytics /></Layout>} />
-            <Route path="/billing" element={<Layout><Billing /></Layout>} />
-            <Route path="/items" element={<Layout><Items /></Layout>} />
-            <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
-            <Route path="/reports" element={<Layout><Reports /></Layout>} />
-            <Route path="/users" element={<Layout><Users /></Layout>} />
-            <Route path="/settings" element={<Layout><Settings /></Layout>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Global cache invalidation listeners
+  React.useEffect(() => {
+    const handleInvalidateBills = () => {
+      console.log('Global: Invalidating bills cache');
+      import('@/utils/cacheUtils').then(({ invalidateRelatedData }) => {
+        invalidateRelatedData('bills');
+      });
+    };
+
+    const handleInvalidateItems = () => {
+      console.log('Global: Invalidating items cache');
+      import('@/utils/cacheUtils').then(({ invalidateRelatedData }) => {
+        invalidateRelatedData('items');
+      });
+    };
+
+    const handleInvalidatePayments = () => {
+      console.log('Global: Invalidating payments cache');
+      import('@/utils/cacheUtils').then(({ invalidateRelatedData }) => {
+        invalidateRelatedData('payments');
+      });
+    };
+
+    const handleInvalidateExpenses = () => {
+      console.log('Global: Invalidating expenses cache');
+      import('@/utils/cacheUtils').then(({ invalidateRelatedData }) => {
+        invalidateRelatedData('expenses');
+      });
+    };
+
+    window.addEventListener('bills-updated', handleInvalidateBills);
+    window.addEventListener('items-updated', handleInvalidateItems);
+    window.addEventListener('payment-types-updated', handleInvalidatePayments);
+    window.addEventListener('expenses-updated', handleInvalidateExpenses);
+
+    return () => {
+      window.removeEventListener('bills-updated', handleInvalidateBills);
+      window.removeEventListener('items-updated', handleInvalidateItems);
+      window.removeEventListener('payment-types-updated', handleInvalidatePayments);
+      window.removeEventListener('expenses-updated', handleInvalidateExpenses);
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <InstallPrompt />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Layout><Billing /></Layout>} />
+              <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
+              <Route path="/analytics" element={<Layout><DashboardAnalytics /></Layout>} />
+              <Route path="/billing" element={<Layout><Billing /></Layout>} />
+              <Route path="/items" element={<Layout><Items /></Layout>} />
+              <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
+              <Route path="/reports" element={<Layout><Reports /></Layout>} />
+              <Route path="/users" element={<Layout><Users /></Layout>} />
+              <Route path="/settings" element={<Layout><Settings /></Layout>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

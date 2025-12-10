@@ -138,6 +138,60 @@ export const useRealTimeUpdates = () => {
       )
       .subscribe();
 
+    // Listen for additional charges changes
+    const additionalChargesChannel = supabase
+      .channel('additional-charges-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'additional_charges'
+        },
+        (payload) => {
+          console.log('Additional charges change detected:', payload);
+          window.dispatchEvent(new CustomEvent('additional-charges-updated'));
+          window.dispatchEvent(new CustomEvent('settings-updated'));
+        }
+      )
+      .subscribe();
+
+    // Listen for shop settings changes
+    const shopSettingsChannel = supabase
+      .channel('shop-settings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shop_settings'
+        },
+        (payload) => {
+          console.log('Shop settings change detected:', payload);
+          window.dispatchEvent(new CustomEvent('shop-settings-updated'));
+          window.dispatchEvent(new CustomEvent('settings-updated'));
+        }
+      )
+      .subscribe();
+
+    // Listen for display settings changes
+    const displaySettingsChannel = supabase
+      .channel('display-settings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'display_settings'
+        },
+        (payload) => {
+          console.log('Display settings change detected:', payload);
+          window.dispatchEvent(new CustomEvent('display-settings-updated'));
+          window.dispatchEvent(new CustomEvent('settings-updated'));
+        }
+      )
+      .subscribe();
+
     // Cleanup function
     return () => {
       console.log('Cleaning up real-time subscriptions...');
@@ -146,6 +200,9 @@ export const useRealTimeUpdates = () => {
       supabase.removeChannel(expensesChannel);
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(categoriesChannel);
+      supabase.removeChannel(additionalChargesChannel);
+      supabase.removeChannel(shopSettingsChannel);
+      supabase.removeChannel(displaySettingsChannel);
     };
   }, []);
 };

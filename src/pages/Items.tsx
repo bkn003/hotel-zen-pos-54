@@ -11,6 +11,7 @@ import { Package, Search, Plus } from 'lucide-react';
 import { AddItemDialog } from '@/components/AddItemDialog';
 import { EditItemDialog } from '@/components/EditItemDialog';
 import { ItemCategoryManagement } from '@/components/ItemCategoryManagement';
+import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 
 interface Item {
   id: string;
@@ -39,9 +40,33 @@ const Items: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState<string[]>([]);
 
+  // Enable real-time updates
+  useRealTimeUpdates();
+
   useEffect(() => {
     fetchItems();
     fetchCategories();
+  }, []);
+
+  // Listen for real-time update events
+  useEffect(() => {
+    const handleItemsUpdated = () => {
+      console.log('Items updated event received, refreshing...');
+      fetchItems();
+    };
+
+    const handleCategoriesUpdated = () => {
+      console.log('Categories updated event received, refreshing...');
+      fetchCategories();
+    };
+
+    window.addEventListener('items-updated', handleItemsUpdated);
+    window.addEventListener('categories-updated', handleCategoriesUpdated);
+
+    return () => {
+      window.removeEventListener('items-updated', handleItemsUpdated);
+      window.removeEventListener('categories-updated', handleCategoriesUpdated);
+    };
   }, []);
 
   useEffect(() => {

@@ -163,6 +163,8 @@ const Reports: React.FC = () => {
           table: 'bills',
         },
         () => {
+          // Invalidate cache and refetch
+          invalidateRelatedData('bills');
           fetchReportsCallback();
         }
       )
@@ -170,6 +172,21 @@ const Reports: React.FC = () => {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [fetchReportsCallback]);
+
+  // Listen for custom bills-updated event (backup mechanism)
+  useEffect(() => {
+    const handleBillsUpdated = () => {
+      console.log('Bills updated event received, invalidating cache and refreshing...');
+      invalidateRelatedData('bills');
+      fetchReportsCallback();
+    };
+
+    window.addEventListener('bills-updated', handleBillsUpdated);
+
+    return () => {
+      window.removeEventListener('bills-updated', handleBillsUpdated);
     };
   }, [fetchReportsCallback]);
 
@@ -478,6 +495,33 @@ const Reports: React.FC = () => {
 
   const quickPrintBill = async (bill: Bill) => {
     try {
+      // Ensure we have settings
+      let settings = billSettings;
+      if (!settings?.shopName) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data } = await supabase.from('shop_settings').select('*').eq('user_id', user.id).single();
+            if (data) {
+              settings = {
+                shopName: data.shop_name || '',
+                address: data.address || '',
+                contactNumber: data.contact_number || '',
+                logoUrl: data.logo_url || '',
+                facebook: data.facebook || '',
+                showFacebook: data.show_facebook,
+                instagram: data.instagram || '',
+                showInstagram: data.show_instagram,
+                whatsapp: data.whatsapp || '',
+                showWhatsapp: data.show_whatsapp
+              };
+              setBillSettings(settings);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch settings for print", e);
+        }
+      }
       const printData = {
         billNo: bill.bill_no,
         date: format(new Date(bill.date), 'MMM dd, yyyy'),
@@ -497,7 +541,14 @@ const Reports: React.FC = () => {
         discount: bill.discount,
         total: bill.total_amount,
         paymentMethod: bill.payment_mode.toUpperCase(),
-        hotelName: profile?.hotel_name || 'ZEN POS'
+        hotelName: profile?.hotel_name || 'ZEN POS',
+        shopName: settings?.shopName,
+        address: settings?.address,
+        contactNumber: settings?.contactNumber,
+        logoUrl: settings?.logoUrl,
+        facebook: settings?.showFacebook !== false ? settings?.facebook : undefined,
+        instagram: settings?.showInstagram !== false ? settings?.instagram : undefined,
+        whatsapp: settings?.showWhatsapp !== false ? settings?.whatsapp : undefined
       };
 
       toast({
