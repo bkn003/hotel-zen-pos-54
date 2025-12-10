@@ -32,11 +32,14 @@ const queryClient = new QueryClient({
   },
 });
 
+import { InstallPrompt } from './components/InstallPrompt';
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <InstallPrompt />
       <BrowserRouter>
         <AuthProvider>
           <Routes>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -509,281 +510,219 @@ export const BluetoothPrinterSettings: React.FC = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
-  return (
-    <Card>
-      <CardHeader className="p-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Printer className="w-5 h-5" />
-          Bluetooth Printer
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0 space-y-4">
-        {!isBluetoothSupported && (
-          <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <span className="text-sm text-red-800 dark:text-red-200">
-                Bluetooth not supported. Use Chrome or Edge on Android/Desktop.
-              </span>
-            </div>
+  const PrinterStatusCard = () => (
+    <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none shadow-sm">
+      <CardContent className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-full ${settings.is_enabled && settings.printer_name ? 'bg-blue-100/50 text-blue-600 dark:bg-blue-900/30' : 'bg-slate-200/50 text-slate-500 dark:bg-slate-800'}`}>
+            <Printer className="w-5 h-5" />
           </div>
-        )}
-
-        {/* Connection Status */}
-        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
-          {settings.printer_name ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-full">
-                  <CheckCircle2 className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-base">{settings.printer_name}</div>
-                  <div className="text-xs text-green-600 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Connected
-                  </div>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={disconnectPrinter} className="text-red-600 border-red-300 hover:bg-red-50">
-                Disconnect
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-2">
-              <Bluetooth className="w-10 h-10 mx-auto mb-2 text-blue-500" />
-              <p className="text-sm text-muted-foreground mb-3">No printer connected</p>
-              <Button
-                onClick={connectPrinter}
-                disabled={connecting || !isBluetoothSupported}
-                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-              >
-                {connecting ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Bluetooth className="w-4 h-4 mr-2" />
-                    Connect Printer
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+          <div>
+            <h3 className="font-semibold text-sm">Bluetooth Printer</h3>
+            <p className="text-xs text-muted-foreground">
+              {settings.is_enabled && settings.printer_name
+                ? <span className="text-green-600 flex items-center gap-1">● Connected to {settings.printer_name}</span>
+                : "Not connected"}
+            </p>
+          </div>
         </div>
-
-        {/* Settings */}
-        {settings.printer_name && (
-          <>
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-              <div>
-                <div className="font-medium text-sm">Enable Printing</div>
-                <div className="text-xs text-muted-foreground">
-                  Allow bills to be printed
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={settings.is_enabled ? "default" : "secondary"} className="text-xs">
-                  {settings.is_enabled ? "On" : "Off"}
-                </Badge>
-                <Switch
-                  checked={settings.is_enabled}
-                  onCheckedChange={(checked) => updateSettings({ is_enabled: checked })}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-              <div>
-                <div className="font-medium text-sm">Auto Print</div>
-                <div className="text-xs text-muted-foreground">
-                  Print receipt after each sale
-                </div>
-              </div>
-              <Switch
-                checked={settings.auto_print}
-                onCheckedChange={(checked) => updateSettings({ auto_print: checked })}
-                disabled={!settings.is_enabled}
-              />
-            </div>
-
-
-
-            <Button
-              onClick={printTestPage}
-              disabled={printing || !settings.is_enabled}
-              variant="outline"
-              className="w-full"
-            >
-              {printing ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Printing...
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Print Test Page
-                </>
-              )}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 text-xs font-medium rounded-full px-4 border-slate-300 dark:border-slate-700">
+              {settings.is_enabled ? 'Settings' : 'Pair Device'}
             </Button>
-          </>
-        )}
+          </DialogTrigger>
+          <DialogContent className="max-w-md p-0 overflow-hidden sm:rounded-2xl gap-0 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+            <DialogHeader className="p-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800/50 sticky top-0 z-10">
+              <DialogTitle className="text-base font-medium flex items-center gap-2">
+                <Bluetooth className="w-5 h-5 text-blue-500" />
+                Device Settings
+              </DialogTitle>
+            </DialogHeader>
 
-        {/* Printer Configuration (Local) - Moved outside so it's always visible */}
-        <div className="space-y-4 pt-2 border-t">
-          <h3 className="font-semibold text-sm">Shop Details & Printer Settings</h3>
-
-          <div className="grid gap-4">
-            <div className="space-y-3">
-              <Label>Bill Header Details</Label>
-              <p className="text-xs text-muted-foreground mb-2">Configure how your bill header looks.</p>
-
-              <div className="grid gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Shop Name</Label>
-                  <Input
-                    placeholder="e.g. My Hotel"
-                    value={shopName}
-                    onChange={(e) => setShopName(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Address</Label>
-                  <Input
-                    placeholder="Shop Address (e.g. 123 Main St, City)"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Contact Number</Label>
-                  <Input
-                    placeholder="Phone Number"
-                    value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                  />
-                </div>
-
-                {/* Social Media Section */}
-                <div className="space-y-4 pt-2 border-t border-dashed">
-                  <Label className="text-xs font-semibold text-primary">Social Media Links</Label>
-                  <p className="text-[10px] text-muted-foreground mb-2">Enable to show on digital and printed bills.</p>
-
-                  <div className="grid gap-3">
-                    {/* Facebook */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs">Facebook</Label>
-                        <Switch
-                          checked={showFacebook}
-                          onCheckedChange={setShowFacebook}
-                          className="scale-75"
-                        />
+            <div className="p-4 overflow-y-auto max-h-[80vh] space-y-6">
+              {/* Connection Status Section */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-semibold uppercase text-slate-400 mb-3 tracking-wider">Connection Status</h4>
+                {settings.printer_name ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-full">
+                        <CheckCircle2 className="w-6 h-6 text-green-600" />
                       </div>
-
-                      <div className="relative">
-                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#1877F2]">
-                          <FacebookIcon className="w-5 h-5" />
-                        </div>
-                        <Input
-                          placeholder="username"
-                          value={facebook}
-                          onChange={(e) => setFacebook(e.target.value)}
-                          className="h-9 text-xs pl-10"
-                          disabled={!showFacebook}
-                        />
+                      <div>
+                        <div className="font-medium text-sm text-slate-900 dark:text-slate-100">{settings.printer_name}</div>
+                        <div className="text-xs text-green-600 font-medium">Connected</div>
                       </div>
                     </div>
+                    <Button variant="ghost" size="sm" onClick={disconnectPrinter} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-3 text-xs">
+                      Unpair
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Bluetooth className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No device paired</p>
+                    <p className="text-xs text-slate-500 mb-4 max-w-[200px] mx-auto">Make sure your printer is turned on and in pairing mode.</p>
+                    <Button
+                      onClick={connectPrinter}
+                      disabled={connecting || !isBluetoothSupported}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50 dark:shadow-none rounded-xl"
+                    >
+                      {connecting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Searching...
+                        </>
+                      ) : (
+                        <>
+                          Pair New Device
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
 
-                    {/* Instagram */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs">Instagram</Label>
-                        <Switch
-                          checked={showInstagram}
-                          onCheckedChange={setShowInstagram}
-                          className="scale-75"
-                        />
-                      </div>
-
-                      <div className="relative">
-                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#E4405F]">
-                          <InstagramIcon className="w-5 h-5" />
+              {/* Printer Settings Section */}
+              {settings.printer_name && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 px-1 tracking-wider">Preferences</h4>
+                  <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800">
+                    <div className="p-3 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                          <Printer className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                         </div>
-                        <Input
-                          placeholder="username"
-                          value={instagram}
-                          onChange={(e) => setInstagram(e.target.value)}
-                          className="h-9 text-xs pl-10"
-                          disabled={!showInstagram}
-                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Enable Printing</p>
+                          <p className="text-[10px] text-slate-500">Allow printing receipts</p>
+                        </div>
                       </div>
+                      <Switch
+                        checked={settings.is_enabled}
+                        onCheckedChange={(checked) => updateSettings({ is_enabled: checked })}
+                      />
                     </div>
 
-                    {/* WhatsApp */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs">WhatsApp</Label>
-                        <Switch
-                          checked={showWhatsapp}
-                          onCheckedChange={setShowWhatsapp}
-                          className="scale-75"
-                        />
-                      </div>
-
-                      <div className="relative">
-                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#25D366]">
-                          <WhatsAppIcon className="w-5 h-5" />
+                    <div className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                          <Zap className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                         </div>
-                        <Input
-                          placeholder="number"
-                          value={whatsapp}
-                          onChange={(e) => setWhatsapp(e.target.value)}
-                          className="h-9 text-xs pl-10"
-                          disabled={!showWhatsapp}
-                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Auto Print</p>
+                          <p className="text-[10px] text-slate-500">Print automatically after sale</p>
+                        </div>
                       </div>
+                      <Switch
+                        checked={settings.auto_print}
+                        onCheckedChange={(checked) => updateSettings({ auto_print: checked })}
+                        disabled={!settings.is_enabled}
+                      />
                     </div>
                   </div>
+
+                  <Button
+                    onClick={printTestPage}
+                    disabled={printing || !settings.is_enabled}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-medium bg-white dark:bg-slate-900"
+                  >
+                    {printing ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Printing Test Page...
+                      </>
+                    ) : (
+                      "Print Test Page"
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Shop Configuration Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h4 className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Bill Header Configuration</h4>
+                  <Button variant="ghost" size="sm" onClick={saveShopSettings} className="h-6 text-[10px] text-blue-600 hover:text-blue-700 px-2">
+                    Save Changes
+                  </Button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Shop Logo</Label>
-                  <div className="flex items-center gap-3">
-                    {logoUrl ? (
-                      <div className="relative group">
-                        <div className="w-24 border rounded-lg overflow-hidden bg-white">
-                          <img src={logoUrl} alt="Logo" className="w-full h-auto object-contain" />
-                        </div>
-                        <button
-                          onClick={removeLogo}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/50 text-muted-foreground">
-                        <ImageIcon className="w-6 h-6" />
-                      </div>
-                    )}
+                <div className="bg-white dark:bg-slate-900 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-500">Shop Name</Label>
+                      <Input
+                        placeholder="My Hotel"
+                        value={shopName}
+                        onChange={(e) => setShopName(e.target.value)}
+                        className="h-9 text-sm bg-slate-50 dark:bg-slate-800 border-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-500">Contact</Label>
+                      <Input
+                        placeholder="Phone Number"
+                        value={contactNumber}
+                        onChange={(e) => setContactNumber(e.target.value)}
+                        className="h-9 text-sm bg-slate-50 dark:bg-slate-800 border-none"
+                      />
+                    </div>
+                  </div>
 
-                    <div className="flex-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Address</Label>
+                    <Input
+                      placeholder="Shop Address, City"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="h-9 text-sm bg-slate-50 dark:bg-slate-800 border-none"
+                    />
+                  </div>
+
+                  {/* Logo Upload */}
+                  <div className="pt-2 border-t border-slate-50 dark:border-slate-800">
+                    <Label className="text-xs text-slate-500 mb-2 block">Shop Logo</Label>
+                    <div className="flex items-center gap-4">
+                      {logoUrl ? (
+                        <div className="relative group w-16 h-16 bg-white border rounded-lg p-1 flex items-center justify-center">
+                          <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                          <button
+                            onClick={removeLogo}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div onClick={() => fileInputRef.current?.click()} className="w-16 h-16 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 bg-slate-50 dark:bg-slate-800/50 transition-colors">
+                          <Upload className="w-4 h-4 text-slate-400 mb-1" />
+                          <span className="text-[9px] text-slate-400">Upload</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1">
+                        <select
+                          className="w-full h-9 rounded-lg bg-slate-50 dark:bg-slate-800 border-none text-xs px-3"
+                          value={printerWidth}
+                          onChange={(e) => setPrinterWidth(e.target.value as '58mm' | '80mm')}
+                        >
+                          <option value="58mm">58mm (2 inch) - Standard</option>
+                          <option value="80mm">80mm (3 inch) - Wide</option>
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1 pl-1">Select your paper roll width</p>
+                      </div>
+
                       <input
                         type="file"
                         accept="image/*"
@@ -809,41 +748,16 @@ export const BluetoothPrinterSettings: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="width">Printer Paper Width</Label>
-              <Select value={printerWidth} onValueChange={(val: '58mm' | '80mm') => setPrinterWidth(val)}>
-                <SelectTrigger id="width">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="58mm">58mm (Standard Thermal)</SelectItem>
-                  <SelectItem value="80mm">80mm (Wide Thermal)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+              <Button onClick={saveShopSettings} className="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl h-10 shadow-lg">
+                Save & Close
+              </Button>
             </div>
-
-            <Button onClick={saveShopSettings} size="sm" variant="secondary">
-              Save Cloud Settings
-            </Button>
-          </div>
-        </div>
-
-        {/* Help */}
-        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-amber-800 dark:text-amber-200">
-              <div className="font-medium mb-1">Setup Tips:</div>
-              <ul className="list-disc list-inside space-y-0.5">
-                <li>Pair printer in device Bluetooth settings first</li>
-                <li>Use Chrome or Edge browser</li>
-                <li>Works on Android and desktop (not iOS/Safari)</li>
-                <li>Compatible with ESC/POS thermal printers</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
+
+  return <PrinterStatusCard />;
 };

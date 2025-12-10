@@ -67,6 +67,7 @@ interface CompletePaymentDialogProps {
     discount: number;
     discountType: 'flat' | 'percentage';
     additionalCharges: { name: string; amount: number; enabled: boolean }[];
+    finalItems?: CartItem[]; // Optional for backward compatibility, but we'll use it
   }) => void;
 }
 
@@ -161,12 +162,28 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
         return { name: charge.name, amount, enabled: true };
       });
 
+    const finalItems = cart.map(item => {
+      const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
+      const effectiveQty = getEffectiveQty(item); // Uses itemQuantityOverrides
+      return {
+        ...item,
+        price: effectivePrice,
+        quantity: effectiveQty
+      };
+    });
+
+    // Recalculate paymentAmounts to match the CURRENT total at submit time
+    // This ensures even if the user edited items, the payment reflects the final total
+    const primaryPaymentType = Object.entries(paymentAmounts).find(([_, amount]) => amount > 0)?.[0] || paymentTypes[0]?.payment_type || 'cash';
+    const correctedPaymentAmounts = { [primaryPaymentType]: total };
+
     onCompletePayment({
-      paymentMethod: primaryPaymentMethod,
-      paymentAmounts,
+      paymentMethod: primaryPaymentType,
+      paymentAmounts: correctedPaymentAmounts,
       discount: discountAmount,
       discountType,
-      additionalCharges: selectedAdditionalCharges
+      additionalCharges: selectedAdditionalCharges,
+      finalItems: finalItems // Pass the actual final items
     });
   };
 
@@ -269,11 +286,22 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               <span className="text-primary font-bold text-base">₹{cartSubtotal.toFixed(2)}</span>
             </summary>
             <div className="mt-2 space-y-2 max-h-[180px] overflow-y-auto">
-              {cart.map((item) => {
+              {cart.map((item, index) => {
                 const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
                 const effectiveQty = getEffectiveQty(item);
+
+                // Pastel colors for cart items - cycling
+                const colorClasses = [
+                  "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800",
+                  "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800",
+                  "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800",
+                  "bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800",
+                  "bg-pink-50 border-pink-200 dark:bg-pink-900/20 dark:border-pink-800"
+                ];
+                const colorClass = colorClasses[index % colorClasses.length];
+
                 return (
-                  <div key={item.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm gap-1.5">
+                  <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg text-sm gap-1.5 border ${colorClass}`}>
                     <div className="flex-1 min-w-0 mr-1">
                       <div className="font-semibold truncate text-sm">{item.name}</div>
                       <div className="text-xs text-muted-foreground">₹{item.price}/{getSimplifiedUnit(item.unit)}</div>
@@ -319,7 +347,6 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         step="1"
                         title="Edit price"
                       />
-                      <span className="text-sm font-bold min-w-[2.5rem] text-right text-primary">₹{(effectivePrice * effectiveQty).toFixed(0)}</span>
                       <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-6 w-6 p-0 text-destructive hover:bg-red-50">
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -372,9 +399,6 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         step="1"
                         disabled={!isSelected}
                       />
-                      <span className={`text-sm font-bold min-w-[3rem] text-right ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
-                        ₹{displayAmount.toFixed(0)}
-                      </span>
                     </div>
                   );
                 })}

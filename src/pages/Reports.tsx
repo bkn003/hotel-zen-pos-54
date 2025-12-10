@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { exportAllReportsToExcel, exportAllReportsToPDF } from '@/utils/exportUtils';
 import { cachedFetch, CACHE_KEYS, invalidateRelatedData } from '@/utils/cacheUtils';
 import { printReceipt } from '@/utils/bluetoothPrinter';
+import { printBrowserReceipt } from '@/utils/browserPrinter';
 
 interface Bill {
   id: string;
@@ -321,11 +322,27 @@ const Reports: React.FC = () => {
         2 * 60 * 1000 // 2 minutes cache
       );
 
-      setBills(reportData.bills.map(bill => ({
-        ...bill,
-        payment_details: (bill.payment_details as any) || {},
-        additional_charges: (bill.additional_charges as any) || []
-      })));
+      setBills(reportData.bills.map(bill => {
+        // Handle additional_charges: could be array, JSON string, or null
+        let parsedCharges: { name: string; amount: number }[] = [];
+        if (bill.additional_charges) {
+          if (typeof bill.additional_charges === 'string') {
+            try {
+              parsedCharges = JSON.parse(bill.additional_charges);
+            } catch {
+              parsedCharges = [];
+            }
+          } else if (Array.isArray(bill.additional_charges)) {
+            parsedCharges = bill.additional_charges as any;
+          }
+        }
+
+        return {
+          ...bill,
+          payment_details: (bill.payment_details as any) || {},
+          additional_charges: parsedCharges
+        };
+      }));
       setExpenses(reportData.expenses);
       setItemReports(reportData.itemReports);
 
@@ -495,19 +512,39 @@ const Reports: React.FC = () => {
           description: `${bill.bill_no} printed successfully!`,
         });
       } else {
-        toast({
-          title: "Print Failed",
-          description: "Unable to print. Check Bluetooth connection.",
-          variant: "destructive",
-        });
+        console.log("Bluetooth print failed (returned false), falling back to browser print");
+        printBrowserReceipt(printData);
+        // Toast is optional here since browser print dialog will open
       }
     } catch (error) {
       console.error('Print error:', error);
-      toast({
-        title: "Print Error",
-        description: "Failed to connect to printer",
-        variant: "destructive",
-      });
+      console.log("Bluetooth print error, falling back to browser print", error);
+
+      // Fallback
+      // Re-construct printData if needed, but we have it in scope
+      const printData = {
+        billNo: bill.bill_no,
+        date: format(new Date(bill.date), 'MMM dd, yyyy'),
+        time: format(new Date(bill.created_at), 'hh:mm a'),
+        items: bill.bill_items?.map(item => ({
+          name: item.items?.name || 'Unknown Item',
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total
+        })) || [],
+        subtotal: bill.bill_items?.reduce((sum, item) => sum + item.total, 0) || 0,
+        paymentDetails: bill.payment_details as Record<string, number> | undefined,
+        additionalCharges: (bill.additional_charges as any[])?.map(charge => ({
+          name: charge.name,
+          amount: charge.amount
+        })) || [],
+        discount: bill.discount,
+        total: bill.total_amount,
+        paymentMethod: bill.payment_mode.toUpperCase(),
+        hotelName: profile?.hotel_name || 'ZEN POS'
+      };
+
+      printBrowserReceipt(printData);
     }
   };
 
@@ -1188,10 +1225,10 @@ const Reports: React.FC = () => {
                 </div>
               </div>
 
-              {selectedBill.additional_charges && (selectedBill.additional_charges as any[]).length > 0 && (
+              {selectedBill?.additional_charges && Array.isArray(selectedBill.additional_charges) && selectedBill.additional_charges.length > 0 && (
                 <div className="space-y-1 pt-2 border-t">
                   <h4 className="font-medium text-sm">Additional Charges</h4>
-                  {(selectedBill.additional_charges as any[]).map((charge, idx) => (
+                  {selectedBill.additional_charges.map((charge, idx) => (
                     <div key={idx} className="flex justify-between items-center bg-muted/30 p-2 rounded text-sm">
                       <span className="text-muted-foreground">{charge.name}</span>
                       <span className="font-medium">₹{charge.amount.toFixed(2)}</span>
@@ -1212,7 +1249,7 @@ const Reports: React.FC = () => {
               )}
 
               {/* Payment Details (Split Payment) */}
-              {selectedBill.payment_details && Object.keys(selectedBill.payment_details).length > 0 && (
+              {selectedBill?.payment_details && Object.keys(selectedBill.payment_details).length > 0 && (
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3 text-sm">Payment Split Details</h4>
                   <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm bg-muted/30 p-2 rounded">

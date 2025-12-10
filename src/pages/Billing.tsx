@@ -617,138 +617,160 @@ const Billing = () => {
       amount: number;
       enabled: boolean;
     }[];
+    finalItems?: CartItem[]; // Received from dialog
   }) => {
-    try {
-      console.log('Completing payment with data:', paymentData);
+    // ---------------------------------------------------------
+    // OPTIMISTIC UI UPDATE - INSTANT FEEDBACK
+    // ---------------------------------------------------------
+    setPaymentDialogOpen(false); // Close dialog immediately
 
-      // Filter cart to only include items with quantity > 0
-      const validCart = cart.filter(item => item.quantity > 0);
-      if (validCart.length === 0) {
+    // Use the final items from dialog if available (which includes edits), otherwise fallback to current cart
+    const finalCart = paymentData.finalItems || cart;
+    const previousCart = [...finalCart]; // Backup using the CORRECT items
+
+    // Clear cart immediately
+    clearCart();
+
+    // Run heavy operations in background
+    (async () => {
+      try {
+        console.log('Completing payment with data:', paymentData);
+
+        // Use the FINAL cart for all calculations
+        const validCart = previousCart.filter(item => item.quantity > 0);
+        if (validCart.length === 0) {
+          // Should not happen if UI validation works
+          toast({
+            title: "Error",
+            description: "Cart was empty",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Generate Bill Number with timestamp for uniqueness
+        const now = new Date();
+        const datePrefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        const timePrefix = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+        const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const billNumber = `BILL-${datePrefix}-${timePrefix}-${randomSuffix}`;
+
+        const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
+        const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
+
+        // Map Payment Mode
+        const mapPaymentMode = (method: string): PaymentMode => {
+          const lower = method.toLowerCase();
+          if (lower.includes('cash')) return 'cash';
+          if (lower.includes('upi')) return 'upi';
+          if (lower === 'card' || lower.includes('card')) return 'card';
+          return 'other';
+        };
+        const paymentMode = mapPaymentMode(paymentData.paymentMethod);
+
+        // Build additional charges array for storage (not stringified here, let Supabase handle it)
+        const additionalChargesArray = paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }));
+
+        // ---------------------------------------------------------
+        // DATABASE UPDATE (Standard Client-Side)
+        // ---------------------------------------------------------
+        // 1. Create Bill
+        const { data: billData, error: billError } = await supabase
+          .from('bills')
+          .insert({
+            bill_no: billNumber,
+            total_amount: totalAmount,
+            discount: paymentData.discount,
+            payment_mode: paymentMode,
+            payment_details: paymentData.paymentAmounts,
+            additional_charges: additionalChargesArray,
+            created_by: profile?.user_id,
+            date: now.toISOString().split('T')[0] // Store just the date part
+          })
+          .select()
+          .single();
+
+        if (billError) throw billError;
+        if (!billData) throw new Error('Failed to create bill record');
+
+        // 2. Create Bill Items
+        const billItems = validCart.map(item => ({
+          bill_id: billData.id,
+          item_id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('bill_items')
+          .insert(billItems);
+
+        if (itemsError) {
+          // Compensating action: try to delete the bill if items failed (optional but good practice)
+          console.error("Failed to insert items, rolling back bill...", itemsError);
+          await supabase.from('bills').delete().eq('id', billData.id);
+          throw itemsError;
+        }
         toast({
-          title: "Error",
-          description: "Cart is empty or all items have 0 quantity",
+          title: "Success",
+          description: `Bill ${billNumber} generated!`,
+          duration: 2000
+        });
+
+        // ---------------------------------------------------------
+        // PRINTING (Background)
+        // ---------------------------------------------------------
+        const printData: PrintData = {
+          billNo: billNumber,
+          date: format(new Date(), 'MMM dd, yyyy'),
+          time: format(new Date(), 'hh:mm a'),
+          items: validCart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity
+          })),
+          subtotal: subtotal,
+          additionalCharges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
+          discount: paymentData.discount,
+          total: totalAmount,
+          paymentMethod: paymentData.paymentMethod.toUpperCase(),
+          paymentDetails: paymentData.paymentAmounts,
+          hotelName: profile?.hotel_name || 'ZEN POS',
+          shopName: billSettings?.shopName,
+          address: billSettings?.address,
+          contactNumber: billSettings?.contactNumber,
+          facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
+          instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
+          whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined,
+          printerWidth: billSettings?.printerWidth || '58mm',
+          logoUrl: billSettings?.logoUrl
+        };
+
+        let printed = false;
+        try {
+          printed = await printReceipt(printData);
+        } catch (e) {
+          console.error("Bluetooth print failed:", e);
+        }
+
+        if (!printed) {
+          printBrowserReceipt(printData);
+        }
+
+      } catch (error: any) {
+        console.error('Error completing payment:', error);
+        toast({
+          title: "Payment Error",
+          description: error.message || "Failed to save bill. Check connection.",
           variant: "destructive"
         });
-        return;
+        // Note: We don't restore cart here to avoid confusing the user who already moved on.
+        // In a strict financial app, we might alert heavily or prompt retry.
       }
-
-      // Generate Bill Number
-      const { data: maxBillData } = await supabase.from('bills').select('bill_no').order('created_at', { ascending: false }).limit(1);
-      let billNumber = 'BILL-000001';
-      if (maxBillData && maxBillData.length > 0) {
-        const lastBillNo = maxBillData[0].bill_no;
-        const lastNumber = parseInt(lastBillNo.replace(/\D/g, '')) || 0;
-        billNumber = `BILL-${String(lastNumber + 1).padStart(6, '0')}`;
-      }
-
-      const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
-      const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
-
-      // Use helper to map payment mode if available, otherwise default
-      // Assuming mapPaymentMode is defined in this file or imported
-      const mapPaymentMode = (method: string): PaymentMode => {
-        const lower = method.toLowerCase();
-        if (lower.includes('cash')) return 'cash';
-        if (lower.includes('upi')) return 'upi';
-        if (lower === 'card' || lower.includes('card')) return 'card';
-        return 'other'; // default to 'other' or a valid enum value
-      };
-      const paymentMode = mapPaymentMode(paymentData.paymentMethod);
-
-      // ---------------------------------------------------------
-      // OPTIMIZED: Use RPC Transaction
-      // ---------------------------------------------------------
-      const rpcParams = {
-        p_bill_no: billNumber,
-        p_created_by: profile?.user_id,
-        p_date: new Date().toISOString(),
-        p_discount: paymentData.discount,
-        p_payment_mode: paymentMode,
-        p_payment_details: paymentData.paymentAmounts,
-        p_additional_charges: JSON.stringify(paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }))),
-        p_total_amount: totalAmount,
-        p_items: validCart.map(item => ({
-          item_id: item.id,
-          price: item.price,
-          quantity: item.quantity,
-          total: item.price * item.quantity
-        }))
-      };
-
-      console.log("Creating bill via RPC...", rpcParams);
-      // @ts-expect-error - RPC function type definition might be missing in generated types
-      const { data: billData, error: billError } = await supabase.rpc('create_bill_transaction', rpcParams);
-
-      if (billError) {
-        console.error('RPC Error:', billError);
-        // Fallback or throw
-        throw new Error(billError.message);
-      }
-
-      toast({
-        title: "Success",
-        description: `Bill ${billNumber} generated successfully!`
-      });
-
-      // ---------------------------------------------------------
-      // Printing Logic with Fallback
-      // ---------------------------------------------------------
-      const printData: PrintData = {
-        billNo: billNumber,
-        date: format(new Date(), 'MMM dd, yyyy'),
-        time: format(new Date(), 'hh:mm a'),
-        items: validCart.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.price * item.quantity
-        })),
-        subtotal: subtotal,
-        additionalCharges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
-        discount: paymentData.discount,
-        total: totalAmount,
-        paymentMethod: paymentData.paymentMethod.toUpperCase(),
-        paymentDetails: paymentData.paymentAmounts,
-        hotelName: profile?.hotel_name || 'ZEN POS',
-        shopName: billSettings?.shopName,
-        address: billSettings?.address,
-        contactNumber: billSettings?.contactNumber,
-        facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
-        instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
-        whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined,
-        printerWidth: billSettings?.printerWidth || '58mm',
-        logoUrl: billSettings?.logoUrl
-      };
-
-      let printed = false;
-      // Try Auto-Print if Bluetooth is configured
-      // We check if printer_name is in settings or likely configured
-      // Note: printReceipt handles the actual connection/check
-      try {
-        // Fire and forget print request if we want non-blocking, but for feedback we wait slightly?
-        // We'll trust printReceipt to return false if it can't print
-        printed = await printReceipt(printData);
-      } catch (e) {
-        console.error("Bluetooth print attempt failed:", e);
-      }
-
-      if (!printed) {
-        console.log("Using Browser Print fallback");
-        printBrowserReceipt(printData);
-      }
-
-      clearCart();
-      setPaymentDialogOpen(false);
-
-    } catch (error: any) {
-      console.error('Error completing payment:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to complete payment.",
-        variant: "destructive"
-      });
-    }
+    })();
   };
 
 
