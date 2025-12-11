@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Hotel, Clock } from 'lucide-react';
+import { checkRateLimit, clearRateLimit, isValidEmail, sanitizeInput, logSecurityEvent } from '@/utils/securityUtils';
 
 const Auth = () => {
   const { user, profile, signIn, signUp, signOut, loading: authLoading } = useAuth();
@@ -69,8 +70,8 @@ const Auth = () => {
                 {profile?.hotel_name && <p className="text-sm">Hotel: {profile?.hotel_name}</p>}
                 <p className="text-sm">Status: <span className="text-orange-600 font-medium">Pending Approval</span></p>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={signOut}
               >
@@ -98,8 +99,8 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={signOut}
             >
@@ -159,18 +160,43 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Rate limiting check - prevent brute force attacks
+    if (!checkRateLimit('login_attempt', 5, 60000)) {
+      logSecurityEvent('LOGIN_RATE_LIMITED', { email: formData.email });
+      toast({
+        title: "Too Many Attempts",
+        description: "Please wait 1 minute before trying again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    if (!isValidEmail(formData.email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
+          logSecurityEvent('LOGIN_FAILED', { email: formData.email, reason: error.message });
           if (error.message?.includes('Invalid login credentials')) {
             throw new Error('Invalid email or password. Please check your credentials and try again.');
           }
           throw error;
         }
-        
+
+        // Clear rate limit on successful login
+        clearRateLimit('login_attempt');
         toast({
           title: "Welcome back!",
           description: "Successfully signed in.",
@@ -181,13 +207,13 @@ const Auth = () => {
         }
 
         const { error } = await signUp(
-          formData.email, 
-          formData.password, 
+          formData.email,
+          formData.password,
           formData.name,
           formData.role,
           formData.hotelName
         );
-        
+
         if (error) {
           if (error.message?.includes('User already registered')) {
             throw new Error('An account with this email already exists. Please sign in instead or use a different email address.');
@@ -228,16 +254,16 @@ const Auth = () => {
             {isForgotPassword ? 'Reset Password' : (isLogin ? 'Welcome Back' : 'Create Account')}
           </CardTitle>
           <CardDescription>
-            {isForgotPassword 
+            {isForgotPassword
               ? 'Enter your email to receive a password reset link'
-              : (isLogin 
-                ? 'Sign in to access your POS system' 
+              : (isLogin
+                ? 'Sign in to access your POS system'
                 : 'Register for Hotel ZEN POS Management'
               )
             }
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
             {!isLogin && !isForgotPassword && (
@@ -256,8 +282,8 @@ const Auth = () => {
 
                 <div>
                   <Label htmlFor="role">Account Type</Label>
-                  <Select 
-                    value={formData.role} 
+                  <Select
+                    value={formData.role}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
                   >
                     <SelectTrigger>
@@ -355,8 +381,8 @@ const Auth = () => {
             >
               {isForgotPassword
                 ? 'Back to sign in'
-                : (isLogin 
-                  ? "Don't have an account? Sign up" 
+                : (isLogin
+                  ? "Don't have an account? Sign up"
                   : 'Already have an account? Sign in'
                 )
               }
