@@ -669,27 +669,38 @@ const Billing = () => {
           return;
         }
 
-        // Generate Bill Number - Sequential format (BILL-000056, etc.)
-        const { data: allBillNos } = await supabase
-          .from('bills')
-          .select('bill_no')
-          .order('created_at', { ascending: false })
-          .limit(100); // Get recent bills to find max number
+        // Check if offline
+        const isOffline = !navigator.onLine;
 
-        let maxNumber = 55; // Start from 55 as per user's existing data
-        if (allBillNos && allBillNos.length > 0) {
-          allBillNos.forEach(bill => {
-            // Only match simple format: BILL-XXXXXX (6 digits, no other characters)
-            const match = bill.bill_no.match(/^BILL-(\d{6})$/);
-            if (match) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNumber) {
-                maxNumber = num;
+        // Generate Bill Number - Sequential format (BILL-000056, etc.)
+        let billNumber: string;
+
+        if (isOffline) {
+          // Generate offline bill number with timestamp
+          billNumber = `BILL-OFF-${Date.now()}`;
+        } else {
+          const { data: allBillNos } = await supabase
+            .from('bills')
+            .select('bill_no')
+            .order('created_at', { ascending: false })
+            .limit(100); // Get recent bills to find max number
+
+          let maxNumber = 55; // Start from 55 as per user's existing data
+          if (allBillNos && allBillNos.length > 0) {
+            allBillNos.forEach(bill => {
+              // Only match simple format: BILL-XXXXXX (6 digits, no other characters)
+              const match = bill.bill_no.match(/^BILL-(\d{6})$/);
+              if (match) {
+                const num = parseInt(match[1], 10);
+                if (num > maxNumber) {
+                  maxNumber = num;
+                }
               }
-            }
-          });
+            });
+          }
+          billNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
         }
-        const billNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+
         const now = new Date(); // Used for date field
 
         const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -709,22 +720,99 @@ const Billing = () => {
         // Build additional charges array for storage (not stringified here, let Supabase handle it)
         const additionalChargesArray = paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }));
 
+        const billPayload = {
+          bill_no: billNumber,
+          total_amount: totalAmount,
+          discount: paymentData.discount,
+          payment_mode: paymentMode,
+          payment_details: paymentData.paymentAmounts,
+          additional_charges: additionalChargesArray,
+          created_by: profile?.user_id,
+          date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` // Store local date
+        };
+
         // ---------------------------------------------------------
-        // DATABASE UPDATE (Standard Client-Side)
+        // OFFLINE HANDLING - Queue for later sync
+        // ---------------------------------------------------------
+        if (isOffline) {
+          // Import offline manager dynamically
+          const { offlineManager } = await import('@/utils/offlineManager');
+
+          // Store bill locally
+          await offlineManager.cacheBill({
+            ...billPayload,
+            id: `offline_${Date.now()}`,
+            bill_items: validCart.map(item => ({
+              item_id: item.id,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.price * item.quantity
+            }))
+          });
+
+          // Add to sync queue
+          await offlineManager.addToSyncQueue({
+            type: 'bill',
+            action: 'create',
+            data: {
+              bill: billPayload,
+              items: validCart.map(item => ({
+                item_id: item.id,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.price * item.quantity
+              }))
+            }
+          });
+
+          toast({
+            title: "Bill Saved Offline",
+            description: `${billNumber} saved. Will sync when online.`,
+          });
+
+          // Still try to print if available
+          try {
+            const { printReceipt } = await import('@/utils/bluetoothPrinter');
+            const printData = {
+              billNo: billNumber,
+              date: format(now, 'MMM dd, yyyy'),
+              time: format(now, 'hh:mm a'),
+              items: validCart.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.price * item.quantity
+              })),
+              subtotal,
+              discount: paymentData.discount,
+              additionalCharges: additionalChargesArray,
+              total: totalAmount,
+              paymentMethod: paymentMode.toUpperCase(),
+              paymentDetails: paymentData.paymentAmounts,
+              hotelName: profile?.hotel_name || 'ZEN POS',
+              shopName: billSettings?.shopName,
+              address: billSettings?.address,
+              contactNumber: billSettings?.contactNumber,
+              logoUrl: billSettings?.logoUrl,
+              facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
+              instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
+              whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined
+            };
+            await printReceipt(printData);
+          } catch (printError) {
+            console.log('Print skipped while offline:', printError);
+          }
+
+          return; // Exit early for offline mode
+        }
+
+        // ---------------------------------------------------------
+        // DATABASE UPDATE (Standard Client-Side) - ONLINE MODE
         // ---------------------------------------------------------
         // 1. Create Bill
         const { data: billData, error: billError } = await supabase
           .from('bills')
-          .insert({
-            bill_no: billNumber,
-            total_amount: totalAmount,
-            discount: paymentData.discount,
-            payment_mode: paymentMode,
-            payment_details: paymentData.paymentAmounts,
-            additional_charges: additionalChargesArray,
-            created_by: profile?.user_id,
-            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` // Store local date
-          })
+          .insert(billPayload)
           .select()
           .single();
 
