@@ -76,6 +76,17 @@ export const ThemeSettings: React.FC = () => {
         applyTheme(activeTheme);
     }, []);
 
+    // Theme colors for status bar (meta theme-color)
+    const themeColors: Record<string, string> = {
+        'blue': '#3b82f6',      // Blue primary
+        'purple': '#9333ea',    // Purple primary  
+        'green': '#10b981',     // Emerald primary
+        'rose': '#e11d48',      // Rose primary
+        'sunset': '#f97316',    // Orange primary
+        'navy': '#1e3a8a',      // Navy primary
+        'hotpink': '#c11c84'    // Dark pink primary
+    };
+
     const applyTheme = (themeId: string) => {
         const theme = themes.find(t => t.id === themeId);
         if (!theme) return;
@@ -93,6 +104,18 @@ export const ThemeSettings: React.FC = () => {
         // Add the new theme class (if not default blue)
         if (theme.class) {
             document.documentElement.classList.add(theme.class);
+        }
+
+        // Update the theme-color meta tag for status bar
+        const themeColor = themeColors[themeId] || '#3b82f6';
+        let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+            metaThemeColor.setAttribute('content', themeColor);
+        } else {
+            metaThemeColor = document.createElement('meta');
+            metaThemeColor.setAttribute('name', 'theme-color');
+            metaThemeColor.setAttribute('content', themeColor);
+            document.head.appendChild(metaThemeColor);
         }
     };
 
