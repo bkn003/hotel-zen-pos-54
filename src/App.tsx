@@ -35,8 +35,15 @@ const queryClient = new QueryClient({
 import { InstallPrompt } from './components/InstallPrompt';
 
 const App = () => {
-  // Global cache invalidation listeners
+  // Global cache invalidation listeners and theme initialization
   React.useEffect(() => {
+    // Apply saved theme on startup
+    const savedTheme = localStorage.getItem('hotel_pos_theme');
+    if (savedTheme && savedTheme !== 'blue') {
+      const themeClass = `theme-${savedTheme}`;
+      document.documentElement.classList.add(themeClass);
+    }
+
     const handleInvalidateBills = () => {
       console.log('Global: Invalidating bills cache');
       import('@/utils/cacheUtils').then(({ invalidateRelatedData }) => {

@@ -14,6 +14,7 @@ import { DisplaySettings } from '@/components/DisplaySettings';
 import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
 import { BluetoothPrinterSettings } from '@/components/BluetoothPrinterSettings';
 import { ShopSettingsForm } from '@/components/ShopSettingsForm';
+import { ThemeSettings } from '@/components/ThemeSettings';
 
 interface AdditionalCharge {
   id: string;
@@ -325,6 +326,9 @@ const Settings = () => {
               {profile?.user_id && <DisplaySettings userId={profile.user_id} />}
             </CardContent>
           </Card>
+
+          {/* Theme Settings */}
+          <ThemeSettings />
         </div>
       </div>
     </div>

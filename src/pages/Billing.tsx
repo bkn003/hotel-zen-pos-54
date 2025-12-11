@@ -873,14 +873,9 @@ const Billing = () => {
               cacheImageUrl(item.id, item.image_url);
             }
             const isInCart = cartItem && cartItem.quantity > 0;
-            return <div key={item.id} className={`relative bg-card rounded-xl border-2 p-1.5 flex flex-col shadow-sm transition-all duration-300 ${isInCart ? 'border-green-400 shadow-green-200/50 shadow-md' : 'border-gray-200 dark:border-gray-700 hover:border-primary/30'}`}>
-              {/* Checkmark Badge for items in cart */}
-              {isInCart && (
-                <div className="absolute -top-1 -left-1 z-10 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-md">
-                  <Check className="w-3 h-3 text-white" />
-                </div>
-              )}
-
+            const unitLabel = getSimplifiedUnit(item.unit);
+            return <div key={item.id} className={`relative bg-card rounded-xl border-2 p-1.5 flex flex-col shadow-sm transition-all duration-300 ${isInCart ? 'border-primary shadow-primary/20 shadow-md' : 'border-gray-200 dark:border-gray-700 hover:border-primary/30'}`}>
+              {/* Image container with quantity badge */}
               <div className="relative aspect-[4/3] mb-1 bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden flex-shrink-0">
                 {item.image_url ? <img src={getCachedImageUrl(item.id)} alt={item.name} className="w-full h-full object-cover" onError={e => {
                   const target = e.target as HTMLImageElement;
@@ -890,11 +885,19 @@ const Billing = () => {
                 <div className={`${item.image_url ? 'hidden' : ''} w-full h-full flex items-center justify-center text-muted-foreground`}>
                   <Package className="w-8 h-8" />
                 </div>
+
+                {/* Small rectangle quantity badge - shown when item is in cart */}
+                {isInCart && (
+                  <div className="absolute bottom-1 right-1 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-0.5">
+                    <span>{cartItem.quantity}</span>
+                    <span>{unitLabel}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 flex flex-col min-h-0 px-0.5">
                 <h3 className="font-semibold text-xs mb-0.5 line-clamp-1 flex-shrink-0">{item.name}</h3>
-                <p className="text-primary mb-1 flex-shrink-0 font-bold text-sm">₹{item.price.toFixed(2)} / {getSimplifiedUnit(item.unit)}</p>
+                <p className="text-primary mb-1 flex-shrink-0 font-bold text-sm">₹{item.price.toFixed(2)} / {unitLabel}</p>
 
                 {isInCart ? (
                   <div className="flex items-center justify-center gap-1.5 mt-auto">
@@ -907,7 +910,7 @@ const Billing = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Button onClick={() => addToCart(item)} className="w-full h-7 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold mt-auto rounded-lg">
+                  <Button onClick={() => addToCart(item)} className="w-full h-7 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground text-xs font-semibold mt-auto rounded-md shadow-sm">
                     Add
                   </Button>
                 )}
@@ -981,7 +984,7 @@ const Billing = () => {
 
         {cart.some(i => i.quantity > 0) && <div className="flex justify-between items-center text-sm">
           <span>Total: ₹{total.toFixed(0)}</span>
-          <Button onClick={() => setPaymentDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white" size="sm">
+          <Button onClick={() => setPaymentDialogOpen(true)} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white" size="sm">
             Pay
           </Button>
         </div>}
@@ -1028,7 +1031,7 @@ const Billing = () => {
             </div>
 
             <div className="flex justify-end mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
-              <span className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 Total: ₹{(item.price * item.quantity).toFixed(0)}
               </span>
             </div>
@@ -1037,9 +1040,9 @@ const Billing = () => {
       </div>
     </div>
 
-    {/* Mobile Cart Button - Green gradient bar above bottom nav */}
+    {/* Mobile Cart Button - Blue gradient bar above bottom nav */}
     {cart.some(i => i.quantity > 0) && <div className="fixed bottom-20 left-0 right-0 md:hidden z-40 px-3">
-      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-2xl px-4 py-3">
+      <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl shadow-2xl px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 text-white">
             <ShoppingCart className="w-5 h-5" />
@@ -1050,7 +1053,7 @@ const Billing = () => {
             <Button variant="ghost" size="sm" onClick={clearCart} className="h-9 w-9 p-0 text-white hover:bg-white/20 rounded-full">
               <Trash2 className="w-5 h-5" />
             </Button>
-            <Button onClick={() => setPaymentDialogOpen(true)} className="h-9 px-5 bg-white text-green-600 hover:bg-gray-100 font-bold rounded-full shadow-md">
+            <Button onClick={() => setPaymentDialogOpen(true)} className="h-9 px-5 bg-white text-primary hover:bg-gray-100 font-bold rounded-full shadow-md">
               Pay
             </Button>
           </div>
