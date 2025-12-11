@@ -58,6 +58,11 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
+    /* Theme-aware button colors */
+    --btn-increment: 218 90% 55%;
+    --btn-decrement: 218 70% 45%;
+    --qty-badge: 218 90% 55%;
+
     /* Blue Gradient Palette */
     --gradient-primary: linear-gradient(135deg, hsl(218 90% 55%), hsl(230 85% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(220 40% 96%), hsl(220 16% 47%));
@@ -179,6 +184,11 @@ All colors MUST be HSL.
     --input: 270 15% 90%;
     --ring: 270 70% 55%;
 
+    /* Theme-aware button colors */
+    --btn-increment: 270 70% 55%;
+    --btn-decrement: 290 60% 45%;
+    --qty-badge: 270 70% 55%;
+
     /* Purple Gradient Palette */
     --gradient-primary: linear-gradient(135deg, hsl(270 70% 55%), hsl(290 85% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(280 30% 96%), hsl(270 20% 50%));
@@ -239,6 +249,11 @@ All colors MUST be HSL.
     --border: 155 15% 90%;
     --input: 155 15% 90%;
     --ring: 160 74% 42%;
+
+    /* Theme-aware button colors */
+    --btn-increment: 160 74% 42%;
+    --btn-decrement: 175 60% 35%;
+    --qty-badge: 160 74% 42%;
 
     /* Green Gradient Palette */
     --gradient-primary: linear-gradient(135deg, hsl(160 74% 42%), hsl(175 75% 40%));
@@ -301,6 +316,11 @@ All colors MUST be HSL.
     --input: 350 15% 90%;
     --ring: 350 75% 58%;
 
+    /* Theme-aware button colors */
+    --btn-increment: 350 75% 58%;
+    --btn-decrement: 330 65% 48%;
+    --qty-badge: 350 75% 58%;
+
     /* Rose Gradient Palette */
     --gradient-primary: linear-gradient(135deg, hsl(350 75% 58%), hsl(330 80% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(350 30% 96%), hsl(350 20% 50%));
@@ -362,6 +382,11 @@ All colors MUST be HSL.
     --input: 30 15% 90%;
     --ring: 25 95% 55%;
 
+    /* Theme-aware button colors */
+    --btn-increment: 25 95% 55%;
+    --btn-decrement: 10 75% 45%;
+    --qty-badge: 25 95% 55%;
+
     /* Sunset Gradient Palette */
     --gradient-primary: linear-gradient(135deg, hsl(25 95% 55%), hsl(10 85% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(35 40% 96%), hsl(25 25% 50%));
@@ -382,6 +407,138 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 35 40% 96%;
     --sidebar-border: 25 30% 22%;
     --sidebar-ring: 25 95% 55%;
+  }
+
+  /* ===== THEME: Navy Blue ===== */
+  .theme-navy {
+    --background: 0 0% 100%;
+    --foreground: 240 60% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 60% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 60% 10%;
+
+    /* Navy Blue Primary - #000080 = HSL 240, 100%, 25% */
+    --primary: 240 100% 25%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 240 100% 35%;
+
+    --secondary: 235 30% 96%;
+    --secondary-foreground: 240 60% 10%;
+
+    --muted: 235 30% 96%;
+    --muted-foreground: 240 20% 50%;
+
+    /* Indigo accent */
+    --accent: 230 90% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 235 15% 88%;
+    --input: 235 15% 88%;
+    --ring: 240 100% 25%;
+
+    /* Theme-aware button colors */
+    --btn-increment: 240 100% 25%;
+    --btn-decrement: 230 80% 30%;
+    --qty-badge: 240 100% 25%;
+
+    /* Navy Gradient Palette */
+    --gradient-primary: linear-gradient(135deg, hsl(240 100% 25%), hsl(230 90% 35%));
+    --gradient-secondary: linear-gradient(135deg, hsl(235 30% 96%), hsl(240 20% 50%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 70% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(240 100% 25%) 0%, hsl(230 90% 35%) 50%, hsl(220 80% 45%) 100%);
+
+    /* Navy shadows and glows */
+    --shadow-elegant: 0 10px 30px -10px hsl(240 100% 25% / 0.35);
+    --shadow-glow: 0 0 40px hsl(240 100% 35% / 0.45);
+    --shadow-card: 0 4px 6px -1px hsl(240 60% 10% / 0.1);
+
+    /* Sidebar - Navy theme */
+    --sidebar-background: 240 60% 10%;
+    --sidebar-foreground: 235 30% 96%;
+    --sidebar-primary: 240 100% 25%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 40% 18%;
+    --sidebar-accent-foreground: 235 30% 96%;
+    --sidebar-border: 240 30% 22%;
+    --sidebar-ring: 240 100% 25%;
+  }
+
+  /* ===== THEME: Hot Pink ===== */
+  .theme-hotpink {
+    --background: 0 0% 100%;
+    --foreground: 322 50% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 322 50% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 322 50% 15%;
+
+    /* Dark Pink Primary - #C11C84 = HSL 322, 75%, 43% */
+    --primary: 322 75% 43%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 322 80% 50%;
+
+    --secondary: 320 40% 96%;
+    --secondary-foreground: 322 50% 15%;
+
+    --muted: 320 40% 96%;
+    --muted-foreground: 322 25% 50%;
+
+    /* Magenta accent */
+    --accent: 310 70% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 322 20% 88%;
+    --input: 322 20% 88%;
+    --ring: 322 75% 43%;
+
+    /* Theme-aware button colors */
+    --btn-increment: 322 75% 43%;
+    --btn-decrement: 310 65% 38%;
+    --qty-badge: 322 75% 43%;
+
+    /* Dark Pink Gradient Palette */
+    --gradient-primary: linear-gradient(135deg, hsl(322 75% 43%), hsl(310 70% 50%));
+    --gradient-secondary: linear-gradient(135deg, hsl(320 40% 96%), hsl(322 25% 50%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 70% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(322 75% 43%) 0%, hsl(310 70% 50%) 50%, hsl(300 65% 55%) 100%);
+
+    /* Dark Pink shadows and glows */
+    --shadow-elegant: 0 10px 30px -10px hsl(322 75% 43% / 0.35);
+    --shadow-glow: 0 0 40px hsl(322 80% 50% / 0.45);
+    --shadow-card: 0 4px 6px -1px hsl(322 50% 15% / 0.1);
+
+    /* Sidebar - Dark Pink theme */
+    --sidebar-background: 322 50% 15%;
+    --sidebar-foreground: 320 40% 96%;
+    --sidebar-primary: 322 75% 43%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 322 40% 22%;
+    --sidebar-accent-foreground: 320 40% 96%;
+    --sidebar-border: 322 35% 25%;
+    --sidebar-ring: 322 75% 43%;
   }
 }
 

@@ -888,7 +888,7 @@ const Billing = () => {
 
                 {/* Small rectangle quantity badge - shown when item is in cart */}
                 {isInCart && (
-                  <div className="absolute bottom-1 right-1 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-0.5">
+                  <div className="absolute bottom-1 right-1 bg-[hsl(var(--qty-badge))] text-white text-xs font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-0.5">
                     <span>{cartItem.quantity}</span>
                     <span>{unitLabel}</span>
                   </div>
@@ -901,11 +901,11 @@ const Billing = () => {
 
                 {isInCart ? (
                   <div className="flex items-center justify-center gap-1.5 mt-auto">
-                    <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full bg-red-500 text-white border-0 hover:bg-red-600">
+                    <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)} className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-decrement))] text-white border-0 hover:opacity-80">
                       <Minus className="h-3 w-3" />
                     </Button>
                     <span className="font-bold min-w-[1.5rem] text-center text-base">{cartItem.quantity}</span>
-                    <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full bg-green-500 text-white border-0 hover:bg-green-600">
+                    <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)} className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-increment))] text-white border-0 hover:opacity-80">
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
@@ -1011,20 +1011,20 @@ const Billing = () => {
               <span className="font-bold text-lg bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">₹{item.price}</span>
 
               <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-600 rounded-full p-1">
-                <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-sm">
+                <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, -1)} className="h-8 w-8 p-0 rounded-full bg-[hsl(var(--btn-decrement))] text-white hover:opacity-80 shadow-sm">
                   <Minus className="w-4 h-4" />
                 </Button>
 
                 {editingQuantity === item.id ? <div className="flex items-center space-x-1">
                   <Input type="number" value={tempQuantity} onChange={e => setTempQuantity(e.target.value)} className="w-12 h-8 text-center p-0 rounded-lg" autoFocus />
-                  <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0 rounded-full bg-green-500 text-white">
+                  <Button variant="ghost" size="sm" onClick={() => saveQuantity(item.id)} className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-increment))] text-white">
                     <Check className="w-3 h-3" />
                   </Button>
                 </div> : <span className="font-bold min-w-[40px] text-center cursor-pointer hover:bg-white dark:hover:bg-gray-500 rounded-full px-3 py-1 transition-colors" onClick={() => startEditingQuantity(item.id, item.quantity)}>
                   {item.quantity}
                 </span>}
 
-                <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0 rounded-full bg-green-500 text-white hover:bg-green-600 shadow-sm">
+                <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, 1)} className="h-8 w-8 p-0 rounded-full bg-[hsl(var(--btn-increment))] text-white hover:opacity-80 shadow-sm">
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>

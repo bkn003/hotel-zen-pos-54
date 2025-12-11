@@ -46,6 +46,20 @@ const themes: Theme[] = [
         class: 'theme-sunset',
         gradient: 'linear-gradient(135deg, hsl(40 95% 55%) 0%, hsl(25 95% 55%) 50%, hsl(10 85% 55%) 100%)',
         description: 'Warm sunset coral'
+    },
+    {
+        id: 'navy',
+        name: 'Navy Blue',
+        class: 'theme-navy',
+        gradient: 'linear-gradient(135deg, hsl(240 100% 25%) 0%, hsl(230 90% 35%) 50%, hsl(220 80% 45%) 100%)',
+        description: 'Dark navy blue'
+    },
+    {
+        id: 'hotpink',
+        name: 'Dark Pink',
+        class: 'theme-hotpink',
+        gradient: 'linear-gradient(135deg, hsl(322 75% 43%) 0%, hsl(310 70% 50%) 50%, hsl(300 65% 55%) 100%)',
+        description: 'Rich dark pink'
     }
 ];
 
@@ -71,7 +85,9 @@ export const ThemeSettings: React.FC = () => {
             'theme-purple',
             'theme-green',
             'theme-rose',
-            'theme-sunset'
+            'theme-sunset',
+            'theme-navy',
+            'theme-hotpink'
         );
 
         // Add the new theme class (if not default blue)
@@ -110,8 +126,8 @@ export const ThemeSettings: React.FC = () => {
                             key={theme.id}
                             onClick={() => handleThemeChange(theme.id)}
                             className={`relative flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-200 hover:scale-105 hover:shadow-lg ${activeTheme === theme.id
-                                    ? 'border-primary ring-2 ring-primary/30 shadow-md'
-                                    : 'border-border hover:border-primary/50'
+                                ? 'border-primary ring-2 ring-primary/30 shadow-md'
+                                : 'border-border hover:border-primary/50'
                                 }`}
                         >
                             {/* Gradient Preview */}

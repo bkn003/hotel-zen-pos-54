@@ -315,7 +315,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => handleQuantityChange(item.id, -1)}
-                        className="h-6 w-6 p-0 rounded-full bg-red-500 text-white border-0 hover:bg-red-600"
+                        className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-decrement))] text-white border-0 hover:opacity-80"
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -334,7 +334,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => handleQuantityChange(item.id, 1)}
-                        className="h-6 w-6 p-0 rounded-full bg-green-500 text-white border-0 hover:bg-green-600"
+                        className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-increment))] text-white border-0 hover:opacity-80"
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
@@ -492,7 +492,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             <Button
               onClick={handleCompletePayment}
               disabled={remaining !== 0}
-              className="flex-1 h-9 text-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg"
+              className="flex-1 h-9 text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
             >
               Complete Payment
             </Button>
