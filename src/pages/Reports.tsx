@@ -772,26 +772,24 @@ const Reports: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
+    <div className="p-3 sm:p-4 space-y-4 max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-center">
-          <img
-            src="/lovable-uploads/dd6a09aa-ab49-41aa-87d8-5ee1b772cb75.png"
-            alt="Restaurant"
-            className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-3"
-          />
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-md shadow-primary/20">
+            <BarChart3 className="w-5 h-5 text-primary-foreground" />
+          </div>
           <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Reports & Analytics</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">Business insights and performance metrics</p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Reports</h1>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Business insights and analytics</p>
           </div>
         </div>
         <div className="flex flex-row gap-2">
-          <Button onClick={handleExportAllExcel} variant="outline" size="sm" className="text-xs">
+          <Button onClick={handleExportAllExcel} variant="outline" size="sm" className="text-xs h-8 rounded-lg">
             <FileSpreadsheet className="w-3 h-3 mr-1" />
             Excel
           </Button>
-          <Button onClick={handleExportAllPDF} variant="outline" size="sm" className="text-xs">
+          <Button onClick={handleExportAllPDF} variant="outline" size="sm" className="text-xs h-8 rounded-lg">
             <Download className="w-3 h-3 mr-1" />
             PDF
           </Button>

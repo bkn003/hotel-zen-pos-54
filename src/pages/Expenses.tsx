@@ -230,14 +230,16 @@ const Expenses: React.FC = () => {
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
-    <div className="container mx-auto py-4 px-4 max-w-full overflow-x-hidden">
+    <div className="p-3 sm:p-4 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center">
-          <Receipt className="w-8 h-8 mr-3 text-primary" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl flex items-center justify-center shadow-md shadow-rose-500/20">
+            <Receipt className="w-5 h-5 text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Expenses</h1>
-            <p className="text-muted-foreground text-sm">Track your business expenses</p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Expenses</h1>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Track your business expenses</p>
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -248,19 +250,19 @@ const Expenses: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={handleExportExcel}
-                  className="text-xs"
+                  className="text-xs h-8 rounded-lg"
                 >
                   <FileSpreadsheet className="w-4 h-4 mr-1" />
-                  Export Excel
+                  Excel
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleExportPDF}
-                  className="text-xs"
+                  className="text-xs h-8 rounded-lg"
                 >
                   <Download className="w-4 h-4 mr-1" />
-                  Export PDF
+                  PDF
                 </Button>
               </div>
               <div className="flex gap-2">
