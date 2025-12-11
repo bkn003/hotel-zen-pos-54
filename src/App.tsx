@@ -35,13 +35,38 @@ const queryClient = new QueryClient({
 import { InstallPrompt } from './components/InstallPrompt';
 
 const App = () => {
+  // Theme colors for status bar (meta theme-color)
+  const themeColors: Record<string, string> = {
+    'blue': '#3b82f6',
+    'purple': '#9333ea',
+    'green': '#10b981',
+    'rose': '#e11d48',
+    'sunset': '#f97316',
+    'navy': '#1e3a8a',
+    'hotpink': '#c11c84'
+  };
+
   // Global cache invalidation listeners and theme initialization
   React.useEffect(() => {
     // Apply saved theme on startup
-    const savedTheme = localStorage.getItem('hotel_pos_theme');
+    const savedTheme = localStorage.getItem('hotel_pos_theme') || 'blue';
+
+    // Apply theme class
     if (savedTheme && savedTheme !== 'blue') {
       const themeClass = `theme-${savedTheme}`;
       document.documentElement.classList.add(themeClass);
+    }
+
+    // Apply theme-color meta tag for status bar
+    const themeColor = themeColors[savedTheme] || '#3b82f6';
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', themeColor);
+    } else {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      metaThemeColor.setAttribute('content', themeColor);
+      document.head.appendChild(metaThemeColor);
     }
 
     const handleInvalidateBills = () => {
