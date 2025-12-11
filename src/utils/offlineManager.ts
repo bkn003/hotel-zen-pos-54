@@ -255,8 +255,67 @@ class OfflineManager {
         switch (item.type) {
             case 'bill':
                 if (item.action === 'create') {
-                    const { error } = await supabase.from('bills').insert(item.data);
-                    if (error) throw error;
+                    const billData = item.data.bill;
+                    const itemsData = item.data.items;
+
+                    // Generate proper sequential bill number
+                    const { data: allBillNos } = await supabase
+                        .from('bills')
+                        .select('bill_no')
+                        .order('created_at', { ascending: false })
+                        .limit(100);
+
+                    let maxNumber = 55;
+                    if (allBillNos && allBillNos.length > 0) {
+                        allBillNos.forEach((bill: any) => {
+                            const match = bill.bill_no.match(/^BILL-(\d{6})$/);
+                            if (match) {
+                                const num = parseInt(match[1], 10);
+                                if (num > maxNumber) {
+                                    maxNumber = num;
+                                }
+                            }
+                        });
+                    }
+                    const properBillNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+
+                    // Update the bill data with proper bill number
+                    const finalBillData = {
+                        ...billData,
+                        bill_no: properBillNumber
+                    };
+
+                    // Create the bill
+                    const { data: createdBill, error: billError } = await supabase
+                        .from('bills')
+                        .insert(finalBillData)
+                        .select()
+                        .single();
+
+                    if (billError) throw billError;
+
+                    // Create bill items
+                    if (createdBill && itemsData && itemsData.length > 0) {
+                        const billItems = itemsData.map((billItem: any) => ({
+                            bill_id: createdBill.id,
+                            item_id: billItem.item_id,
+                            quantity: billItem.quantity,
+                            price: billItem.price,
+                            total: billItem.total
+                        }));
+
+                        const { error: itemsError } = await supabase
+                            .from('bill_items')
+                            .insert(billItems);
+
+                        if (itemsError) {
+                            console.error('Failed to insert bill items, rolling back...', itemsError);
+                            await supabase.from('bills').delete().eq('id', createdBill.id);
+                            throw itemsError;
+                        }
+                    }
+
+                    console.log(`Offline bill synced: ${billData.bill_no} → ${properBillNumber}`);
                 }
                 break;
             case 'expense':
