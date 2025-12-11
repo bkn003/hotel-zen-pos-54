@@ -54,18 +54,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   // User is properly authenticated with active profile
   console.log('User authenticated - showing app');
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex">
       <Sidebar />
 
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 w-full">
         <Header />
 
         {/* Offline Status Indicator */}
-        <div className="px-4 py-2">
+        <div className="px-3 sm:px-4 py-1.5">
           <OfflineIndicator />
         </div>
 
-        <main className="flex-1 pb-20 md:pb-6">
+        <main className="flex-1 pb-24 md:pb-6">
           {children}
         </main>
 

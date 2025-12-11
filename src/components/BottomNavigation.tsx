@@ -32,11 +32,11 @@ export const BottomNavigation: React.FC = () => {
   const navItems = allNavItems.filter(item => hasAccess(item.page));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50">
-      {/* Glassmorphism background */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/90 to-background/80 backdrop-blur-xl border-t border-primary/10" />
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 safe-area-inset-bottom">
+      {/* Premium glassmorphism background */}
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/95 to-background/85 backdrop-blur-2xl border-t border-border/50" />
 
-      <div className="relative flex justify-around items-center py-2 px-1">
+      <div className="relative flex justify-around items-center py-2.5 px-2">
         {navItems.map(({ to, icon: Icon, label }) => {
           const isActive = location.pathname === to ||
             (to === '/billing' && location.pathname === '/');
@@ -46,29 +46,29 @@ export const BottomNavigation: React.FC = () => {
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-300 min-w-0 flex-1 mx-0.5",
+                "flex flex-col items-center justify-center py-2 px-3 rounded-2xl transition-all duration-300 min-w-[56px] flex-1 mx-1",
                 isActive
-                  ? "bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30 scale-105 -translate-y-1"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95"
+                  ? "bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02] -translate-y-0.5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-95"
               )}
             >
               <div className={cn(
-                "p-1.5 rounded-xl transition-all duration-300",
-                isActive ? "bg-white/20" : ""
+                "p-2 rounded-xl transition-all duration-300",
+                isActive ? "bg-white/15" : ""
               )}>
                 <Icon className={cn(
                   "transition-all duration-300",
-                  isActive ? "w-5 h-5" : "w-4 h-4"
+                  isActive ? "w-5 h-5" : "w-5 h-5"
                 )} />
               </div>
               <span className={cn(
-                "font-medium truncate transition-all duration-300",
-                isActive ? "text-[11px] mt-0.5" : "text-[10px] mt-0.5"
+                "font-medium truncate transition-all duration-300 mt-0.5",
+                isActive ? "text-[11px]" : "text-[10px]"
               )}>{label}</span>
 
-              {/* Active indicator dot */}
+              {/* Active indicator */}
               {isActive && (
-                <div className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-primary-foreground animate-pulse" />
+                <div className="absolute -bottom-0.5 w-1.5 h-1.5 rounded-full bg-primary-foreground" />
               )}
             </NavLink>
           );
