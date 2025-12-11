@@ -157,14 +157,16 @@ const Items: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto py-2 px-2 max-w-full">
+    <div className="p-3 sm:p-4 max-w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="flex items-center">
-          <Package className="w-6 h-6 mr-2 text-primary" />
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-md shadow-primary/20">
+            <Package className="w-5 h-5 text-primary-foreground" />
+          </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Items Management</h1>
-            <p className="text-muted-foreground text-xs">Manage your menu items</p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Items</h1>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Manage your menu items</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -178,15 +180,15 @@ const Items: React.FC = () => {
       </div>
 
       {/* Search and Filter */}
-      <Card className="mb-4">
+      <Card className="mb-4 bg-card/80 backdrop-blur-sm border-border/50">
         <CardContent className="p-3 space-y-3">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 h-9 text-sm"
+              className="w-full pl-10 h-10 text-sm rounded-xl border-border/50 bg-background/80"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -194,7 +196,7 @@ const Items: React.FC = () => {
               variant={selectedCategory === 'all' ? "default" : "outline"}
               onClick={() => setSelectedCategory('all')}
               size="sm"
-              className="h-7 text-xs"
+              className="h-8 text-xs rounded-lg px-3"
             >
               All ({items.length})
             </Button>
@@ -204,7 +206,7 @@ const Items: React.FC = () => {
                 variant={selectedCategory === category ? "default" : "outline"}
                 onClick={() => setSelectedCategory(category)}
                 size="sm"
-                className="h-7 text-xs"
+                className="h-8 text-xs rounded-lg px-3"
               >
                 {category} ({getCategoryCount(category)})
               </Button>

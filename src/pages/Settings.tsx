@@ -153,12 +153,14 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen p-3 sm:p-6">
+    <div className="min-h-screen p-3 sm:p-4">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <div className="flex items-center space-x-2">
-            <SettingsIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-            <h1 className="text-xl sm:text-2xl font-bold">Settings</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-md shadow-primary/20">
+              <SettingsIcon className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Settings</h1>
           </div>
         </div>
 

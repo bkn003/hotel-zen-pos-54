@@ -127,70 +127,78 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening today.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Welcome back! Here's what's happening today.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="shadow-card hover:shadow-lg transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
-            <DollarSign className="h-4 w-4 text-success" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-200/50 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Sales</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <DollarSign className="h-4 w-4 text-emerald-600" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-emerald-600">
               {formatCurrency(stats.todaySales)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
               {stats.todayBills} bills processed
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card hover:shadow-lg transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Expenses</CardTitle>
-            <Receipt className="h-4 w-4 text-destructive" />
+        <Card className="bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-200/50 dark:border-rose-800/30 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Expenses</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+              <Receipt className="h-4 w-4 text-rose-600" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-rose-600">
               {formatCurrency(stats.todayExpenses)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
               Operating expenses
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card hover:shadow-lg transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Profit</CardTitle>
-            <TrendingUp className={`h-4 w-4 ${stats.todayProfit >= 0 ? 'text-success' : 'text-destructive'}`} />
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-200/50 dark:border-blue-800/30 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Profit</CardTitle>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stats.todayProfit >= 0 ? 'bg-blue-500/20' : 'bg-rose-500/20'}`}>
+              <TrendingUp className={`h-4 w-4 ${stats.todayProfit >= 0 ? 'text-blue-600' : 'text-rose-600'}`} />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${stats.todayProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className={`text-lg sm:text-2xl font-bold ${stats.todayProfit >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
               {formatCurrency(stats.todayProfit)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
               Sales minus expenses
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card hover:shadow-lg transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Items</CardTitle>
-            <Package className="h-4 w-4 text-primary" />
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Active Items</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Package className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="text-lg sm:text-2xl font-bold text-primary">
               {stats.totalItems}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
               Available for billing
             </p>
           </CardContent>
