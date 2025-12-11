@@ -72,7 +72,7 @@ export const exportAllReportsToExcel = (data: {
       'Payment Mode': bill.payment_mode,
       'Items': bill.items_count
     }));
-    
+
     const billsTotal = data.bills.reduce((sum, bill) => sum + bill.total_amount, 0);
     billsData.push({
       '#': '',
@@ -86,7 +86,7 @@ export const exportAllReportsToExcel = (data: {
     } as any);
 
     const billsWs = XLSX.utils.json_to_sheet(billsData);
-    
+
     // Auto-fit columns
     const billsRange = XLSX.utils.decode_range(billsWs['!ref'] || 'A1');
     const billsColWidths = [];
@@ -103,7 +103,7 @@ export const exportAllReportsToExcel = (data: {
       billsColWidths.push({ width: Math.min(maxWidth, 50) });
     }
     billsWs['!cols'] = billsColWidths;
-    
+
     XLSX.utils.book_append_sheet(wb, billsWs, 'Bills Report');
   }
 
@@ -116,7 +116,7 @@ export const exportAllReportsToExcel = (data: {
       'Quantity Sold': item.total_quantity,
       'Revenue': item.total_revenue
     }));
-    
+
     const itemsTotal = data.items.reduce((sum, item) => sum + item.total_revenue, 0);
     itemsData.push({
       '#': '',
@@ -127,7 +127,7 @@ export const exportAllReportsToExcel = (data: {
     } as any);
 
     const itemsWs = XLSX.utils.json_to_sheet(itemsData);
-    
+
     // Auto-fit columns for items
     const itemsRange = XLSX.utils.decode_range(itemsWs['!ref'] || 'A1');
     const itemsColWidths = [];
@@ -144,7 +144,7 @@ export const exportAllReportsToExcel = (data: {
       itemsColWidths.push({ width: Math.min(maxWidth, 50) });
     }
     itemsWs['!cols'] = itemsColWidths;
-    
+
     XLSX.utils.book_append_sheet(wb, itemsWs, 'Items Report');
   }
 
@@ -157,7 +157,7 @@ export const exportAllReportsToExcel = (data: {
       'Transactions': payment.transaction_count,
       'Percentage': payment.percentage + '%'
     }));
-    
+
     const paymentsTotal = data.payments.reduce((sum, payment) => sum + payment.total_amount, 0);
     paymentsData.push({
       '#': '',
@@ -179,11 +179,11 @@ export const exportAllReportsToExcel = (data: {
       'Type': item.type.toUpperCase(),
       'Amount': item.amount
     }));
-    
+
     const revenue = data.profitLoss.filter(item => item.type === 'revenue').reduce((sum, item) => sum + item.amount, 0);
     const expenses = data.profitLoss.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0);
     const profit = revenue - expenses;
-    
+
     plData.push(
       { '#': '', 'Description': 'TOTAL REVENUE', 'Type': 'REVENUE', 'Amount': revenue } as any,
       { '#': '', 'Description': 'TOTAL EXPENSES', 'Type': 'EXPENSE', 'Amount': expenses } as any,
@@ -194,7 +194,13 @@ export const exportAllReportsToExcel = (data: {
     XLSX.utils.book_append_sheet(wb, plWs, 'Profit & Loss');
   }
 
-  XLSX.writeFile(wb, `reports-${data.dateRange.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
+  // Generate clean filename with current date
+  const today = new Date().toISOString().split('T')[0];
+  const cleanDateRange = data.dateRange.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const filename = `reports-${cleanDateRange}-${today}.xlsx`;
+
+  // Write file with explicit options for better browser compatibility
+  XLSX.writeFile(wb, filename, { bookType: 'xlsx' });
 };
 
 // Export all reports to PDF with separate pages
@@ -206,12 +212,12 @@ export const exportAllReportsToPDF = (data: {
   dateRange: string;
 }) => {
   const doc = new jsPDF();
-  
+
   // Title page
   doc.setFontSize(24);
   doc.setTextColor(40);
   doc.text('Business Reports', 20, 30);
-  
+
   doc.setFontSize(14);
   doc.setTextColor(100);
   doc.text(`Period: ${data.dateRange}`, 20, 45);
@@ -225,12 +231,12 @@ export const exportAllReportsToPDF = (data: {
     doc.setFontSize(18);
     doc.setTextColor(40);
     doc.text('Bills Report', 20, 20);
-    
+
     const billsTotal = data.bills.reduce((sum, bill) => sum + bill.total_amount, 0);
     doc.setFontSize(12);
     doc.text(`Total Bills: ${data.bills.length}`, 20, 35);
     doc.text(`Total Amount: ${billsTotal.toFixed(2)}`, 20, 45);
-    
+
     const billsTableData = data.bills.map((bill, index) => [
       (index + 1).toString(),
       bill.bill_no,
@@ -241,7 +247,7 @@ export const exportAllReportsToPDF = (data: {
       bill.payment_mode,
       bill.items_count.toString()
     ]);
-    
+
     billsTableData.push([
       '',
       'TOTAL',
@@ -268,12 +274,12 @@ export const exportAllReportsToPDF = (data: {
     doc.setFontSize(18);
     doc.setTextColor(40);
     doc.text('Items Sales Report', 20, 20);
-    
+
     const itemsTotal = data.items.reduce((sum, item) => sum + item.total_revenue, 0);
     doc.setFontSize(12);
     doc.text(`Total Items: ${data.items.length}`, 20, 35);
     doc.text(`Total Revenue: ${itemsTotal.toFixed(2)}`, 20, 45);
-    
+
     const itemsTableData = data.items.map((item, index) => [
       (index + 1).toString(),
       item.item_name,
@@ -281,7 +287,7 @@ export const exportAllReportsToPDF = (data: {
       item.total_quantity.toString(),
       item.total_revenue.toFixed(2)
     ]);
-    
+
     itemsTableData.push([
       '',
       'TOTAL',
@@ -305,11 +311,11 @@ export const exportAllReportsToPDF = (data: {
     doc.setFontSize(18);
     doc.setTextColor(40);
     doc.text('Payment Methods Report', 20, 20);
-    
+
     const paymentsTotal = data.payments.reduce((sum, payment) => sum + payment.total_amount, 0);
     doc.setFontSize(12);
     doc.text(`Total Amount: ${paymentsTotal.toFixed(2)}`, 20, 35);
-    
+
     const paymentsTableData = data.payments.map((payment, index) => [
       (index + 1).toString(),
       payment.payment_method,
@@ -317,7 +323,7 @@ export const exportAllReportsToPDF = (data: {
       payment.transaction_count.toString(),
       payment.percentage.toFixed(1) + '%'
     ]);
-    
+
     paymentsTableData.push([
       '',
       'TOTAL',
@@ -341,18 +347,18 @@ export const exportAllReportsToPDF = (data: {
     doc.setFontSize(18);
     doc.setTextColor(40);
     doc.text('Profit & Loss Statement', 20, 20);
-    
+
     const revenue = data.profitLoss.filter(item => item.type === 'revenue').reduce((sum, item) => sum + item.amount, 0);
     const expenses = data.profitLoss.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0);
     const profit = revenue - expenses;
-    
+
     const plTableData = data.profitLoss.map((item, index) => [
       (index + 1).toString(),
       item.description,
       item.type.toUpperCase(),
       item.amount.toFixed(2)
     ]);
-    
+
     plTableData.push(
       ['', 'TOTAL REVENUE', 'REVENUE', revenue.toFixed(2)],
       ['', 'TOTAL EXPENSES', 'EXPENSE', expenses.toFixed(2)],
@@ -368,27 +374,32 @@ export const exportAllReportsToPDF = (data: {
     });
   }
 
-  doc.save(`reports-${data.dateRange.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+  // Generate clean filename with current date
+  const today = new Date().toISOString().split('T')[0];
+  const cleanDateRange = data.dateRange.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const filename = `reports-${cleanDateRange}-${today}.pdf`;
+
+  doc.save(filename);
 };
 
 // Keep the old functions for backward compatibility
 export const exportToPDF = (expenses: ExpenseForPDF[], title: string = 'Expenses Report') => {
   const doc = new jsPDF();
-  
+
   doc.setFontSize(20);
   doc.setTextColor(40);
   doc.text(title, 20, 20);
-  
+
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
-  
+
   const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  
+
   doc.setFontSize(12);
   doc.setTextColor(40);
   doc.text(`Total Expenses: ${total.toFixed(2)}`, 20, 40);
-  
+
   const tableData = expenses.map((expense, index) => [
     (index + 1).toString(),
     expense.expense_name || 'Unnamed Expense',
@@ -397,7 +408,7 @@ export const exportToPDF = (expenses: ExpenseForPDF[], title: string = 'Expenses
     new Date(expense.date).toLocaleDateString(),
     expense.note || '-'
   ]);
-  
+
   autoTable(doc, {
     head: [['#', 'Name', 'Category', 'Amount', 'Date', 'Note']],
     body: tableData,
@@ -430,7 +441,7 @@ export const exportToPDF = (expenses: ExpenseForPDF[], title: string = 'Expenses
       fillColor: [245, 245, 245]
     }
   });
-  
+
   doc.save(`${title.toLowerCase().replace(/\s+/g, '-')}.pdf`);
 };
 
@@ -443,7 +454,7 @@ export const exportToExcel = (expenses: ExpenseForPDF[], title: string = 'Expens
     'Date': new Date(expense.date).toLocaleDateString(),
     'Note': expense.note || '-'
   }));
-  
+
   const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   excelData.push({
     '#': '',
@@ -453,11 +464,11 @@ export const exportToExcel = (expenses: ExpenseForPDF[], title: string = 'Expens
     'Date': '',
     'Note': ''
   } as any);
-  
+
   const ws = XLSX.utils.json_to_sheet(excelData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
-  
+
   XLSX.writeFile(wb, `${title.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
 };
 
