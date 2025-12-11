@@ -723,7 +723,7 @@ const Billing = () => {
             payment_details: paymentData.paymentAmounts,
             additional_charges: additionalChargesArray,
             created_by: profile?.user_id,
-            date: now.toISOString().split('T')[0] // Store just the date part
+            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` // Store local date
           })
           .select()
           .single();

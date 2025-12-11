@@ -65,7 +65,7 @@ export const PaymentTypesManagement: React.FC = () => {
     try {
       const { error } = await supabase
         .from('payments')
-        .insert({ 
+        .insert({
           payment_type: newPaymentType.trim(),
           is_disabled: false,
           is_default: false
@@ -158,11 +158,13 @@ export const PaymentTypesManagement: React.FC = () => {
 
   const setAsDefault = async (paymentId: string) => {
     try {
-      // First, remove default from all payment types
-      await supabase
+      // First, remove default from ALL payment types that are currently default
+      const { error: clearError } = await supabase
         .from('payments')
         .update({ is_default: false })
-        .neq('id', '');
+        .eq('is_default', true);
+
+      if (clearError) throw clearError;
 
       // Then set the selected one as default
       const { error } = await supabase

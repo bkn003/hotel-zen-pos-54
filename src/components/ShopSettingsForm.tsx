@@ -32,6 +32,28 @@ export const ShopSettingsForm = () => {
     const [showWhatsapp, setShowWhatsapp] = useState(true);
 
     useEffect(() => {
+        // 1. Instant load from localStorage cache (no loading state)
+        const saved = localStorage.getItem('hotel_pos_bill_header');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setShopName(parsed.shopName || '');
+                setAddress(parsed.address || '');
+                setContactNumber(parsed.contactNumber || '');
+                setLogoUrl(parsed.logoUrl || '');
+                setPrinterWidth(parsed.printerWidth || '58mm');
+                setFacebook(parsed.facebook || '');
+                setShowFacebook(parsed.showFacebook !== false);
+                setInstagram(parsed.instagram || '');
+                setShowInstagram(parsed.showInstagram !== false);
+                setWhatsapp(parsed.whatsapp || '');
+                setShowWhatsapp(parsed.showWhatsapp !== false);
+            } catch (e) { /* ignore parse errors */ }
+        }
+        // Always show the form (with cached or empty values)
+        setLoading(false);
+
+        // 2. Background sync from Supabase
         if (profile?.user_id) {
             fetchSettings();
         }
@@ -60,17 +82,22 @@ export const ShopSettingsForm = () => {
                 setShowInstagram(data.show_instagram !== false);
                 setWhatsapp(data.whatsapp || '');
                 setShowWhatsapp(data.show_whatsapp !== false);
-            } else {
-                // Try local storage backup
-                const saved = localStorage.getItem('hotel_pos_bill_header');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    setShopName(parsed.shopName || '');
-                    setAddress(parsed.address || '');
-                    setContactNumber(parsed.contactNumber || '');
-                    setLogoUrl(parsed.logoUrl || '');
-                    // ... strict type checks omitted for brevity
-                }
+
+                // Update cache with fresh data from Supabase
+                const cacheData = {
+                    shopName: data.shop_name || '',
+                    address: data.address || '',
+                    contactNumber: data.contact_number || '',
+                    logoUrl: data.logo_url || '',
+                    printerWidth: data.printer_width || '58mm',
+                    facebook: data.facebook || '',
+                    showFacebook: data.show_facebook !== false,
+                    instagram: data.instagram || '',
+                    showInstagram: data.show_instagram !== false,
+                    whatsapp: data.whatsapp || '',
+                    showWhatsapp: data.show_whatsapp !== false
+                };
+                localStorage.setItem('hotel_pos_bill_header', JSON.stringify(cacheData));
             }
         } catch (error) {
             console.error('Error fetching shop settings:', error);
