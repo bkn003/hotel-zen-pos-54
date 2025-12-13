@@ -4,17 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 // Image cache for performance
 const imageCache = new Map<string, string>();
 
-export const compressImage = (file: File, maxSizeKB: number = 300): Promise<Blob> => {
+export const compressImage = (file: File, maxSizeKB: number = 65): Promise<Blob> => {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
     const img = new Image();
-    
+
     img.onload = () => {
-      // Calculate dimensions to maintain aspect ratio
-      const maxDimension = 800;
+      // Calculate dimensions to maintain aspect ratio - reduced for smaller file size
+      const maxDimension = 600; // Reduced from 800 for smaller files
       let { width, height } = img;
-      
+
       if (width > maxDimension || height > maxDimension) {
         if (width > height) {
           height = (height * maxDimension) / width;
@@ -24,13 +24,13 @@ export const compressImage = (file: File, maxSizeKB: number = 300): Promise<Blob
           height = maxDimension;
         }
       }
-      
+
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
-      
-      // Start with quality 0.8 and reduce if needed
-      let quality = 0.8;
+
+      // Start with quality 0.6 and reduce if needed for 50-75KB target
+      let quality = 0.6;
       const compress = () => {
         canvas.toBlob((blob) => {
           if (blob && blob.size <= maxSizeKB * 1024) {
@@ -43,10 +43,10 @@ export const compressImage = (file: File, maxSizeKB: number = 300): Promise<Blob
           }
         }, 'image/jpeg', quality);
       };
-      
+
       compress();
     };
-    
+
     img.src = URL.createObjectURL(file);
   });
 };
@@ -55,12 +55,12 @@ export const uploadItemImage = async (file: File, itemId: string): Promise<strin
   try {
     // Compress the image
     const compressedBlob = await compressImage(file);
-    
+
     // Generate unique filename
     const timestamp = Date.now();
     const fileName = `${itemId}_${timestamp}.jpg`;
     const filePath = `items/${fileName}`;
-    
+
     // Upload to Supabase storage
     const { data, error } = await supabase.storage
       .from('item-images')
@@ -68,17 +68,17 @@ export const uploadItemImage = async (file: File, itemId: string): Promise<strin
         cacheControl: '3600',
         upsert: true
       });
-    
+
     if (error) throw error;
-    
+
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('item-images')
       .getPublicUrl(filePath);
-    
+
     // Cache the URL
     imageCache.set(itemId, publicUrl);
-    
+
     return publicUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
@@ -100,11 +100,11 @@ export const deleteItemImage = async (imageUrl: string): Promise<void> => {
     const urlParts = imageUrl.split('/');
     const fileName = urlParts[urlParts.length - 1];
     const filePath = `items/${fileName}`;
-    
+
     const { error } = await supabase.storage
       .from('item-images')
       .remove([filePath]);
-    
+
     if (error) throw error;
   } catch (error) {
     console.error('Error deleting image:', error);

@@ -33,11 +33,11 @@ export const BottomNavigation: React.FC = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50">
-      {/* Premium glassmorphism background */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/98 to-background/90 backdrop-blur-2xl border-t border-border/50" />
+      {/* Premium clean background with subtle shadow - dark mode aware */}
+      <div className="absolute inset-0 bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.3)] border-t border-border" />
 
       <div
-        className="relative flex justify-around items-center py-2 px-2"
+        className="relative flex justify-around items-center py-2 px-1"
         style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))' }}
       >
         {navItems.map(({ to, icon: Icon, label }) => {
@@ -48,20 +48,23 @@ export const BottomNavigation: React.FC = () => {
             <NavLink
               key={to}
               to={to}
-              className={cn(
-                "flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-300 min-w-[48px] flex-1 mx-0.5",
-                isActive
-                  ? "bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-95"
-              )}
+              className="flex flex-col items-center justify-center py-1 px-1 min-w-[52px] flex-1"
             >
-              <Icon className={cn(
-                "transition-all duration-300 w-5 h-5",
-                isActive ? "" : ""
-              )} />
+              {/* Icon container - rounded square for active, plain for inactive */}
+              <div className={cn(
+                "flex items-center justify-center transition-all duration-300",
+                isActive
+                  ? "w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/90 shadow-lg shadow-primary/30"
+                  : "w-8 h-8"
+              )}>
+                <Icon className={cn(
+                  "transition-all duration-300",
+                  isActive ? "w-5 h-5 text-white" : "w-5 h-5 text-muted-foreground"
+                )} />
+              </div>
               <span className={cn(
-                "font-medium truncate transition-all duration-300 mt-0.5",
-                isActive ? "text-[10px]" : "text-[9px]"
+                "text-[10px] mt-1 transition-all duration-300 font-medium",
+                isActive ? "text-primary" : "text-muted-foreground"
               )}>{label}</span>
             </NavLink>
           );

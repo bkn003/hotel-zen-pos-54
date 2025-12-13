@@ -178,6 +178,6 @@ export const ThemeSettings: React.FC = () => {
                     ))}
                 </div>
             </CardContent>
-        </Card>
+        </Card >
     );
 };

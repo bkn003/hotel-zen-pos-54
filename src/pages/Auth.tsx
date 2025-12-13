@@ -2,14 +2,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Hotel, Clock } from 'lucide-react';
-import { checkRateLimit, clearRateLimit, isValidEmail, sanitizeInput, logSecurityEvent } from '@/utils/securityUtils';
+import { Eye, EyeOff, Store, Clock, Loader2 } from 'lucide-react';
+import { checkRateLimit, clearRateLimit, isValidEmail, logSecurityEvent } from '@/utils/securityUtils';
 
 const Auth = () => {
   const { user, profile, signIn, signUp, signOut, loading: authLoading } = useAuth();
@@ -28,16 +26,11 @@ const Auth = () => {
   // Show loading while authentication is being initialized
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <CardTitle className="text-xl font-bold">Loading...</CardTitle>
-            <CardDescription>
-              Checking authentication status...
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-white">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-pink-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -50,36 +43,29 @@ const Auth = () => {
   // If user is logged in but account is paused
   if (user && profile?.status === 'paused') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <Clock className="w-16 h-16 mx-auto mb-4 text-orange-500" />
-            <CardTitle className="text-2xl font-bold">Account Pending Approval</CardTitle>
-            <CardDescription className="text-center">
-              Your admin account is awaiting approval from the super admin. Please wait for activation or contact support.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Account Details:</strong>
-                </p>
-                <p className="text-sm">Name: {profile?.name}</p>
-                <p className="text-sm">Role: {profile?.role}</p>
-                {profile?.hotel_name && <p className="text-sm">Hotel: {profile?.hotel_name}</p>}
-                <p className="text-sm">Status: <span className="text-orange-600 font-medium">Pending Approval</span></p>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={signOut}
-              >
-                Sign Out
-              </Button>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-white px-4">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-pink-100 overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-pink-500 via-pink-600 to-pink-500"></div>
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+              <Clock className="w-8 h-8 text-orange-500" />
             </div>
-          </CardContent>
-        </Card>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending</h2>
+            <p className="text-gray-500 text-sm mb-6">Your account is awaiting approval from the administrator.</p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+              <p className="text-sm text-gray-600 mb-1"><span className="font-medium">Name:</span> {profile?.name}</p>
+              <p className="text-sm text-gray-600 mb-1"><span className="font-medium">Role:</span> {profile?.role}</p>
+              {profile?.hotel_name && <p className="text-sm text-gray-600 mb-1"><span className="font-medium">Hotel:</span> {profile?.hotel_name}</p>}
+              <p className="text-sm"><span className="font-medium">Status:</span> <span className="text-orange-600">Pending Approval</span></p>
+            </div>
+            <button
+              onClick={signOut}
+              className="w-full py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -87,27 +73,23 @@ const Auth = () => {
   // If user is logged in but account is deleted
   if (user && profile?.status === 'deleted') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-white px-4">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-pink-100 overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-red-500 via-red-600 to-red-500"></div>
+          <div className="p-8 text-center">
             <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
               <span className="text-red-600 text-2xl">⚠️</span>
             </div>
-            <CardTitle className="text-2xl font-bold text-red-600">Account Deactivated</CardTitle>
-            <CardDescription className="text-center">
-              Your account has been deactivated by the administrator. Please contact support for assistance.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="w-full"
+            <h2 className="text-2xl font-bold text-red-600 mb-2">Account Deactivated</h2>
+            <p className="text-gray-500 text-sm mb-6">Your account has been deactivated. Please contact support.</p>
+            <button
               onClick={signOut}
+              className="w-full py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
               Sign Out
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -115,16 +97,11 @@ const Auth = () => {
   // If user is logged in but profile is not loaded yet, show loading
   if (user && !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <CardTitle className="text-xl font-bold">Setting up your account...</CardTitle>
-            <CardDescription>
-              Please wait while we prepare your dashboard.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-white">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-pink-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Setting up your account...</p>
+        </div>
       </div>
     );
   }
@@ -246,30 +223,43 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <Hotel className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <CardTitle className="text-2xl font-bold">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 via-white to-pink-50/30 px-4 py-8">
+      {/* Main Card */}
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-pink-100/50 overflow-hidden">
+        {/* Top Gradient Accent */}
+        <div className="h-2 bg-gradient-to-r from-pink-500 via-pink-600 to-pink-500"></div>
+
+        {/* Content */}
+        <div className="p-8">
+          {/* Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="w-14 h-14 bg-gradient-to-br from-pink-600 to-pink-700 rounded-xl flex items-center justify-center shadow-lg shadow-pink-500/30">
+              <Store className="w-7 h-7 text-white" />
+            </div>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">
             {isForgotPassword ? 'Reset Password' : (isLogin ? 'Welcome Back' : 'Create Account')}
-          </CardTitle>
-          <CardDescription>
+          </h1>
+          <p className="text-gray-500 text-sm text-center mb-8">
             {isForgotPassword
-              ? 'Enter your email to receive a password reset link'
+              ? 'Enter your email to receive a reset link'
               : (isLogin
                 ? 'Sign in to access your POS system'
                 : 'Register for Hotel ZEN POS Management'
               )
             }
-          </CardDescription>
-        </CardHeader>
+          </p>
 
-        <CardContent>
-          <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
+          {/* Form */}
+          <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-5">
+            {/* Sign Up Fields */}
             {!isLogin && !isForgotPassword && (
               <>
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
+                {/* Full Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium text-gray-700">Full Name</Label>
                   <Input
                     id="name"
                     type="text"
@@ -277,16 +267,18 @@ const Auth = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     required
                     placeholder="Enter your full name"
+                    className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all"
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="role">Account Type</Label>
+                {/* Account Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="role" className="text-sm font-medium text-gray-700">Account Type</Label>
                   <Select
                     value={formData.role}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20">
                       <SelectValue placeholder="Select account type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -296,9 +288,10 @@ const Auth = () => {
                   </Select>
                 </div>
 
+                {/* Hotel Name - Only for Admin */}
                 {formData.role === 'admin' && (
-                  <div>
-                    <Label htmlFor="hotelName">Hotel Name</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="hotelName" className="text-sm font-medium text-gray-700">Hotel Name</Label>
                     <Input
                       id="hotelName"
                       type="text"
@@ -306,14 +299,16 @@ const Auth = () => {
                       onChange={(e) => setFormData(prev => ({ ...prev, hotelName: e.target.value }))}
                       required
                       placeholder="Enter your hotel name"
+                      className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all"
                     />
                   </div>
                 )}
               </>
             )}
 
-            <div>
-              <Label htmlFor="email">Email</Label>
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -321,12 +316,14 @@ const Auth = () => {
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 required
                 placeholder="Enter your email"
+                className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all"
               />
             </div>
 
+            {/* Password */}
             {!isForgotPassword && (
-              <div>
-                <Label htmlFor="password">Password</Label>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -336,39 +333,50 @@ const Auth = () => {
                     required
                     placeholder="Enter your password"
                     minLength={6}
+                    className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all pr-12"
                   />
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
                     onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Please wait...' : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Create Account'))}
-            </Button>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white font-semibold rounded-xl shadow-lg shadow-pink-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Please wait...
+                </>
+              ) : (
+                isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Create Account')
+              )}
+            </button>
 
+            {/* Forgot Password Link - Only on Login */}
             {isLogin && !isForgotPassword && (
-              <Button
+              <button
                 type="button"
-                variant="link"
                 onClick={() => setIsForgotPassword(true)}
-                className="w-full text-sm"
+                className="w-full text-sm text-pink-600 hover:text-pink-700 font-medium transition-colors"
               >
                 Forgot password?
-              </Button>
+              </button>
             )}
           </form>
 
-          <div className="mt-6 text-center">
-            <Button
-              variant="link"
+          {/* Footer Link */}
+          <div className="mt-8 text-center">
+            <button
               onClick={() => {
                 if (isForgotPassword) {
                   setIsForgotPassword(false);
@@ -377,19 +385,19 @@ const Auth = () => {
                   setFormData({ email: '', password: '', name: '', role: 'user', hotelName: '' });
                 }
               }}
-              className="text-sm"
+              className="text-sm text-gray-600"
             >
               {isForgotPassword
                 ? 'Back to sign in'
                 : (isLogin
-                  ? "Don't have an account? Sign up"
-                  : 'Already have an account? Sign in'
+                  ? <>Don't have an account? <span className="text-pink-600 font-semibold hover:text-pink-700">Sign up</span></>
+                  : <>Already have an account? <span className="text-pink-600 font-semibold hover:text-pink-700">Sign in</span></>
                 )
               }
-            </Button>
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

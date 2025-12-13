@@ -136,73 +136,53 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-200/50 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Sales</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
+        {/* Today's Sales Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Today's Sales</p>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+              <DollarSign className="w-4 h-4 text-emerald-500" />
             </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-2xl font-bold text-emerald-600">
-              {formatCurrency(stats.todaySales)}
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              {stats.todayBills} bills processed
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-500 mb-1">{formatCurrency(stats.todaySales)}</p>
+          <p className="text-xs text-muted-foreground">{stats.todayBills} bills processed</p>
+        </div>
 
-        <Card className="bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-200/50 dark:border-rose-800/30 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Expenses</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-              <Receipt className="h-4 w-4 text-rose-600" />
+        {/* Today's Expenses Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Today's Expenses</p>
+            <div className="w-8 h-8 rounded-lg bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center">
+              <Receipt className="w-4 h-4 text-rose-500" />
             </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-2xl font-bold text-rose-600">
-              {formatCurrency(stats.todayExpenses)}
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              Operating expenses
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-rose-500 mb-1">{formatCurrency(stats.todayExpenses)}</p>
+          <p className="text-xs text-muted-foreground">Operating expenses</p>
+        </div>
 
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-200/50 dark:border-blue-800/30 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Profit</CardTitle>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stats.todayProfit >= 0 ? 'bg-blue-500/20' : 'bg-rose-500/20'}`}>
-              <TrendingUp className={`h-4 w-4 ${stats.todayProfit >= 0 ? 'text-blue-600' : 'text-rose-600'}`} />
+        {/* Today's Profit Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Today's Profit</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stats.todayProfit >= 0 ? 'bg-blue-500/10 dark:bg-blue-500/20' : 'bg-rose-500/10 dark:bg-rose-500/20'}`}>
+              <TrendingUp className={`w-4 h-4 ${stats.todayProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`} />
             </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className={`text-lg sm:text-2xl font-bold ${stats.todayProfit >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
-              {formatCurrency(stats.todayProfit)}
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              Sales minus expenses
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+          <p className={`text-xl sm:text-2xl font-bold mb-1 ${stats.todayProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>{formatCurrency(stats.todayProfit)}</p>
+          <p className="text-xs text-muted-foreground">Sales minus expenses</p>
+        </div>
 
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Active Items</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Package className="h-4 w-4 text-primary" />
+        {/* Active Items Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Active Items</p>
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 dark:bg-violet-500/20 flex items-center justify-center">
+              <Package className="w-4 h-4 text-violet-500" />
             </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-2xl font-bold text-primary">
-              {stats.totalItems}
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              Available for billing
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-foreground mb-1">{stats.totalItems}</p>
+          <p className="text-xs text-muted-foreground">Available for billing</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

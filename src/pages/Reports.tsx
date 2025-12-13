@@ -883,40 +883,56 @@ const Reports: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Summary Cards - Only show for processed bills */}
+      {/* Summary Cards - Premium Style */}
       {billFilter === 'processed' && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="p-2 sm:p-3">
-            <CardContent className="p-0">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Sales</p>
-                <p className="text-sm sm:text-lg font-bold text-primary">₹{totalSales.toFixed(2)}</p>
-                <TrendingUp className="w-4 h-4 mx-auto text-primary" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Total Revenue Card */}
+          <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Revenue</p>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-emerald-500 mb-1">₹{totalSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+            <p className="text-xs text-muted-foreground">For selected period</p>
+          </div>
 
-          <Card className="p-2 sm:p-3">
-            <CardContent className="p-0">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Expenses</p>
-                <p className="text-sm sm:text-lg font-bold text-destructive">₹{totalExpenses.toFixed(2)}</p>
-                <TrendingDown className="w-4 h-4 mx-auto text-destructive" />
+          {/* Total Expenses Card */}
+          <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Expenses</p>
+              <div className="w-8 h-8 rounded-lg bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center">
+                <TrendingDown className="w-4 h-4 text-rose-500" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-rose-500 mb-1">₹{totalExpenses.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+            <p className="text-xs text-muted-foreground">For selected period</p>
+          </div>
 
-          <Card className="p-2 sm:p-3">
-            <CardContent className="p-0">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Profit</p>
-                <p className={`text-sm sm:text-lg font-bold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  ₹{profit.toFixed(2)}
-                </p>
-                <DollarSign className={`w-4 h-4 mx-auto ${profit >= 0 ? 'text-success' : 'text-destructive'}`} />
+          {/* Net Profit Card */}
+          <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Net Profit</p>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${profit >= 0 ? 'bg-blue-500/10 dark:bg-blue-500/20' : 'bg-rose-500/10 dark:bg-rose-500/20'}`}>
+                <DollarSign className={`w-4 h-4 ${profit >= 0 ? 'text-blue-500' : 'text-rose-500'}`} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <p className={`text-2xl sm:text-3xl font-bold mb-1 ${profit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>₹{Math.abs(profit).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+            <p className="text-xs text-muted-foreground">{totalSales > 0 ? `${((profit / totalSales) * 100).toFixed(1)}% margin` : '0% margin'}</p>
+          </div>
+
+          {/* Total Bills Card */}
+          <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Bills</p>
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 dark:bg-violet-500/20 flex items-center justify-center">
+                <Receipt className="w-4 h-4 text-violet-500" />
+              </div>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1">{activeBills.length}</p>
+            <p className="text-xs text-muted-foreground">Avg: ₹{activeBills.length > 0 ? Math.round(totalSales / activeBills.length).toLocaleString('en-IN') : 0}</p>
+          </div>
         </div>
       )}
 

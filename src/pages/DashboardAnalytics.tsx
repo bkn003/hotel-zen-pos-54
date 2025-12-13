@@ -235,55 +235,55 @@ const DashboardAnalytics = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl font-bold text-success">{formatCurrency(stats.totalRevenue)}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">For selected period</p>
-          </CardContent>
-        </Card>
+      {/* Summary Cards - Premium Style */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Total Revenue Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Revenue</p>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+            </div>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-500 mb-1">{formatCurrency(stats.totalRevenue)}</p>
+          <p className="text-xs text-muted-foreground">For selected period</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl font-bold text-destructive">{formatCurrency(stats.totalExpenses)}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">For selected period</p>
-          </CardContent>
-        </Card>
+        {/* Total Expenses Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Expenses</p>
+            <div className="w-8 h-8 rounded-lg bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center">
+              <DollarSign className="w-4 h-4 text-rose-500" />
+            </div>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-rose-500 mb-1">{formatCurrency(stats.totalExpenses)}</p>
+          <p className="text-xs text-muted-foreground">For selected period</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Net Profit</CardTitle>
-            <ShoppingBag className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl font-bold text-primary">{formatCurrency(stats.totalProfit)}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-              {stats.totalRevenue > 0 ? `${((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1)}% margin` : '0% margin'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Net Profit Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Net Profit</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stats.totalProfit >= 0 ? 'bg-blue-500/10 dark:bg-blue-500/20' : 'bg-rose-500/10 dark:bg-rose-500/20'}`}>
+              <ShoppingBag className={`w-4 h-4 ${stats.totalProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`} />
+            </div>
+          </div>
+          <p className={`text-xl sm:text-2xl font-bold mb-1 ${stats.totalProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>{formatCurrency(stats.totalProfit)}</p>
+          <p className="text-xs text-muted-foreground">{stats.totalRevenue > 0 ? `${((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1)}% margin` : '0% margin'}</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Bills</CardTitle>
-            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-secondary" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl font-bold">{stats.totalBills}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-              Avg: {stats.totalBills > 0 ? formatCurrency(stats.totalRevenue / stats.totalBills) : '₹0'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Total Bills Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-lg dark:shadow-none border border-border">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Bills</p>
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 dark:bg-violet-500/20 flex items-center justify-center">
+              <Package className="w-4 h-4 text-violet-500" />
+            </div>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-foreground mb-1">{stats.totalBills}</p>
+          <p className="text-xs text-muted-foreground">Avg: {stats.totalBills > 0 ? formatCurrency(stats.totalRevenue / stats.totalBills) : '₹0'}</p>
+        </div>
       </div>
 
       {/* Period Selector */}

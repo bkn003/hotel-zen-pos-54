@@ -191,12 +191,12 @@ const Items: React.FC = () => {
               className="w-full pl-10 h-10 text-sm rounded-xl border-border/50 bg-background/80"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <Button
               variant={selectedCategory === 'all' ? "default" : "outline"}
               onClick={() => setSelectedCategory('all')}
               size="sm"
-              className="h-8 text-xs rounded-lg px-3"
+              className="h-8 text-xs rounded-lg px-3 flex-shrink-0"
             >
               All ({items.length})
             </Button>
@@ -206,7 +206,7 @@ const Items: React.FC = () => {
                 variant={selectedCategory === category ? "default" : "outline"}
                 onClick={() => setSelectedCategory(category)}
                 size="sm"
-                className="h-8 text-xs rounded-lg px-3"
+                className="h-8 text-xs rounded-lg px-3 flex-shrink-0 whitespace-nowrap"
               >
                 {category} ({getCategoryCount(category)})
               </Button>

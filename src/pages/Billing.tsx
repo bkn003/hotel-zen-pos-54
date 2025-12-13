@@ -998,7 +998,7 @@ const Billing = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Button onClick={() => addToCart(item)} className="w-full h-7 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground text-xs font-semibold mt-auto rounded-md shadow-sm">
+                  <Button onClick={() => addToCart(item)} className="w-full h-9 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground text-xs font-semibold mt-auto rounded-lg shadow-sm">
                     Add
                   </Button>
                 )}

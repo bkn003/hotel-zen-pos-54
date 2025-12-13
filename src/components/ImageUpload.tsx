@@ -81,7 +81,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         onChange={handleFileSelect}
         className="hidden"
       />
-      
+
       {value ? (
         <div className="relative">
           <img
@@ -117,7 +117,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               {isUploading ? 'Uploading...' : 'Upload Image'}
             </span>
             <span className="text-xs text-muted-foreground">
-              Max 5MB, will be compressed to 300KB
+              Max 5MB, will be compressed to ~60KB
             </span>
           </div>
         </Button>
