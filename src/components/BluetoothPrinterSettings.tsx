@@ -360,28 +360,68 @@ export const BluetoothPrinterSettings: React.FC = () => {
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-center py-4">
-                    <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Bluetooth className="w-6 h-6 text-blue-500" />
+                  <div className="text-center py-2">
+                    {/* Premium animated header */}
+                    <div className="relative mb-4">
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-full blur-xl animate-pulse"></div>
+                      <div className="relative w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <Bluetooth className="w-10 h-10 text-white animate-pulse" />
+                      </div>
                     </div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No device paired</p>
-                    <p className="text-xs text-slate-500 mb-4 max-w-[200px] mx-auto">Make sure your printer is turned on and in pairing mode.</p>
+
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">Connect Your Printer</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Follow these steps to pair your Bluetooth printer</p>
+
+                    {/* Steps guide */}
+                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 rounded-xl p-4 mb-4 text-left">
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Turn on your printer</p>
+                            <p className="text-xs text-slate-500">Ensure it's powered and ready</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Enable Bluetooth on device</p>
+                            <p className="text-xs text-slate-500">Open device settings if needed</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">3</div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Tap button below to search</p>
+                            <p className="text-xs text-slate-500">Select your printer from the list</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <Button
                       onClick={connectPrinter}
                       disabled={connecting || !isBluetoothSupported}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50 dark:shadow-none rounded-xl"
+                      className="w-full h-12 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 text-white text-base font-semibold shadow-lg shadow-blue-500/30 rounded-xl transition-all duration-300"
                     >
                       {connecting ? (
                         <>
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                          Searching...
+                          <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                          Searching for devices...
                         </>
                       ) : (
                         <>
-                          Pair New Device
+                          <Bluetooth className="w-5 h-5 mr-2" />
+                          Start Pairing
                         </>
                       )}
                     </Button>
+
+                    {!isBluetoothSupported && (
+                      <p className="text-xs text-red-500 mt-2">
+                        Bluetooth not supported. Use Chrome or Edge browser.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

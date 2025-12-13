@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Minus, Search, Grid, List, X, Trash2, Edit2, Check, Package, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { CompletePaymentDialog } from '@/components/CompletePaymentDialog';
+import { PrinterErrorDialog } from '@/components/PrinterErrorDialog';
 import { getCachedImageUrl, cacheImageUrl } from '@/utils/imageUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
@@ -177,6 +178,18 @@ const Billing = () => {
     printerWidth: '58mm' | '80mm';
     auto_connect_printer?: boolean;
     printer_name?: string;
+  } | null>(null);
+
+  // Printer error dialog state
+  const [printerErrorOpen, setPrinterErrorOpen] = useState(false);
+  const [printerErrorMessage, setPrinterErrorMessage] = useState('');
+  const [isRetryingPrint, setIsRetryingPrint] = useState(false);
+  const pendingPaymentRef = useRef<{
+    paymentData: any;
+    billPayload: any;
+    billItems: any[];
+    printData: PrintData;
+    validCart: CartItem[];
   } | null>(null);
 
   // Enable real-time updates
@@ -640,6 +653,126 @@ const Billing = () => {
       });
     }
   };
+
+  // Helper function to save bill to database
+  const saveBillToDatabase = async (
+    billPayload: any,
+    validCart: CartItem[],
+    billNumber: string
+  ) => {
+    // 1. Create Bill
+    const { data: billData, error: billError } = await supabase
+      .from('bills')
+      .insert(billPayload)
+      .select()
+      .single();
+
+    if (billError) throw billError;
+    if (!billData) throw new Error('Failed to create bill record');
+
+    // 2. Create Bill Items
+    const billItems = validCart.map(item => ({
+      bill_id: billData.id,
+      item_id: item.id,
+      quantity: item.quantity,
+      price: item.price,
+      total: item.price * item.quantity
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('bill_items')
+      .insert(billItems);
+
+    if (itemsError) {
+      console.error("Failed to insert items, rolling back bill...", itemsError);
+      await supabase.from('bills').delete().eq('id', billData.id);
+      throw itemsError;
+    }
+
+    // 3. Stock Deduction
+    for (const item of validCart) {
+      const { data: currentItem } = await supabase
+        .from('items')
+        .select('stock_quantity')
+        .eq('id', item.id)
+        .single();
+
+      if (currentItem && currentItem.stock_quantity !== null && currentItem.stock_quantity !== undefined) {
+        await supabase
+          .from('items')
+          .update({ stock_quantity: Math.max(0, (currentItem.stock_quantity || 0) - item.quantity) })
+          .eq('id', item.id);
+      }
+    }
+
+    toast({
+      title: "Success",
+      description: `Bill ${billNumber} generated!`,
+      duration: 2000
+    });
+
+    return billData;
+  };
+
+  // Handler for retry print button in error dialog
+  const handleRetryPrint = async () => {
+    if (!pendingPaymentRef.current) return;
+
+    setIsRetryingPrint(true);
+    try {
+      const printed = await printReceipt(pendingPaymentRef.current.printData);
+      if (printed) {
+        // Print successful - now save the bill
+        setPrinterErrorOpen(false);
+        await saveBillToDatabase(
+          pendingPaymentRef.current.billPayload,
+          pendingPaymentRef.current.validCart,
+          pendingPaymentRef.current.printData.billNo
+        );
+        pendingPaymentRef.current = null;
+      } else {
+        // Still failed
+        setPrinterErrorMessage("Printer did not respond. Check connection.");
+      }
+    } catch (e: any) {
+      console.error("Retry print failed:", e);
+      setPrinterErrorMessage(e.message || "Print failed. Try again.");
+    } finally {
+      setIsRetryingPrint(false);
+    }
+  };
+
+  // Handler for save without printing button in error dialog
+  const handleSaveWithoutPrint = async () => {
+    if (!pendingPaymentRef.current) return;
+
+    setPrinterErrorOpen(false);
+    try {
+      await saveBillToDatabase(
+        pendingPaymentRef.current.billPayload,
+        pendingPaymentRef.current.validCart,
+        pendingPaymentRef.current.printData.billNo
+      );
+
+      // Fallback to browser print
+      printBrowserReceipt(pendingPaymentRef.current.printData);
+
+      toast({
+        title: "Bill Saved",
+        description: "Bill saved without Bluetooth printing. Browser print opened.",
+      });
+    } catch (error: any) {
+      console.error('Error saving bill:', error);
+      toast({
+        title: "Save Error",
+        description: error.message || "Failed to save bill",
+        variant: "destructive"
+      });
+    } finally {
+      pendingPaymentRef.current = null;
+    }
+  };
+
   const handleCompletePayment = async (paymentData: {
     paymentMethod: string;
     paymentAmounts: Record<string, number>;
@@ -650,295 +783,233 @@ const Billing = () => {
       amount: number;
       enabled: boolean;
     }[];
-    finalItems?: CartItem[]; // Received from dialog
+    finalItems?: CartItem[];
   }) => {
-    // ---------------------------------------------------------
-    // OPTIMISTIC UI UPDATE - INSTANT FEEDBACK
-    // ---------------------------------------------------------
-    setPaymentDialogOpen(false); // Close dialog immediately
+    setPaymentDialogOpen(false);
 
-    // Use the final items from dialog if available (which includes edits), otherwise fallback to current cart
     const finalCart = paymentData.finalItems || cart;
-    const previousCart = [...finalCart]; // Backup using the CORRECT items
+    const previousCart = [...finalCart];
 
-    // Clear cart immediately
+    // Clear cart immediately for better UX
     clearCart();
 
-    // Run heavy operations in background
-    (async () => {
-      try {
-        console.log('Completing payment with data:', paymentData);
+    try {
+      console.log('Completing payment with data:', paymentData);
 
-        // Use the FINAL cart for all calculations
-        const validCart = previousCart.filter(item => item.quantity > 0);
-        if (validCart.length === 0) {
-          // Should not happen if UI validation works
-          toast({
-            title: "Error",
-            description: "Cart was empty",
-            variant: "destructive"
-          });
-          return;
-        }
+      const validCart = previousCart.filter(item => item.quantity > 0);
+      if (validCart.length === 0) {
+        toast({
+          title: "Error",
+          description: "Cart was empty",
+          variant: "destructive"
+        });
+        return;
+      }
 
-        // Check if offline
-        const isOffline = !navigator.onLine;
+      const isOffline = !navigator.onLine;
 
-        // Generate Bill Number - Sequential format (BILL-000056, etc.)
-        let billNumber: string;
+      // Generate Bill Number
+      let billNumber: string;
+      if (isOffline) {
+        billNumber = `BILL-OFF-${Date.now()}`;
+      } else {
+        const { data: allBillNos } = await supabase
+          .from('bills')
+          .select('bill_no')
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-        if (isOffline) {
-          // Generate offline bill number with timestamp
-          billNumber = `BILL-OFF-${Date.now()}`;
-        } else {
-          const { data: allBillNos } = await supabase
-            .from('bills')
-            .select('bill_no')
-            .order('created_at', { ascending: false })
-            .limit(100); // Get recent bills to find max number
-
-          let maxNumber = 55; // Start from 55 as per user's existing data
-          if (allBillNos && allBillNos.length > 0) {
-            allBillNos.forEach(bill => {
-              // Only match simple format: BILL-XXXXXX (6 digits, no other characters)
-              const match = bill.bill_no.match(/^BILL-(\d{6})$/);
-              if (match) {
-                const num = parseInt(match[1], 10);
-                if (num > maxNumber) {
-                  maxNumber = num;
-                }
+        let maxNumber = 55;
+        if (allBillNos && allBillNos.length > 0) {
+          allBillNos.forEach(bill => {
+            const match = bill.bill_no.match(/^BILL-(\d{6})$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNumber) {
+                maxNumber = num;
               }
-            });
-          }
-          billNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+            }
+          });
         }
+        billNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+      }
 
-        const now = new Date(); // Used for date field
+      const now = new Date();
+      const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
+      const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
 
-        const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
-        const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
+      const mapPaymentMode = (method: string): PaymentMode => {
+        const lower = method.toLowerCase();
+        if (lower.includes('cash')) return 'cash';
+        if (lower.includes('upi')) return 'upi';
+        if (lower === 'card' || lower.includes('card')) return 'card';
+        return 'other';
+      };
+      const paymentMode = mapPaymentMode(paymentData.paymentMethod);
+      const additionalChargesArray = paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }));
 
-        // Map Payment Mode
-        const mapPaymentMode = (method: string): PaymentMode => {
-          const lower = method.toLowerCase();
-          if (lower.includes('cash')) return 'cash';
-          if (lower.includes('upi')) return 'upi';
-          if (lower === 'card' || lower.includes('card')) return 'card';
-          return 'other';
-        };
-        const paymentMode = mapPaymentMode(paymentData.paymentMethod);
+      const billPayload = {
+        bill_no: billNumber,
+        total_amount: totalAmount,
+        discount: paymentData.discount,
+        payment_mode: paymentMode,
+        payment_details: paymentData.paymentAmounts,
+        additional_charges: additionalChargesArray,
+        created_by: profile?.user_id,
+        date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      };
 
-        // Build additional charges array for storage (not stringified here, let Supabase handle it)
-        const additionalChargesArray = paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }));
+      // OFFLINE MODE - queue and try print
+      if (isOffline) {
+        const { offlineManager } = await import('@/utils/offlineManager');
+        await offlineManager.cacheBill({
+          ...billPayload,
+          id: `offline_${Date.now()}`,
+          bill_items: validCart.map(item => ({
+            item_id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity
+          }))
+        });
 
-        const billPayload = {
-          bill_no: billNumber,
-          total_amount: totalAmount,
-          discount: paymentData.discount,
-          payment_mode: paymentMode,
-          payment_details: paymentData.paymentAmounts,
-          additional_charges: additionalChargesArray,
-          created_by: profile?.user_id,
-          date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` // Store local date
-        };
-
-        // ---------------------------------------------------------
-        // OFFLINE HANDLING - Queue for later sync
-        // ---------------------------------------------------------
-        if (isOffline) {
-          // Import offline manager dynamically
-          const { offlineManager } = await import('@/utils/offlineManager');
-
-          // Store bill locally
-          await offlineManager.cacheBill({
-            ...billPayload,
-            id: `offline_${Date.now()}`,
-            bill_items: validCart.map(item => ({
+        await offlineManager.addToSyncQueue({
+          type: 'bill',
+          action: 'create',
+          data: {
+            bill: billPayload,
+            items: validCart.map(item => ({
               item_id: item.id,
               quantity: item.quantity,
               price: item.price,
               total: item.price * item.quantity
             }))
-          });
-
-          // Add to sync queue
-          await offlineManager.addToSyncQueue({
-            type: 'bill',
-            action: 'create',
-            data: {
-              bill: billPayload,
-              items: validCart.map(item => ({
-                item_id: item.id,
-                quantity: item.quantity,
-                price: item.price,
-                total: item.price * item.quantity
-              }))
-            }
-          });
-
-          toast({
-            title: "Bill Saved Offline",
-            description: `${billNumber} saved. Will sync when online.`,
-          });
-
-          // Still try to print if available
-          try {
-            const { printReceipt } = await import('@/utils/bluetoothPrinter');
-            const printData = {
-              billNo: billNumber,
-              date: format(now, 'MMM dd, yyyy'),
-              time: format(now, 'hh:mm a'),
-              items: validCart.map(item => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                total: item.price * item.quantity
-              })),
-              subtotal,
-              discount: paymentData.discount,
-              additionalCharges: additionalChargesArray,
-              total: totalAmount,
-              paymentMethod: paymentMode.toUpperCase(),
-              paymentDetails: paymentData.paymentAmounts,
-              hotelName: profile?.hotel_name || 'ZEN POS',
-              shopName: billSettings?.shopName,
-              address: billSettings?.address,
-              contactNumber: billSettings?.contactNumber,
-              logoUrl: billSettings?.logoUrl,
-              facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
-              instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
-              whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined
-            };
-            await printReceipt(printData);
-          } catch (printError) {
-            console.log('Print skipped while offline:', printError);
           }
+        });
 
-          return; // Exit early for offline mode
+        toast({
+          title: "Bill Saved Offline",
+          description: `${billNumber} saved. Will sync when online.`,
+        });
+
+        // Try print in offline mode (non-blocking)
+        try {
+          const offlinePrintData = {
+            billNo: billNumber,
+            date: format(now, 'MMM dd, yyyy'),
+            time: format(now, 'hh:mm a'),
+            items: validCart.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.price * item.quantity
+            })),
+            subtotal,
+            discount: paymentData.discount,
+            additionalCharges: additionalChargesArray,
+            total: totalAmount,
+            paymentMethod: paymentMode.toUpperCase(),
+            paymentDetails: paymentData.paymentAmounts,
+            hotelName: profile?.hotel_name || 'ZEN POS',
+            shopName: billSettings?.shopName,
+            address: billSettings?.address,
+            contactNumber: billSettings?.contactNumber,
+            logoUrl: billSettings?.logoUrl,
+            facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
+            instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
+            whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined
+          };
+          await printReceipt(offlinePrintData as PrintData);
+        } catch (printError) {
+          console.log('Print skipped while offline:', printError);
         }
+        return;
+      }
 
-        // ---------------------------------------------------------
-        // DATABASE UPDATE (Standard Client-Side) - ONLINE MODE
-        // ---------------------------------------------------------
-        // 1. Create Bill
-        const { data: billData, error: billError } = await supabase
-          .from('bills')
-          .insert(billPayload)
-          .select()
-          .single();
+      // ONLINE MODE - Prepare print data
+      const freshSettings = await fetchShopSettings();
+      const settingsToUse = freshSettings || billSettings;
 
-        if (billError) throw billError;
-        if (!billData) throw new Error('Failed to create bill record');
-
-        // 2. Create Bill Items
-        const billItems = validCart.map(item => ({
-          bill_id: billData.id,
-          item_id: item.id,
+      const printData: PrintData = {
+        billNo: billNumber,
+        date: format(new Date(), 'MMM dd, yyyy'),
+        time: format(new Date(), 'hh:mm a'),
+        items: validCart.map(item => ({
+          name: item.name,
           quantity: item.quantity,
           price: item.price,
           total: item.price * item.quantity
-        }));
+        })),
+        subtotal: subtotal,
+        additionalCharges: additionalChargesArray,
+        discount: paymentData.discount,
+        total: totalAmount,
+        paymentMethod: paymentData.paymentMethod.toUpperCase(),
+        paymentDetails: paymentData.paymentAmounts,
+        hotelName: profile?.hotel_name || 'ZEN POS',
+        shopName: settingsToUse?.shopName,
+        address: settingsToUse?.address,
+        contactNumber: settingsToUse?.contactNumber,
+        facebook: settingsToUse?.showFacebook !== false ? settingsToUse?.facebook : undefined,
+        instagram: settingsToUse?.showInstagram !== false ? settingsToUse?.instagram : undefined,
+        whatsapp: settingsToUse?.showWhatsapp !== false ? settingsToUse?.whatsapp : undefined,
+        printerWidth: settingsToUse?.printerWidth || '58mm',
+        logoUrl: settingsToUse?.logoUrl
+      };
 
-        const { error: itemsError } = await supabase
-          .from('bill_items')
-          .insert(billItems);
+      // Check auto-print setting
+      const autoPrintEnabled = localStorage.getItem('hotel_pos_auto_print') !== 'false';
 
-        if (itemsError) {
-          // Compensating action: try to delete the bill if items failed (optional but good practice)
-          console.error("Failed to insert items, rolling back bill...", itemsError);
-          await supabase.from('bills').delete().eq('id', billData.id);
-          throw itemsError;
+      if (autoPrintEnabled) {
+        // TRY PRINT FIRST - Block bill save if print fails
+        let printed = false;
+        let printError = '';
+
+        try {
+          printed = await printReceipt(printData);
+        } catch (e: any) {
+          console.error("Bluetooth print failed:", e);
+          printError = e.message || "Unable to connect to printer";
         }
 
-        // ---------------------------------------------------------
-        // STOCK DEDUCTION - Reduce stock for each billed item
-        // ---------------------------------------------------------
-        for (const item of validCart) {
-          const { data: currentItem } = await supabase
-            .from('items')
-            .select('stock_quantity')
-            .eq('id', item.id)
-            .single();
-
-          if (currentItem && currentItem.stock_quantity !== null && currentItem.stock_quantity !== undefined) {
-            await supabase
-              .from('items')
-              .update({ stock_quantity: Math.max(0, (currentItem.stock_quantity || 0) - item.quantity) })
-              .eq('id', item.id);
-          }
+        if (!printed) {
+          // Print failed - Store pending data and show error dialog
+          pendingPaymentRef.current = {
+            paymentData,
+            billPayload,
+            billItems: validCart.map(item => ({
+              item_id: item.id,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.price * item.quantity
+            })),
+            printData,
+            validCart
+          };
+          setPrinterErrorMessage(printError || "Printer not responding. Check if printer is on and connected.");
+          setPrinterErrorOpen(true);
+          return; // DON'T SAVE BILL - Wait for user action
         }
 
-        toast({
-          title: "Success",
-          description: `Bill ${billNumber} generated!`,
-          duration: 2000
-        });
-
-        // ---------------------------------------------------------
-        // PRINTING (Background)
-        // ---------------------------------------------------------
-        // Fetch fresh settings to ensure no data is missing
-        const freshSettings = await fetchShopSettings();
-        const settingsToUse = freshSettings || billSettings;
-
-        const printData: PrintData = {
-          billNo: billNumber,
-          date: format(new Date(), 'MMM dd, yyyy'),
-          time: format(new Date(), 'hh:mm a'),
-          items: validCart.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.price * item.quantity
-          })),
-          subtotal: subtotal,
-          additionalCharges: paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount })),
-          discount: paymentData.discount,
-          total: totalAmount,
-          paymentMethod: paymentData.paymentMethod.toUpperCase(),
-          paymentDetails: paymentData.paymentAmounts,
-          hotelName: profile?.hotel_name || 'ZEN POS',
-          shopName: settingsToUse?.shopName,
-          address: settingsToUse?.address,
-          contactNumber: settingsToUse?.contactNumber,
-          facebook: settingsToUse?.showFacebook !== false ? settingsToUse?.facebook : undefined,
-          instagram: settingsToUse?.showInstagram !== false ? settingsToUse?.instagram : undefined,
-          whatsapp: settingsToUse?.showWhatsapp !== false ? settingsToUse?.whatsapp : undefined,
-          printerWidth: settingsToUse?.printerWidth || '58mm',
-          logoUrl: settingsToUse?.logoUrl
-        };
-
-        // Check auto-print setting
-        const autoPrintEnabled = localStorage.getItem('hotel_pos_auto_print') !== 'false'; // Default true
-
-        if (autoPrintEnabled) {
-          let printed = false;
-          try {
-            printed = await printReceipt(printData);
-          } catch (e) {
-            console.error("Bluetooth print failed:", e);
-          }
-
-          if (!printed) {
-            printBrowserReceipt(printData);
-          }
-        } else {
-          console.log("Auto-print disabled, bill saved without printing.");
-        }
-
-      } catch (error: any) {
-        console.error('Error completing payment:', error);
-        toast({
-          title: "Payment Error",
-          description: error.message || "Failed to save bill. Check connection.",
-          variant: "destructive"
-        });
-        // Note: We don't restore cart here to avoid confusing the user who already moved on.
-        // In a strict financial app, we might alert heavily or prompt retry.
+        // Print successful - Save bill to database
+        await saveBillToDatabase(billPayload, validCart, billNumber);
+      } else {
+        // Auto-print disabled - Just save bill
+        await saveBillToDatabase(billPayload, validCart, billNumber);
+        console.log("Auto-print disabled, bill saved without printing.");
       }
-    })();
+
+    } catch (error: any) {
+      console.error('Error completing payment:', error);
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to save bill. Check connection.",
+        variant: "destructive"
+      });
+    }
   };
+
 
 
 
@@ -1023,7 +1094,7 @@ const Billing = () => {
               </div>
 
               <div className="flex-1 flex flex-col min-h-0 px-0.5">
-                <h3 className="font-semibold text-xs mb-0.5 line-clamp-1 flex-shrink-0">{item.name}</h3>
+                <h3 className="font-semibold text-sm mb-0.5 line-clamp-1 flex-shrink-0">{item.name}</h3>
                 <p className="text-primary mb-1 flex-shrink-0 font-bold text-sm">₹{item.price.toFixed(2)} / {unitLabel}</p>
 
                 {isInCart ? (
@@ -1190,6 +1261,16 @@ const Billing = () => {
 
     {/* Payment Dialog */}
     <CompletePaymentDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} cart={cart} paymentTypes={paymentTypes} additionalCharges={additionalCharges} onUpdateQuantity={updateQuantity} onRemoveItem={removeFromCart} onCompletePayment={handleCompletePayment} />
+
+    {/* Printer Error Dialog */}
+    <PrinterErrorDialog
+      open={printerErrorOpen}
+      onOpenChange={setPrinterErrorOpen}
+      errorMessage={printerErrorMessage}
+      onRetry={handleRetryPrint}
+      onSaveWithoutPrint={handleSaveWithoutPrint}
+      isRetrying={isRetryingPrint}
+    />
   </div>;
 };
 export default Billing;
