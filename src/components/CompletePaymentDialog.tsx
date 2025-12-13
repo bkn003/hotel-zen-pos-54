@@ -282,14 +282,14 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {/* Order Summary - Show max 3 items initially, scrollable */}
-          <details className="group" open>
-            <summary className="font-bold text-sm cursor-pointer flex items-center justify-between bg-muted/50 p-2.5 rounded-lg hover:bg-muted transition-colors">
+        <div className="flex-1 overflow-hidden p-2 flex flex-col gap-1.5">
+          {/* Order Summary - Expanded to fill available space */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="font-bold text-sm flex items-center justify-between bg-muted/50 p-2 rounded-lg mb-1.5">
               <span>Order Summary ({cart.length} items)</span>
               <span className="text-primary font-bold text-base">₹{cartSubtotal.toFixed(2)}</span>
-            </summary>
-            <div className="mt-2 space-y-2 max-h-[180px] overflow-y-auto">
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
               {cart.map((item, index) => {
                 const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
                 const effectiveQty = getEffectiveQty(item);
@@ -305,19 +305,19 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                 const colorClass = colorClasses[index % colorClasses.length];
 
                 return (
-                  <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg text-sm gap-1.5 border ${colorClass}`}>
+                  <div key={item.id} className={`flex items-center justify-between p-1.5 rounded-lg text-sm gap-1 border ${colorClass}`}>
                     <div className="flex-1 min-w-0 mr-1">
-                      <div className="font-semibold truncate text-sm">{item.name}</div>
+                      <div className="font-semibold truncate text-sm">{index + 1}.{item.name}</div>
                       <div className="text-xs text-muted-foreground">₹{item.price}/{getSimplifiedUnit(item.unit)}</div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleQuantityChange(item.id, -1)}
-                        className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-decrement))] text-white border-0 hover:opacity-80"
+                        className="h-5 w-5 p-0 rounded-full bg-[hsl(var(--btn-decrement))] text-white border-0 hover:opacity-80"
                       >
-                        <Minus className="h-3 w-3" />
+                        <Minus className="h-2.5 w-2.5" />
                       </Button>
                       <Input
                         type="number"
@@ -326,7 +326,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                           const newQty = Number(e.target.value) || 0;
                           setItemQuantityOverrides(prev => ({ ...prev, [item.id]: newQty }));
                         }}
-                        className="h-6 w-12 text-xs text-center p-0 border-primary/30 rounded font-bold"
+                        className="h-6 w-11 text-xs text-center p-0 border-primary/30 rounded font-bold"
                         min="0"
                         step={isWeightOrVolumeUnit(item.unit) ? "0.001" : "1"}
                       />
@@ -334,9 +334,9 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => handleQuantityChange(item.id, 1)}
-                        className="h-6 w-6 p-0 rounded-full bg-[hsl(var(--btn-increment))] text-white border-0 hover:opacity-80"
+                        className="h-5 w-5 p-0 rounded-full bg-[hsl(var(--btn-increment))] text-white border-0 hover:opacity-80"
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-2.5 w-2.5" />
                       </Button>
                       <span className="text-xs text-muted-foreground mx-0.5">×</span>
                       <Input
@@ -351,21 +351,21 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                         step="1"
                         title="Edit price"
                       />
-                      <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-6 w-6 p-0 text-destructive hover:bg-red-50">
-                        <Trash2 className="h-3 w-3" />
+                      <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-5 w-5 p-0 text-destructive hover:bg-red-50">
+                        <Trash2 className="h-2.5 w-2.5" />
                       </Button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </details>
+          </div>
 
-          {/* Additional Charges - Compact Single Row */}
+          {/* Additional Charges - Compact */}
           {additionalCharges.length > 0 && (
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-lg p-2">
-              <h3 className="font-semibold text-sm mb-1.5 text-primary">Additional Charges</h3>
-              <div className="space-y-1">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-lg p-1.5 flex-shrink-0">
+              <h3 className="font-semibold text-xs mb-1 text-primary">Additional Charges</h3>
+              <div className="space-y-0.5">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
                   const totalQuantity = cart.reduce((qty, item) => qty + getEffectiveQty(item), 0);
@@ -377,18 +377,18 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   return (
                     <div
                       key={charge.id}
-                      className="flex items-center gap-2 p-1.5 rounded bg-white/50 dark:bg-gray-800/50 cursor-pointer hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors"
+                      className="flex items-center gap-1.5 p-1 rounded bg-white/50 dark:bg-gray-800/50 cursor-pointer hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors"
                       onClick={() => handleChargeToggle(charge.id)}
                     >
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => handleChargeToggle(charge.id)}
-                        className="h-4 w-4 rounded-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        className="h-3.5 w-3.5 rounded-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                       />
-                      <span className={`text-xs font-medium flex-1 truncate ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <span className={`text-[10px] font-medium flex-1 truncate ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
                         {charge.name}
-                        {charge.charge_type === 'per_unit' && <span className="text-[10px] ml-1">(₹{charge.amount}/{charge.unit})</span>}
-                        {charge.charge_type === 'percentage' && <span className="text-[10px] ml-1">({charge.amount}%)</span>}
+                        {charge.charge_type === 'per_unit' && <span className="text-[9px] ml-0.5">(₹{charge.amount}/{charge.unit})</span>}
+                        {charge.charge_type === 'percentage' && <span className="text-[9px] ml-0.5">({charge.amount}%)</span>}
                       </span>
                       <Input
                         type="number"
@@ -398,7 +398,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                           const newAmount = Number(e.target.value) || 0;
                           setChargeAmountOverrides(prev => ({ ...prev, [charge.id]: newAmount }));
                         }}
-                        className="h-6 w-16 text-xs text-center p-0 border-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 rounded font-bold"
+                        className="h-5 w-14 text-[10px] text-center p-0 border-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 rounded font-bold"
                         min="0"
                         step="1"
                         disabled={!isSelected}
@@ -410,26 +410,26 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             </div>
           )}
 
-          {/* Discount - Collapsible, hidden by default */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg">
+          {/* Discount - Collapsible, compact */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg flex-shrink-0">
             <button
               type="button"
               onClick={() => setShowDiscount(!showDiscount)}
-              className="w-full p-2 flex items-center justify-between text-left hover:bg-green-100/50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+              className="w-full p-1.5 flex items-center justify-between text-left hover:bg-green-100/50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <Percent className="w-4 h-4 text-green-600" />
-                <span className="font-semibold text-sm text-green-700 dark:text-green-400">
+              <div className="flex items-center gap-1.5">
+                <Percent className="w-3.5 h-3.5 text-green-600" />
+                <span className="font-semibold text-xs text-green-700 dark:text-green-400">
                   Discount {discountAmount > 0 && <span className="text-green-600">(−₹{discountAmount.toFixed(2)})</span>}
                 </span>
               </div>
-              {showDiscount ? <ChevronUp className="w-4 h-4 text-green-600" /> : <ChevronDown className="w-4 h-4 text-green-600" />}
+              {showDiscount ? <ChevronUp className="w-3.5 h-3.5 text-green-600" /> : <ChevronDown className="w-3.5 h-3.5 text-green-600" />}
             </button>
             {showDiscount && (
-              <div className="px-2 pb-2">
-                <div className="flex items-center gap-1.5">
+              <div className="px-1.5 pb-1.5">
+                <div className="flex items-center gap-1">
                   <Select value={discountType} onValueChange={(value: 'flat' | 'percentage') => setDiscountType(value)}>
-                    <SelectTrigger className="w-16 h-7 text-xs bg-white dark:bg-gray-800">
+                    <SelectTrigger className="w-14 h-6 text-[10px] bg-white dark:bg-gray-800">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -441,7 +441,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                     type="number"
                     value={discount}
                     onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                    className="flex-1 h-7 text-sm bg-white dark:bg-gray-800"
+                    className="flex-1 h-6 text-xs bg-white dark:bg-gray-800"
                     placeholder="0"
                     min="0"
                     step={discountType === 'percentage' ? '1' : '0.01'}
