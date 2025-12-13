@@ -22,7 +22,16 @@ interface Item {
   is_active: boolean;
   category?: string;
   unit?: string;
+  stock_quantity?: number;
+  minimum_stock_alert?: number;
 }
+
+// Helper to check if item has low stock
+const isLowStock = (item: Item): boolean => {
+  if (item.stock_quantity === null || item.stock_quantity === undefined) return false;
+  if (item.minimum_stock_alert === null || item.minimum_stock_alert === undefined) return false;
+  return item.stock_quantity <= item.minimum_stock_alert;
+};
 
 // Utility function to get simplified unit names
 const getSimplifiedUnit = (unit?: string): string => {
@@ -454,7 +463,10 @@ const Billing = () => {
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    // Hide out-of-stock items (items with stock_quantity of 0 or less)
+    // Items without stock tracking (null/undefined) are still shown
+    const isInStock = item.stock_quantity === null || item.stock_quantity === undefined || item.stock_quantity > 0;
+    return matchesSearch && matchesCategory && isInStock;
   });
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -838,6 +850,25 @@ const Billing = () => {
           await supabase.from('bills').delete().eq('id', billData.id);
           throw itemsError;
         }
+
+        // ---------------------------------------------------------
+        // STOCK DEDUCTION - Reduce stock for each billed item
+        // ---------------------------------------------------------
+        for (const item of validCart) {
+          const { data: currentItem } = await supabase
+            .from('items')
+            .select('stock_quantity')
+            .eq('id', item.id)
+            .single();
+
+          if (currentItem && currentItem.stock_quantity !== null && currentItem.stock_quantity !== undefined) {
+            await supabase
+              .from('items')
+              .update({ stock_quantity: Math.max(0, (currentItem.stock_quantity || 0) - item.quantity) })
+              .eq('id', item.id);
+          }
+        }
+
         toast({
           title: "Success",
           description: `Bill ${billNumber} generated!`,
@@ -962,7 +993,8 @@ const Billing = () => {
             }
             const isInCart = cartItem && cartItem.quantity > 0;
             const unitLabel = getSimplifiedUnit(item.unit);
-            return <div key={item.id} className={`relative bg-card rounded-xl border-2 p-1.5 flex flex-col shadow-sm transition-all duration-300 ${isInCart ? 'border-primary shadow-primary/20 shadow-md' : 'border-gray-200 dark:border-gray-700 hover:border-primary/30'}`}>
+            const lowStock = isLowStock(item);
+            return <div key={item.id} className={`relative bg-card rounded-xl border-2 p-1.5 flex flex-col shadow-sm transition-all duration-300 ${isInCart ? 'border-primary shadow-primary/20 shadow-md' : lowStock ? 'border-orange-500 dark:border-orange-400' : 'border-gray-200 dark:border-gray-700 hover:border-primary/30'}`}>
               {/* Image container with quantity badge */}
               <div className="relative aspect-[4/3] mb-1 bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden flex-shrink-0">
                 {item.image_url ? <img src={getCachedImageUrl(item.id)} alt={item.name} className="w-full h-full object-cover" onError={e => {
@@ -973,6 +1005,13 @@ const Billing = () => {
                 <div className={`${item.image_url ? 'hidden' : ''} w-full h-full flex items-center justify-center text-muted-foreground`}>
                   <Package className="w-8 h-8" />
                 </div>
+
+                {/* Low stock badge - shown at top left */}
+                {lowStock && (
+                  <div className="absolute top-1 left-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                    Low
+                  </div>
+                )}
 
                 {/* Small rectangle quantity badge - shown when item is in cart */}
                 {isInCart && (

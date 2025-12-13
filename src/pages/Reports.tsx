@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import { CalendarDays, TrendingUp, TrendingDown, DollarSign, Package, Receipt, CreditCard, BarChart3, Edit, Trash2, Eye, Download, FileSpreadsheet, Printer, Search } from 'lucide-react';
 import { FacebookIcon, InstagramIcon, WhatsAppIcon } from '@/components/SocialIcons';
@@ -87,6 +88,12 @@ const Reports: React.FC = () => {
     whatsapp: string;
     showWhatsapp?: boolean;
   } | null>(null);
+
+  // Delete confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [billToDelete, setBillToDelete] = useState<string | null>(null);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [billToRestore, setBillToRestore] = useState<string | null>(null);
 
   // Cache-first loading: localStorage first, then Supabase sync
   useEffect(() => {
@@ -376,21 +383,28 @@ const Reports: React.FC = () => {
     }
   };
 
-  const deleteBill = async (billId: string) => {
-    if (!confirm('Are you sure you want to delete this bill? This will mark it as deleted and restore stock.')) return;
+  // Trigger delete confirmation dialog
+  const handleDeleteClick = (billId: string) => {
+    setBillToDelete(billId);
+    setDeleteConfirmOpen(true);
+  };
+
+  // Actually delete the bill (called after confirmation)
+  const confirmDeleteBill = async () => {
+    if (!billToDelete) return;
 
     try {
       // Get bill items to restore stock
       const { data: billItems } = await supabase
         .from('bill_items')
         .select('item_id, quantity')
-        .eq('bill_id', billId);
+        .eq('bill_id', billToDelete);
 
       // Mark bill as deleted
       const { error } = await supabase
         .from('bills')
         .update({ is_deleted: true })
-        .eq('id', billId);
+        .eq('id', billToDelete);
 
       if (error) throw error;
 
@@ -427,24 +441,34 @@ const Reports: React.FC = () => {
         description: "Failed to delete bill",
         variant: "destructive",
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setBillToDelete(null);
     }
   };
 
-  const restoreBill = async (billId: string) => {
-    if (!confirm('Are you sure you want to restore this bill? This will reduce stock quantities.')) return;
+  // Trigger restore confirmation dialog
+  const handleRestoreClick = (billId: string) => {
+    setBillToRestore(billId);
+    setRestoreConfirmOpen(true);
+  };
+
+  // Actually restore the bill (called after confirmation)
+  const confirmRestoreBill = async () => {
+    if (!billToRestore) return;
 
     try {
       // Get bill items to reduce stock
       const { data: billItems } = await supabase
         .from('bill_items')
         .select('item_id, quantity')
-        .eq('bill_id', billId);
+        .eq('bill_id', billToRestore);
 
       // Restore bill
       const { error } = await supabase
         .from('bills')
         .update({ is_deleted: false })
-        .eq('id', billId);
+        .eq('id', billToRestore);
 
       if (error) throw error;
 
@@ -460,7 +484,7 @@ const Reports: React.FC = () => {
           if (currentItem) {
             await supabase
               .from('items')
-              .update({ stock_quantity: (currentItem.stock_quantity || 0) - item.quantity })
+              .update({ stock_quantity: Math.max(0, (currentItem.stock_quantity || 0) - item.quantity) })
               .eq('id', item.item_id);
           }
         }
@@ -481,6 +505,9 @@ const Reports: React.FC = () => {
         description: "Failed to restore bill",
         variant: "destructive",
       });
+    } finally {
+      setRestoreConfirmOpen(false);
+      setBillToRestore(null);
     }
   };
 
@@ -1041,8 +1068,8 @@ const Reports: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => deleteBill(bill.id)}
-                                className="h-7 w-7 p-0 flex-shrink-0"
+                                onClick={() => handleDeleteClick(bill.id)}
+                                className="h-7 w-7 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -1051,8 +1078,8 @@ const Reports: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => restoreBill(bill.id)}
-                                className="h-7 w-7 p-0 flex-shrink-0"
+                                onClick={() => handleRestoreClick(bill.id)}
+                                className="h-7 w-7 p-0 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                                 title="Restore"
                               >
                                 <Edit className="w-3 h-3" />
@@ -1387,6 +1414,48 @@ const Reports: React.FC = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Bill?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the bill as deleted and restore the stock quantities for all items in this bill.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteBill}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore Confirmation Dialog */}
+      <AlertDialog open={restoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Bill?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will restore the bill and reduce stock quantities for all items in this bill.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRestoreBill}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

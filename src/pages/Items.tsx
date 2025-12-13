@@ -156,6 +156,13 @@ const Items: React.FC = () => {
     return items.filter(item => item.category === category).length;
   };
 
+  // Helper to check if item has low stock based on minimum_stock_alert
+  const isLowStock = (item: Item) => {
+    if (item.stock_quantity === null || item.stock_quantity === undefined) return false;
+    if (item.minimum_stock_alert === null || item.minimum_stock_alert === undefined) return false;
+    return item.stock_quantity <= item.minimum_stock_alert;
+  };
+
   return (
     <div className="p-3 sm:p-4 max-w-full">
       {/* Header */}
@@ -191,12 +198,12 @@ const Items: React.FC = () => {
               className="w-full pl-10 h-10 text-sm rounded-xl border-border/50 bg-background/80"
             />
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <Button
               variant={selectedCategory === 'all' ? "default" : "outline"}
               onClick={() => setSelectedCategory('all')}
               size="sm"
-              className="h-8 text-xs rounded-lg px-3 flex-shrink-0"
+              className="h-9 text-sm rounded-lg px-4 flex-shrink-0"
             >
               All ({items.length})
             </Button>
@@ -206,7 +213,7 @@ const Items: React.FC = () => {
                 variant={selectedCategory === category ? "default" : "outline"}
                 onClick={() => setSelectedCategory(category)}
                 size="sm"
-                className="h-8 text-xs rounded-lg px-3 flex-shrink-0 whitespace-nowrap"
+                className="h-9 text-sm rounded-lg px-4 flex-shrink-0 whitespace-nowrap"
               >
                 {category} ({getCategoryCount(category)})
               </Button>
@@ -242,11 +249,11 @@ const Items: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                   {activeItems.map((item) => (
-                    <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow border-muted">
+                    <Card key={item.id} className={`overflow-hidden hover:shadow-md transition-shadow ${isLowStock(item) ? 'border-2 border-orange-500 dark:border-orange-400' : 'border-muted'}`}>
                       <div className="flex flex-col h-full">
                         {/* Item Image */}
                         {item.image_url && (
-                          <div className="w-full aspect-[4/3] overflow-hidden bg-muted/20">
+                          <div className="w-full aspect-[4/3] overflow-hidden bg-muted/20 relative">
                             <img
                               src={item.image_url}
                               alt={item.name}
@@ -255,6 +262,11 @@ const Items: React.FC = () => {
                                 e.currentTarget.style.display = 'none';
                               }}
                             />
+                            {isLowStock(item) && (
+                              <Badge className="absolute top-1 right-1 bg-orange-500 text-white text-[9px] px-1.5 py-0.5">
+                                Low Stock
+                              </Badge>
+                            )}
                           </div>
                         )}
 
@@ -274,7 +286,7 @@ const Items: React.FC = () => {
                                 ₹{item.price.toFixed(0)}
                               </span>
                               {item.stock_quantity !== null && item.stock_quantity !== undefined && (
-                                <span className="text-[10px] text-muted-foreground">
+                                <span className={`text-[10px] ${isLowStock(item) ? 'text-orange-500 font-semibold' : 'text-muted-foreground'}`}>
                                   Stk: {item.stock_quantity}
                                 </span>
                               )}

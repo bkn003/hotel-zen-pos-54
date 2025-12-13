@@ -13,6 +13,8 @@ import { CategorySelector } from '@/components/CategorySelector';
 import { cachedFetch, CACHE_KEYS, dataCache } from '@/utils/cacheUtils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { exportToPDF, exportToExcel } from '@/utils/exportUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface Expense {
   id: string;
@@ -274,44 +276,55 @@ const Expenses: React.FC = () => {
         </div>
       </div>
 
-      {/* Date Filters - Dropdown to save space */}
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Calendar className="w-5 h-5 text-primary" />
-              <span className="font-semibold">Date Filter:</span>
+      {/* Date Filter - Updated to match Reports page styling */}
+      <Card className="mb-4 p-3 sm:p-4">
+        <CardHeader className="p-0 pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+            <Calendar className="w-4 h-4" />
+            Date Range
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div>
+              <Label className="text-xs">Period</Label>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="flex-1 sm:flex-none sm:w-48 h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-              <option value="all">All Time</option>
-              <option value="custom">Custom Range</option>
-            </select>
 
             {dateFilter === 'custom' && (
-              <div className="flex gap-2 flex-wrap">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-36"
-                />
-                <span className="self-center text-muted-foreground">to</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  min={startDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-36"
-                />
-              </div>
+              <>
+                <div>
+                  <Label className="text-xs">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">End Date</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    min={startDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </>
             )}
           </div>
         </CardContent>
