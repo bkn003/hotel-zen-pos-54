@@ -350,6 +350,10 @@ class OfflineManager {
         await this.store(STORES.BILLS, { ...bill, synced: this.isOnline });
     }
 
+    async getCachedBills(): Promise<any[]> {
+        return this.getAll(STORES.BILLS);
+    }
+
     async getPendingBillsCount(): Promise<number> {
         const queue = await this.getSyncQueue();
         return queue.filter(item => item.type === 'bill').length;

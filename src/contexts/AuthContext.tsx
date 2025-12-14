@@ -290,7 +290,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userData: any = { name, role };
     if (hotelName && role === 'admin') userData.hotel_name = hotelName;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -299,12 +299,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // If signup was successful and we have a user, create the profile immediately
+    // This ensures the user appears in the Users list right away
+    if (!error && data?.user) {
+      console.log('Auth user created, now creating profile record...');
+      try {
+        const profileData = {
+          user_id: data.user.id,
+          name: name,
+          role: role as 'admin' | 'user',
+          hotel_name: role === 'admin' ? hotelName : null,
+          status: 'active' as UserStatus
+        };
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([profileData]);
+
+        if (profileError) {
+          // If profile already exists (unique constraint), that's okay
+          if (!profileError.message?.includes('duplicate') && !profileError.message?.includes('unique')) {
+            console.error('Failed to create profile:', profileError);
+          } else {
+            console.log('Profile already exists for this user');
+          }
+        } else {
+          console.log('Profile created successfully for new user');
+        }
+      } catch (profileCreateError) {
+        console.error('Error creating profile:', profileCreateError);
+        // Don't fail the signup because of profile creation failure
+      }
+    }
+
     console.log('Sign up result:', error ? 'Error' : 'Success');
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
     console.log('Sign in attempt for:', email);
+
+    // Clear any cached permissions before login to ensure fresh permissions
+    // This helps when admin has changed permissions for this user
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('hotel_pos_permissions_')) {
+        localStorage.removeItem(key);
+      }
+    });
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 

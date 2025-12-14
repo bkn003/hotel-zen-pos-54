@@ -19,6 +19,7 @@ import { exportAllReportsToExcel, exportAllReportsToPDF } from '@/utils/exportUt
 import { cachedFetch, CACHE_KEYS, invalidateRelatedData } from '@/utils/cacheUtils';
 import { printReceipt } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
+import { offlineManager } from '@/utils/offlineManager';
 
 interface Bill {
   id: string;
@@ -255,6 +256,105 @@ const Reports: React.FC = () => {
 
     try {
       const { start, end } = getDateFilter();
+      const isOffline = !navigator.onLine;
+
+      // OFFLINE MODE - Load from IndexedDB cache
+      if (isOffline) {
+        console.log('📴 Offline mode: Loading reports from cache...');
+
+        try {
+          const cachedBills = await offlineManager.getCachedBills();
+
+          // Filter by date range
+          let filteredBills = cachedBills.filter((bill: any) => {
+            const billDate = bill.date;
+            return billDate >= start && billDate <= end;
+          });
+
+          // Apply deleted/processed filter
+          if (billFilter === 'processed') {
+            filteredBills = filteredBills.filter((bill: any) => !bill.is_deleted);
+          } else {
+            filteredBills = filteredBills.filter((bill: any) => bill.is_deleted);
+          }
+
+          // Sort by created_at descending
+          filteredBills.sort((a: any, b: any) => {
+            const dateA = new Date(a.created_at || a.date).getTime();
+            const dateB = new Date(b.created_at || b.date).getTime();
+            return dateB - dateA;
+          });
+
+          // Apply hourly filter if needed
+          if (dateRange === 'hourly') {
+            const now = new Date();
+            const safeHours = Math.max(1, Math.min(hourRange, 24));
+            const fromTime = new Date(now.getTime() - safeHours * 60 * 60 * 1000);
+
+            filteredBills = filteredBills.filter((bill: any) => {
+              const createdAt = bill.created_at ? new Date(bill.created_at) : new Date(bill.date);
+              return createdAt >= fromTime && createdAt <= now;
+            });
+          }
+
+          // Generate item reports from cached bills
+          const itemReportMap = new Map();
+          if (billFilter === 'processed') {
+            filteredBills.forEach((bill: any) => {
+              bill.bill_items?.forEach((item: any) => {
+                const key = item.items?.name || item.name || 'Unknown';
+                const existing = itemReportMap.get(key);
+
+                if (existing) {
+                  existing.total_quantity += item.quantity;
+                  existing.total_revenue += item.total;
+                } else {
+                  itemReportMap.set(key, {
+                    item_name: item.items?.name || item.name || 'Unknown',
+                    category: item.items?.category || item.category || 'Unknown',
+                    total_quantity: item.quantity,
+                    total_revenue: item.total
+                  });
+                }
+              });
+            });
+          }
+
+          setBills(filteredBills.map((bill: any) => {
+            let parsedCharges: { name: string; amount: number }[] = [];
+            if (bill.additional_charges) {
+              if (typeof bill.additional_charges === 'string') {
+                try {
+                  parsedCharges = JSON.parse(bill.additional_charges);
+                } catch {
+                  parsedCharges = [];
+                }
+              } else if (Array.isArray(bill.additional_charges)) {
+                parsedCharges = bill.additional_charges as any;
+              }
+            }
+            return {
+              ...bill,
+              payment_details: (bill.payment_details as any) || {},
+              additional_charges: parsedCharges
+            };
+          }));
+          setExpenses([]); // Expenses not cached offline for now
+          setItemReports(Array.from(itemReportMap.values()));
+
+          console.log(`📴 Loaded ${filteredBills.length} bills from offline cache`);
+        } catch (offlineError) {
+          console.error('Error loading offline data:', offlineError);
+          setBills([]);
+          setExpenses([]);
+          setItemReports([]);
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // ONLINE MODE - Fetch from Supabase with caching
       const cacheKey = `${CACHE_KEYS.REPORTS}_${billFilter}_${start}_${end}_${dateRange === 'hourly' ? hourRange : ''}`;
 
       const reportData = await cachedFetch(
@@ -338,6 +438,15 @@ const Reports: React.FC = () => {
             });
           }
 
+          // Cache bills to IndexedDB for offline access
+          for (const bill of filteredBillsData) {
+            try {
+              await offlineManager.cacheBill(bill);
+            } catch (e) {
+              // Ignore caching errors
+            }
+          }
+
           return {
             bills: filteredBillsData,
             expenses: expensesData,
@@ -373,11 +482,36 @@ const Reports: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching reports:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch reports",
-        variant: "destructive",
-      });
+
+      // Try to load from offline cache as fallback
+      try {
+        console.log('⚠️ Online fetch failed, trying offline cache...');
+        const cachedBills = await offlineManager.getCachedBills();
+        if (cachedBills.length > 0) {
+          const { start, end } = getDateFilter();
+          let filteredBills = cachedBills.filter((bill: any) => {
+            const billDate = bill.date;
+            return billDate >= start && billDate <= end && !bill.is_deleted;
+          });
+          setBills(filteredBills);
+          toast({
+            title: "Offline Mode",
+            description: `Showing ${filteredBills.length} cached bills`,
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to fetch reports and no cached data available",
+            variant: "destructive",
+          });
+        }
+      } catch (cacheError) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch reports",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }

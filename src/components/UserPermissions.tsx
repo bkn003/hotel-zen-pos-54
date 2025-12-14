@@ -39,7 +39,7 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
   const fetchPermissions = async () => {
     try {
       const userIds = users.map(u => u.user_id);
-      
+
       const { data, error } = await supabase
         .from('user_permissions')
         .select('*')
@@ -49,7 +49,7 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
 
       // Build permissions map
       const permMap: Record<string, Record<string, boolean>> = {};
-      
+
       users.forEach(user => {
         permMap[user.user_id] = {};
         AVAILABLE_PAGES.forEach(page => {
@@ -98,8 +98,8 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
       if (error) throw error;
 
       toast({
-        title: "Updated",
-        description: `${pageName} access ${!currentValue ? 'enabled' : 'disabled'}`,
+        title: "Permission Updated",
+        description: `${pageName} access ${!currentValue ? 'granted' : 'revoked'}. User should refresh or re-login to apply changes.`,
       });
     } catch (error) {
       console.error('Error updating permission:', error);
@@ -163,21 +163,20 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
                   </Badge>
                 </div>
               </div>
-              
+
               {/* Permission Toggles */}
               <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {AVAILABLE_PAGES.map(page => {
                   const hasAccess = permissions[user.user_id]?.[page.name] ?? false;
-                  
+
                   return (
-                    <div 
+                    <div
                       key={page.name}
                       onClick={() => togglePermission(user.user_id, page.name, hasAccess)}
-                      className={`p-2 rounded-lg border cursor-pointer transition-all ${
-                        hasAccess 
-                          ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800' 
+                      className={`p-2 rounded-lg border cursor-pointer transition-all ${hasAccess
+                          ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800'
                           : 'bg-gray-50 border-gray-200 dark:bg-gray-900/30 dark:border-gray-700'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className={`font-medium text-sm ${hasAccess ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}>
@@ -185,7 +184,7 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
                         </span>
                         <Switch
                           checked={hasAccess}
-                          onCheckedChange={() => {}}
+                          onCheckedChange={() => { }}
                           className="pointer-events-none scale-75"
                         />
                       </div>

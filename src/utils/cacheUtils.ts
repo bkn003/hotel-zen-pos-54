@@ -5,9 +5,19 @@ interface CacheEntry<T> {
   expiry: number;
 }
 
+// Cache TTL constants (in milliseconds) - increase these to reduce Supabase calls
+export const CACHE_TTL = {
+  SHORT: 2 * 60 * 1000,       // 2 minutes - for frequently changing data
+  MEDIUM: 10 * 60 * 1000,     // 10 minutes - for moderately changing data
+  LONG: 30 * 60 * 1000,       // 30 minutes - for rarely changing data
+  ITEMS: 15 * 60 * 1000,      // 15 minutes - items don't change often
+  REPORTS: 5 * 60 * 1000,     // 5 minutes - reports
+  PERMISSIONS: 60 * 60 * 1000, // 1 hour - permissions rarely change
+};
+
 class DataCache {
   private cache = new Map<string, CacheEntry<any>>();
-  private readonly DEFAULT_TTL = 2 * 60 * 1000; // Reduced to 2 minutes for faster updates
+  private readonly DEFAULT_TTL = CACHE_TTL.MEDIUM; // Increased from 2 to 10 minutes
   private subscribers = new Map<string, Set<() => void>>();
 
   set<T>(key: string, data: T, ttl: number = this.DEFAULT_TTL): void {
@@ -17,7 +27,7 @@ class DataCache {
       expiry: Date.now() + ttl
     };
     this.cache.set(key, entry);
-    
+
     // Notify subscribers of cache update
     this.notifySubscribers(key);
   }
@@ -40,7 +50,7 @@ class DataCache {
       this.subscribers.set(key, new Set());
     }
     this.subscribers.get(key)!.add(callback);
-    
+
     // Return unsubscribe function
     return () => {
       const keySubscribers = this.subscribers.get(key);
@@ -99,7 +109,7 @@ class DataCache {
   isStale(key: string): boolean {
     const entry = this.cache.get(key);
     if (!entry) return true;
-    
+
     const halfTTL = (entry.expiry - entry.timestamp) / 2;
     return (Date.now() - entry.timestamp) > halfTTL;
   }
@@ -137,7 +147,7 @@ export async function cachedFetch<T>(
     const cached = dataCache.get<T>(key);
     if (cached) {
       console.log(`Cache hit for key: ${key}`);
-      
+
       // Background refresh if data is stale
       if (dataCache.isStale(key)) {
         console.log(`Background refresh for stale key: ${key}`);
@@ -147,7 +157,7 @@ export async function cachedFetch<T>(
           console.warn(`Background refresh failed for ${key}:`, err);
         });
       }
-      
+
       return cached;
     }
   }

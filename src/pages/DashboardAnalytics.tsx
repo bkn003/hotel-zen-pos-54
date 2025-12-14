@@ -18,6 +18,7 @@ interface TopItem {
   name: string;
   quantity: number;
   revenue: number;
+  unit: string;
 }
 
 type Period = 'today' | 'yesterday' | 'daily' | 'weekly' | 'monthly';
@@ -114,21 +115,18 @@ const DashboardAnalytics = () => {
         .lte('date', endDateStr)
         .order('date');
 
-      // Fetch top selling items (exclude items from deleted bills)
-      const endOfDay = new Date(endDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
+      // Fetch top selling items (using bill date filter to match the bills query)
       const { data: billItemsData } = await supabase
         .from('bill_items')
         .select(`
           quantity, 
           price, 
           item_id, 
-          items(name),
-          bills!inner(is_deleted)
+          items(name, unit),
+          bills!inner(date, is_deleted)
         `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endOfDay.toISOString());
+        .gte('bills.date', startDateStr)
+        .lte('bills.date', endDateStr);
 
       // Process sales data
       const salesMap = new Map<string, { sales: number; expenses: number }>();
@@ -157,17 +155,19 @@ const DashboardAnalytics = () => {
       setSalesData(chartData);
 
       // Process top items (exclude items from deleted bills)
-      const itemsMap = new Map<string, { quantity: number; revenue: number }>();
+      const itemsMap = new Map<string, { quantity: number; revenue: number; unit: string }>();
 
       billItemsData?.forEach((item: any) => {
         // Skip items from deleted bills
         if (item.bills?.is_deleted) return;
 
         const name = item.items?.name || 'Unknown';
-        const current = itemsMap.get(name) || { quantity: 0, revenue: 0 };
+        const unit = item.items?.unit || 'pcs';
+        const current = itemsMap.get(name) || { quantity: 0, revenue: 0, unit };
         itemsMap.set(name, {
           quantity: current.quantity + Number(item.quantity),
           revenue: current.revenue + (Number(item.quantity) * Number(item.price)),
+          unit: unit,
         });
       });
 
@@ -319,37 +319,70 @@ const DashboardAnalytics = () => {
             </CardContent>
           </Card>
 
-          {/* Top Selling Items */}
+          {/* Top Selling Items - Modern List View */}
           <Card>
             <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-sm sm:text-base">Top Selling Items</CardTitle>
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" />
+                Top Selling Items
+              </CardTitle>
               <CardDescription className="text-xs sm:text-sm">Best performing products by revenue</CardDescription>
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {topItems.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={topItems} margin={{ bottom: 80 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="name"
-                      angle={-45}
-                      textAnchor="end"
-                      height={100}
-                      interval={0}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(Number(value))}
-                      labelFormatter={(label) => `Item: ${label}`}
-                    />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="space-y-3">
+                  {topItems.map((item, index) => {
+                    const maxRevenue = topItems[0]?.revenue || 1;
+                    const percentage = (item.revenue / maxRevenue) * 100;
+
+                    return (
+                      <div
+                        key={item.name}
+                        className="relative bg-gradient-to-r from-muted/50 to-muted/20 rounded-xl p-3 sm:p-4 hover:from-primary/10 hover:to-primary/5 transition-all duration-300 border border-border/50"
+                      >
+                        {/* Rank Badge */}
+                        <div className="absolute -left-1 -top-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-lg">
+                          {index + 1}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ml-4">
+                          {/* Item Details */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm sm:text-base text-foreground truncate">{item.name}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                <ShoppingBag className="w-3 h-3" />
+                                <span className="font-medium text-foreground">{item.quantity}</span> {item.unit || 'pcs'} sold
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Revenue */}
+                          <div className="flex items-center gap-2 sm:gap-4">
+                            <span className="text-lg sm:text-xl font-bold text-primary">
+                              {formatCurrency(item.revenue)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mt-2 ml-4 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  No sales data available for this period
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                    <Package className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground font-medium">No sales data available</p>
+                  <p className="text-xs text-muted-foreground mt-1">Sales will appear here once bills are created</p>
                 </div>
               )}
             </CardContent>

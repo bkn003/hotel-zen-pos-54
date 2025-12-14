@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 // Direct imports for faster navigation (no lazy loading overhead)
 import Auth from "./pages/Auth";
@@ -19,6 +20,8 @@ import Users from "./pages/Users";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +38,9 @@ const queryClient = new QueryClient({
 import { InstallPrompt } from './components/InstallPrompt';
 
 const App = () => {
+  // Keep the screen awake while the app is open
+  useWakeLock();
+
   // Theme colors for status bar (meta theme-color)
   const themeColors: Record<string, string> = {
     'blue': '#3b82f6',
@@ -111,30 +117,32 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <InstallPrompt />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<Layout><Billing /></Layout>} />
-              <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
-              <Route path="/analytics" element={<Layout><DashboardAnalytics /></Layout>} />
-              <Route path="/billing" element={<Layout><Billing /></Layout>} />
-              <Route path="/items" element={<Layout><Items /></Layout>} />
-              <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
-              <Route path="/reports" element={<Layout><Reports /></Layout>} />
-              <Route path="/users" element={<Layout><Users /></Layout>} />
-              <Route path="/settings" element={<Layout><Settings /></Layout>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <InstallPrompt />
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<Layout><ProtectedRoute requiredPermission="billing"><Billing /></ProtectedRoute></Layout>} />
+                <Route path="/dashboard" element={<Layout><ProtectedRoute requiredPermission="dashboard"><Dashboard /></ProtectedRoute></Layout>} />
+                <Route path="/analytics" element={<Layout><ProtectedRoute requiredPermission="analytics"><DashboardAnalytics /></ProtectedRoute></Layout>} />
+                <Route path="/billing" element={<Layout><ProtectedRoute requiredPermission="billing"><Billing /></ProtectedRoute></Layout>} />
+                <Route path="/items" element={<Layout><ProtectedRoute requiredPermission="items"><Items /></ProtectedRoute></Layout>} />
+                <Route path="/expenses" element={<Layout><ProtectedRoute requiredPermission="expenses"><Expenses /></ProtectedRoute></Layout>} />
+                <Route path="/reports" element={<Layout><ProtectedRoute requiredPermission="reports"><Reports /></ProtectedRoute></Layout>} />
+                <Route path="/users" element={<Layout><ProtectedRoute requiredPermission="users" adminOnly><Users /></ProtectedRoute></Layout>} />
+                <Route path="/settings" element={<Layout><ProtectedRoute requiredPermission="settings"><Settings /></ProtectedRoute></Layout>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -893,36 +893,41 @@ const Billing = () => {
           description: `${billNumber} saved. Will sync when online.`,
         });
 
-        // Try print in offline mode (non-blocking)
-        try {
-          const offlinePrintData = {
-            billNo: billNumber,
-            date: format(now, 'MMM dd, yyyy'),
-            time: format(now, 'hh:mm a'),
-            items: validCart.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              total: item.price * item.quantity
-            })),
-            subtotal,
-            discount: paymentData.discount,
-            additionalCharges: additionalChargesArray,
-            total: totalAmount,
-            paymentMethod: paymentMode.toUpperCase(),
-            paymentDetails: paymentData.paymentAmounts,
-            hotelName: profile?.hotel_name || 'ZEN POS',
-            shopName: billSettings?.shopName,
-            address: billSettings?.address,
-            contactNumber: billSettings?.contactNumber,
-            logoUrl: billSettings?.logoUrl,
-            facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
-            instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
-            whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined
-          };
-          await printReceipt(offlinePrintData as PrintData);
-        } catch (printError) {
-          console.log('Print skipped while offline:', printError);
+        // Try print in offline mode ONLY if auto-print is enabled
+        const offlineAutoPrintEnabled = localStorage.getItem('hotel_pos_auto_print') !== 'false';
+        if (offlineAutoPrintEnabled) {
+          try {
+            const offlinePrintData = {
+              billNo: billNumber,
+              date: format(now, 'MMM dd, yyyy'),
+              time: format(now, 'hh:mm a'),
+              items: validCart.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.price * item.quantity
+              })),
+              subtotal,
+              discount: paymentData.discount,
+              additionalCharges: additionalChargesArray,
+              total: totalAmount,
+              paymentMethod: paymentMode.toUpperCase(),
+              paymentDetails: paymentData.paymentAmounts,
+              hotelName: profile?.hotel_name || 'ZEN POS',
+              shopName: billSettings?.shopName,
+              address: billSettings?.address,
+              contactNumber: billSettings?.contactNumber,
+              logoUrl: billSettings?.logoUrl,
+              facebook: billSettings?.showFacebook !== false ? billSettings?.facebook : undefined,
+              instagram: billSettings?.showInstagram !== false ? billSettings?.instagram : undefined,
+              whatsapp: billSettings?.showWhatsapp !== false ? billSettings?.whatsapp : undefined
+            };
+            await printReceipt(offlinePrintData as PrintData);
+          } catch (printError) {
+            console.log('Print skipped while offline:', printError);
+          }
+        } else {
+          console.log('Auto-print disabled, skipping print in offline mode');
         }
         return;
       }
