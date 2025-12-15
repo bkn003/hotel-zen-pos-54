@@ -38,12 +38,28 @@ const queryClient = new QueryClient({
 import { InstallPrompt } from './components/InstallPrompt';
 
 const App = () => {
-  // Keep the screen awake while the app is open
-  useWakeLock();
+  // Always On Display State
+  const [aodEnabled, setAodEnabled] = React.useState(() => {
+    const saved = localStorage.getItem('hotel_pos_aod_enabled');
+    return saved === null ? true : saved === 'true';
+  });
+
+  // Keep the screen awake based on preference
+  useWakeLock(aodEnabled);
+
+  // Listen for AOD preference changes
+  React.useEffect(() => {
+    const handleAodChange = (e: CustomEvent) => {
+      setAodEnabled(e.detail);
+    };
+    window.addEventListener('aod-changed', handleAodChange as EventListener);
+    return () => window.removeEventListener('aod-changed', handleAodChange as EventListener);
+  }, []);
 
   // Theme colors for status bar (meta theme-color)
   const themeColors: Record<string, string> = {
     'blue': '#3b82f6',
+    'blue-bright': '#0324fc',
     'purple': '#9333ea',
     'green': '#10b981',
     'rose': '#e11d48',
@@ -52,27 +68,83 @@ const App = () => {
     'hotpink': '#c11c84'
   };
 
+  // Helper to apply custom theme variables
+  const applyCustomTheme = (color: string) => {
+    // Simple Hex to HSL conversion
+    const hexToHSL = (hex: string) => {
+      let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      if (!result) return { h: 0, s: 0, l: 0 };
+      let r = parseInt(result[1], 16) / 255;
+      let g = parseInt(result[2], 16) / 255;
+      let b = parseInt(result[3], 16) / 255;
+      let max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0, s = 0, l = (max + min) / 2;
+      if (max !== min) {
+        let d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+      return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    };
+
+    const { h, s, l } = hexToHSL(color);
+    const hslString = `${h} ${s}% ${l}%`;
+    const glowString = `${h} ${Math.min(s + 5, 100)}% ${Math.min(l + 10, 95)}%`;
+
+    document.documentElement.style.setProperty('--primary', hslString);
+    document.documentElement.style.setProperty('--primary-foreground', '0 0% 100%');
+    document.documentElement.style.setProperty('--primary-glow', glowString);
+    document.documentElement.style.setProperty('--ring', hslString);
+    document.documentElement.style.setProperty('--gradient-primary', `linear-gradient(135deg, hsl(${h} ${s}% ${l}%), hsl(${h} ${Math.max(s - 10, 0)}% ${Math.min(l + 5, 100)}%))`);
+
+    // Sidebar and Buttons
+    document.documentElement.style.setProperty('--sidebar-primary', hslString);
+    document.documentElement.style.setProperty('--sidebar-ring', hslString);
+    document.documentElement.style.setProperty('--btn-increment', hslString);
+    document.documentElement.style.setProperty('--qty-badge', hslString);
+  };
+
   // Global cache invalidation listeners and theme initialization
   React.useEffect(() => {
     // Apply saved theme on startup
     const savedTheme = localStorage.getItem('hotel_pos_theme') || 'blue';
 
-    // Apply theme class
-    if (savedTheme && savedTheme !== 'blue') {
-      const themeClass = `theme-${savedTheme}`;
-      document.documentElement.classList.add(themeClass);
-    }
+    if (savedTheme === 'custom') {
+      const customColor = localStorage.getItem('hotel_pos_custom_color') || '#0324fc';
+      applyCustomTheme(customColor);
 
-    // Apply theme-color meta tag for status bar
-    const themeColor = themeColors[savedTheme] || '#3b82f6';
-    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', themeColor);
+      // Update meta tag
+      let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', customColor);
+      }
     } else {
-      metaThemeColor = document.createElement('meta');
-      metaThemeColor.setAttribute('name', 'theme-color');
-      metaThemeColor.setAttribute('content', themeColor);
-      document.head.appendChild(metaThemeColor);
+      // Clean up custom styles if switching from custom
+      document.documentElement.style.removeProperty('--primary');
+      document.documentElement.style.removeProperty('--primary-foreground');
+
+      // Apply theme class
+      if (savedTheme && savedTheme !== 'blue') {
+        const themeClass = `theme-${savedTheme}`;
+        document.documentElement.classList.add(themeClass);
+      }
+
+      // Apply theme-color meta tag for status bar
+      const themeColor = themeColors[savedTheme] || '#3b82f6';
+      let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', themeColor);
+      } else {
+        metaThemeColor = document.createElement('meta');
+        metaThemeColor.setAttribute('name', 'theme-color');
+        metaThemeColor.setAttribute('content', themeColor);
+        document.head.appendChild(metaThemeColor);
+      }
     }
 
     const handleInvalidateBills = () => {

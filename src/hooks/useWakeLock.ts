@@ -15,12 +15,25 @@ import { useEffect, useRef, useCallback } from 'react';
  * - Touch simulation for very aggressive screen keep on
  * - More frequent lock re-acquisition for mobile (every 10 seconds)
  */
-export const useWakeLock = () => {
+export const useWakeLock = (enabled: boolean = true) => {
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const isActiveRef = useRef(true);
+    const isActiveRef = useRef(enabled);
     const keepAliveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const touchIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Update active ref when enabled prop changes
+    useEffect(() => {
+        isActiveRef.current = enabled;
+        if (enabled) {
+            requestWakeLock();
+            if (isMobile()) {
+                startTouchSimulation();
+            }
+        } else {
+            releaseWakeLock();
+        }
+    }, [enabled]);
 
     // Detect if running on mobile
     const isMobile = useCallback(() => {
@@ -73,6 +86,7 @@ export const useWakeLock = () => {
     // Video-based fallback - Works on most mobile browsers
     const startVideoKeepAwake = useCallback(() => {
         if (videoRef.current) return; // Already running
+        if (!isActiveRef.current) return;
 
         try {
             // Create a video element that loops silently
@@ -127,7 +141,9 @@ export const useWakeLock = () => {
                     console.log('Video autoplay blocked, waiting for user interaction');
                     // On mobile, autoplay might be blocked - we'll retry on user interaction
                     const retryPlay = () => {
-                        video.play().catch(() => { });
+                        if (isActiveRef.current) {
+                            video.play().catch(() => { });
+                        }
                         document.removeEventListener('touchstart', retryPlay);
                         document.removeEventListener('click', retryPlay);
                     };
@@ -161,6 +177,7 @@ export const useWakeLock = () => {
     // Simulate minimal activity to prevent some aggressive power saving modes
     const startTouchSimulation = useCallback(() => {
         if (touchIntervalRef.current) return;
+        if (!isActiveRef.current) return;
 
         touchIntervalRef.current = setInterval(() => {
             if (!isActiveRef.current || document.visibilityState !== 'visible') return;
@@ -190,7 +207,8 @@ export const useWakeLock = () => {
 
     // Release wake lock
     const releaseWakeLock = useCallback(async () => {
-        isActiveRef.current = false;
+        // We don't set isActiveRef to false here because we might want to toggle it back on via prop
+        // But for the cleanup purpose we stop everything
 
         if (wakeLockRef.current) {
             try {
@@ -212,22 +230,21 @@ export const useWakeLock = () => {
     }, [stopVideoKeepAwake, stopTouchSimulation]);
 
     useEffect(() => {
-        isActiveRef.current = true;
+        // Initial setup only if enabled
+        if (enabled) {
+            isActiveRef.current = true;
+            requestWakeLock();
 
-        // Request wake lock on mount
-        requestWakeLock();
-
-        // For mobile devices, also start touch simulation as extra protection
-        if (isMobile()) {
-            startTouchSimulation();
-            console.log('📱 Mobile device detected - extra keep-awake protections enabled');
+            if (isMobile()) {
+                startTouchSimulation();
+                console.log('📱 Mobile device detected - extra keep-awake protections enabled');
+            }
         }
 
         // Re-acquire wake lock when page becomes visible again
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && isActiveRef.current) {
                 console.log('Page visible, re-acquiring wake lock...');
-                // Small delay to ensure the page is fully visible
                 setTimeout(() => {
                     if (isActiveRef.current) {
                         requestWakeLock();
@@ -270,30 +287,22 @@ export const useWakeLock = () => {
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         window.addEventListener('orientationchange', handleOrientationChange);
 
-        // More aggressive interval check for mobile devices (every 10 seconds)
-        // Desktop uses 30 second interval
+        // More aggressive interval check
         const intervalTime = isMobile() ? 10000 : 30000;
 
         keepAliveIntervalRef.current = setInterval(() => {
             if (isActiveRef.current && document.visibilityState === 'visible') {
-                // Check if wake lock is still active
                 if ('wakeLock' in navigator) {
                     if (!wakeLockRef.current) {
-                        console.log('Wake lock lost, re-acquiring...');
+                        // console.log('Wake lock lost, re-acquiring...');
                         requestWakeLock();
                     }
                 } else if (!videoRef.current) {
-                    console.log('Video keep-awake lost, restarting...');
+                    // console.log('Video keep-awake lost, restarting...');
                     startVideoKeepAwake();
                 }
             }
         }, intervalTime);
-
-        // Log the current state
-        console.log(`🔒 Wake Lock initialized:
-    - API Supported: ${'wakeLock' in navigator}
-    - Mobile Device: ${isMobile()}
-    - Check Interval: ${intervalTime / 1000}s`);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -303,7 +312,7 @@ export const useWakeLock = () => {
             window.removeEventListener('orientationchange', handleOrientationChange);
             releaseWakeLock();
         };
-    }, [requestWakeLock, releaseWakeLock, isMobile, startTouchSimulation, startVideoKeepAwake]);
+    }, [enabled, requestWakeLock, releaseWakeLock, isMobile, startTouchSimulation, startVideoKeepAwake]);
 
     return {
         isSupported: 'wakeLock' in navigator,

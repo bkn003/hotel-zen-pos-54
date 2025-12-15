@@ -540,6 +540,71 @@ All colors MUST be HSL.
     --sidebar-border: 322 35% 25%;
     --sidebar-ring: 322 75% 43%;
   }
+  /* ===== THEME: Bright Blue (#0324fc) ===== */
+  .theme-blue-bright {
+    --background: 0 0% 100%;
+    --foreground: 232 98% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 232 98% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 232 98% 10%;
+
+    /* Bright Blue Primary - #0324fc = HSL 232, 98%, 50% */
+    --primary: 232 98% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 232 100% 60%;
+
+    --secondary: 232 30% 96%;
+    --secondary-foreground: 232 98% 10%;
+
+    --muted: 232 30% 96%;
+    --muted-foreground: 232 20% 50%;
+
+    /* Vivid Violet accent */
+    --accent: 260 90% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 232 20% 90%;
+    --input: 232 20% 90%;
+    --ring: 232 98% 50%;
+
+    /* Theme-aware button colors */
+    --btn-increment: 232 98% 50%;
+    --btn-decrement: 260 80% 50%;
+    --qty-badge: 232 98% 50%;
+
+    /* Bright Blue Gradient Palette */
+    --gradient-primary: linear-gradient(135deg, hsl(232 98% 50%), hsl(220 90% 55%));
+    --gradient-secondary: linear-gradient(135deg, hsl(232 30% 96%), hsl(232 20% 50%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 70% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(232 98% 50%) 0%, hsl(260 90% 60%) 100%);
+
+    /* Bright Blue shadows and glows */
+    --shadow-elegant: 0 10px 30px -10px hsl(232 98% 50% / 0.35);
+    --shadow-glow: 0 0 40px hsl(232 98% 50% / 0.45);
+    --shadow-card: 0 4px 6px -1px hsl(232 50% 10% / 0.1);
+
+    /* Sidebar - Bright Blue theme */
+    --sidebar-background: 232 60% 10%;
+    --sidebar-foreground: 232 30% 96%;
+    --sidebar-primary: 232 98% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 232 40% 18%;
+    --sidebar-accent-foreground: 232 30% 96%;
+    --sidebar-border: 232 30% 22%;
+    --sidebar-ring: 232 98% 50%;
+  }
 }
 
 @layer base {

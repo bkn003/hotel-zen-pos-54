@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, GripVertical } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Plus, X, GripVertical, MonitorSmartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,11 +20,18 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
   });
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [alwaysOnDisplay, setAlwaysOnDisplay] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSettings();
     fetchCategories();
+
+    // Load AOD setting
+    const savedAod = localStorage.getItem('hotel_pos_aod_enabled');
+    if (savedAod !== null) {
+      setAlwaysOnDisplay(savedAod === 'true');
+    }
   }, [userId]);
 
   const fetchSettings = async () => {
@@ -66,7 +74,7 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      
+
       const { error } = await supabase
         .from('display_settings')
         .upsert({
@@ -93,6 +101,19 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleAodChange = (checked: boolean) => {
+    setAlwaysOnDisplay(checked);
+    localStorage.setItem('hotel_pos_aod_enabled', String(checked));
+
+    // Dispatch event so App.tsx can react immediately
+    window.dispatchEvent(new CustomEvent('aod-changed', { detail: checked }));
+
+    toast({
+      title: checked ? "Always On Display Enabled" : "Always On Display Disabled",
+      description: checked ? "Screen will stay awake while app is open" : "Screen will sleep normally",
+    });
   };
 
   const addCategoryToOrder = (category: string) => {
@@ -139,7 +160,7 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
     const draggedItem = newOrder[dragItem.current];
     newOrder.splice(dragItem.current, 1);
     newOrder.splice(dragOverItem.current, 0, draggedItem);
-    
+
     setSettings(prev => ({ ...prev, category_order: newOrder }));
     dragItem.current = null;
     dragOverItem.current = null;
@@ -155,14 +176,31 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({ userId }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Always On Display */}
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+            <div className="space-y-0.5">
+              <div className="flex items-center space-x-2">
+                <MonitorSmartphone className="w-4 h-4 text-primary" />
+                <Label className="text-base font-medium">Always On Display</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Keep the screen awake while the application is running
+              </p>
+            </div>
+            <Switch
+              checked={alwaysOnDisplay}
+              onCheckedChange={handleAodChange}
+            />
+          </div>
+
           {/* Items per Row Setting */}
           <div>
             <Label htmlFor="items_per_row">Items per Row in Billing Page</Label>
             <Select
               value={settings.items_per_row.toString()}
-              onValueChange={(value) => setSettings(prev => ({ 
-                ...prev, 
-                items_per_row: parseInt(value) 
+              onValueChange={(value) => setSettings(prev => ({
+                ...prev,
+                items_per_row: parseInt(value)
               }))}
             >
               <SelectTrigger className="mt-2">
