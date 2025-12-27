@@ -25,15 +25,23 @@ export const printBrowserReceipt = (data: PrintData) => {
     .s { border-top: 1px dashed #000; margin: 2px 0; }
     .row { display: flex; justify-content: space-between; }
     .item { margin: 1px 0; }
-    .name { max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .name { max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .shop { font-size: 12px; font-weight: bold; text-transform: uppercase; }
     .total { font-size: 11px; font-weight: bold; }
     .thx { font-size: 9px; margin-top: 3px; }
+    .time { font-size: 8px; }
   `;
 
-  // Compact item rows
+  // Get current time
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  
+  // Calculate total qty
+  const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Compact item rows with qty and total
   let itemsHtml = data.items.map(item => 
-    `<div class="row item"><span class="name">${item.name}</span><span>${item.quantity}x${item.price.toFixed(0)}=${item.total.toFixed(0)}</span></div>`
+    `<div class="row item"><span class="name">${item.name}</span><span>x${item.quantity} = ${item.total.toFixed(0)}</span></div>`
   ).join('');
 
   // Additional charges compact
@@ -50,10 +58,11 @@ export const printBrowserReceipt = (data: PrintData) => {
       <div class="c" style="font-size:9px">${[data.address, data.contactNumber].filter(Boolean).join(' | ')}</div>
       <div class="s"></div>
       <div class="row"><span>#${data.billNo}</span><span>${data.date}</span></div>
+      <div class="c time">${timeStr}</div>
       <div class="s"></div>
       ${itemsHtml}
       <div class="s"></div>
-      ${hasExtras ? `<div class="row"><span>Sub</span><span>${data.subtotal.toFixed(0)}</span></div>` : ''}
+      <div class="row"><span>Qty: ${totalQty}</span><span>Sub: ${data.subtotal.toFixed(0)}</span></div>
       ${chargesHtml}
       ${data.discount > 0 ? `<div class="row"><span>Disc</span><span>-${data.discount.toFixed(0)}</span></div>` : ''}
       <div class="row total"><span>TOTAL</span><span>Rs.${data.total.toFixed(0)}</span></div>

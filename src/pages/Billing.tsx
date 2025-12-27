@@ -243,7 +243,7 @@ const Billing = () => {
       const {
         data,
         error
-      } = await supabase.from('items').select('*').eq('is_active', true).order('display_order' as any, { ascending: true, nullsFirst: false }).order('name');
+      } = await supabase.from('items').select('*').eq('is_active', true).order('name');
       if (error) throw error;
       setItems(data || []);
     } catch (error) {
