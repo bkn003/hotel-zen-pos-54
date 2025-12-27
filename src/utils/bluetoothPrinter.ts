@@ -267,162 +267,98 @@ const formatLine = (left: string, right: string, width: number = 32): string => 
 const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   const commands: Uint8Array[] = [];
 
-  // Set width based on setting (default single width, 58mm = 32 chars, 80mm = 48 chars)
-  // For images: 58mm ~384 dots, 80mm ~576 dots
+  // COMPACT mode: 58mm = 32 chars, 80mm = 48 chars
   const LINE_WIDTH = data.printerWidth === '80mm' ? 48 : 32;
   const IMAGE_WIDTH = data.printerWidth === '80mm' ? 576 : 384;
-  const SEPARATOR = '-'.repeat(LINE_WIDTH);
+  const SEP = '-'.repeat(LINE_WIDTH);
 
-  // Helper to format line with current width
-  const formatLineDynamic = (left: string, right: string) => formatLine(left, right, LINE_WIDTH);
+  // Compact format helper - fits more on line
+  const fmtLine = (left: string, right: string) => formatLine(left, right, LINE_WIDTH);
+  
+  // Compact item line - name + qty x price = total on single line
+  const fmtItem = (name: string, qty: number, price: number, total: number) => {
+    const right = `${qty}x${price.toFixed(0)}=${total.toFixed(0)}`;
+    const maxName = LINE_WIDTH - right.length - 1;
+    const shortName = name.length > maxName ? name.substring(0, maxName) : name;
+    return padRight(shortName, maxName) + ' ' + right;
+  };
 
   // Initialize
   commands.push(INIT);
-  commands.push(ALIGN_CENTER); // Default center for header
 
-  // 1. Logo (if available) - Print First
-  if (data.logoUrl) {
-    try {
-      // Use full width for logo (was 0.9)
-      const loopsWidth = Math.floor(IMAGE_WIDTH * 1.0);
-      const imageBytes = await processImageForPrinting(data.logoUrl, loopsWidth);
-      if (imageBytes) {
-        commands.push(ALIGN_CENTER);
-        commands.push(imageBytes);
-        commands.push(FEED_LINE);
-      }
-    } catch (e) {
-      console.warn("Failed to process logo for printing", e);
-    }
-  }
-
-  // Header - Shop Name (Override) or Hotel Name
+  // COMPACT HEADER - Shop name only (no logo for thermal to save paper)
   const headerName = data.shopName || data.hotelName;
   if (headerName) {
     commands.push(ALIGN_CENTER);
-    commands.push(DOUBLE_SIZE);
     commands.push(BOLD_ON);
-    commands.push(textToBytes(headerName));
+    commands.push(textToBytes(headerName.toUpperCase()));
     commands.push(FEED_LINE);
     commands.push(BOLD_OFF);
-    commands.push(NORMAL_SIZE);
   }
 
-  commands.push(NORMAL_SIZE);
-
-  // Address
-  if (data.address) {
+  // Address + Phone on same line if short
+  const addrPhone = [data.address, data.contactNumber].filter(Boolean).join(' | ');
+  if (addrPhone) {
     commands.push(ALIGN_CENTER);
-    commands.push(textToBytes(data.address));
+    commands.push(textToBytes(addrPhone));
     commands.push(FEED_LINE);
   }
 
-  // Contact Number
-  if (data.contactNumber) {
-    commands.push(ALIGN_CENTER);
-    commands.push(textToBytes(data.contactNumber));
-    commands.push(FEED_LINE);
-  }
-
-  // Social Media - Print as Image
-  if (data.facebook || data.instagram || data.whatsapp) {
-    try {
-      const loopsWidth = Math.floor(IMAGE_WIDTH * 0.95);
-      // Generate image with multi-line wrapping support
-      const socialImageBytes = await generateSocialMediaImage(data.facebook, data.instagram, data.whatsapp, loopsWidth);
-      if (socialImageBytes) {
-        commands.push(ALIGN_CENTER);
-        commands.push(socialImageBytes);
-        commands.push(FEED_LINE);
-      } else {
-        // Fallback to text if image generation fails
-        if (data.facebook) commands.push(textToBytes(`fb: ${data.facebook}\n`));
-        if (data.instagram) commands.push(textToBytes(`ig: ${data.instagram}\n`));
-        if (data.whatsapp) commands.push(textToBytes(`wa: ${data.whatsapp}\n`));
-      }
-    } catch (e) {
-      console.warn("Failed to print social icons", e);
-    }
-  }
-
-  // Bill info
-  commands.push(ALIGN_CENTER);
-  commands.push(textToBytes(SEPARATOR));
+  // Bill info - compact single line
+  commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
-  commands.push(textToBytes(`Bill No: ${data.billNo}`));
-  commands.push(FEED_LINE);
-  commands.push(textToBytes(`${data.date} ${data.time}`));
-  commands.push(FEED_LINE);
-  commands.push(textToBytes(SEPARATOR));
-  commands.push(FEED_LINE);
-
-  // Items header
   commands.push(ALIGN_LEFT);
-  commands.push(BOLD_ON);
-  commands.push(textToBytes(formatLineDynamic('Item', 'Amount')));
+  commands.push(textToBytes(fmtLine(`#${data.billNo}`, `${data.date} ${data.time}`)));
   commands.push(FEED_LINE);
-  commands.push(BOLD_OFF);
-  commands.push(textToBytes(SEPARATOR));
+  commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
 
-  // Items
+  // Items - SINGLE LINE per item (name qty x price = total)
   data.items.forEach(item => {
-    // Truncate name to fit (width - 14 for price/qty)
-    const nameWidth = LINE_WIDTH - 14;
-    const itemName = item.name.length > nameWidth ? item.name.substring(0, nameWidth) : item.name;
-    const qtyPrice = `${item.quantity}x${item.price.toFixed(0)}`;
-    const total = item.total.toFixed(2);
-
-    commands.push(textToBytes(itemName));
-    commands.push(FEED_LINE);
-    commands.push(textToBytes(formatLineDynamic(`  ${qtyPrice}`, `Rs.${total}`)));
+    commands.push(textToBytes(fmtItem(item.name, item.quantity, item.price, item.total)));
     commands.push(FEED_LINE);
   });
 
-  commands.push(textToBytes(SEPARATOR));
+  commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
 
-  // Subtotal
-  commands.push(textToBytes(formatLineDynamic('Subtotal:', `Rs.${data.subtotal.toFixed(2)}`)));
-  commands.push(FEED_LINE);
+  // Subtotal only if there are charges/discount
+  const hasExtras = (data.additionalCharges && data.additionalCharges.length > 0) || data.discount > 0;
+  if (hasExtras) {
+    commands.push(textToBytes(fmtLine('Sub', `${data.subtotal.toFixed(0)}`)));
+    commands.push(FEED_LINE);
+  }
 
-  // Additional charges
+  // Additional charges - compact
   if (data.additionalCharges && data.additionalCharges.length > 0) {
     data.additionalCharges.forEach(charge => {
-      commands.push(textToBytes(formatLineDynamic(charge.name + ':', `+Rs.${charge.amount.toFixed(2)}`)));
+      // Shorten charge name
+      const shortName = charge.name.length > 12 ? charge.name.substring(0, 12) : charge.name;
+      commands.push(textToBytes(fmtLine(shortName, `+${charge.amount.toFixed(0)}`)));
       commands.push(FEED_LINE);
     });
   }
 
-  // Discount
+  // Discount - compact
   if (data.discount > 0) {
-    commands.push(textToBytes(formatLineDynamic('Discount:', `-Rs.${data.discount.toFixed(2)}`)));
+    commands.push(textToBytes(fmtLine('Disc', `-${data.discount.toFixed(0)}`)));
     commands.push(FEED_LINE);
   }
 
-  commands.push(textToBytes(SEPARATOR));
-  commands.push(FEED_LINE);
-
-  // Total
+  // TOTAL - bold but NOT double size to save paper
   commands.push(BOLD_ON);
-  commands.push(DOUBLE_SIZE);
-  commands.push(textToBytes(formatLineDynamic('TOTAL:', `Rs.${data.total.toFixed(2)}`)));
+  commands.push(textToBytes(fmtLine('TOTAL', `Rs.${data.total.toFixed(0)}`)));
   commands.push(FEED_LINE);
-  commands.push(NORMAL_SIZE);
   commands.push(BOLD_OFF);
 
-  commands.push(textToBytes(SEPARATOR));
+  // Payment - compact
+  commands.push(textToBytes(fmtLine('Paid', data.paymentMethod.toUpperCase())));
   commands.push(FEED_LINE);
 
-  // Payment method
+  // Footer - minimal
   commands.push(ALIGN_CENTER);
-  commands.push(textToBytes(`Paid by: ${data.paymentMethod.toUpperCase()}`));
-  commands.push(FEED_LINE);
-
-  // Footer
+  commands.push(textToBytes('Thank you!'));
   commands.push(FEED_LINES(2));
-  commands.push(textToBytes('Thank you for your visit!'));
-  commands.push(FEED_LINES(3));
 
   // Cut paper
   commands.push(CUT);
