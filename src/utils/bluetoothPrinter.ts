@@ -275,9 +275,9 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   // Compact format helper - fits more on line
   const fmtLine = (left: string, right: string) => formatLine(left, right, LINE_WIDTH);
   
-  // Compact item line - name + qty x price = total on single line
-  const fmtItem = (name: string, qty: number, price: number, total: number) => {
-    const right = `${qty}x${price.toFixed(0)}=${total.toFixed(0)}`;
+  // Compact item line - name x qty = total
+  const fmtItem = (name: string, qty: number, total: number) => {
+    const right = `x${qty} = ${total.toFixed(0)}`;
     const maxName = LINE_WIDTH - right.length - 1;
     const shortName = name.length > maxName ? name.substring(0, maxName) : name;
     return padRight(shortName, maxName) + ' ' + right;
@@ -304,30 +304,32 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
     commands.push(FEED_LINE);
   }
 
-  // Bill info - compact single line
+  // Bill info - compact single line with time
   commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
   commands.push(ALIGN_LEFT);
-  commands.push(textToBytes(fmtLine(`#${data.billNo}`, `${data.date} ${data.time}`)));
+  commands.push(textToBytes(fmtLine(`#${data.billNo}`, data.date)));
+  commands.push(FEED_LINE);
+  commands.push(textToBytes(fmtLine('Time:', data.time)));
   commands.push(FEED_LINE);
   commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
+  
+  // Calculate total qty
+  const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Items - SINGLE LINE per item (name qty x price = total)
+  // Items - name x qty = total
   data.items.forEach(item => {
-    commands.push(textToBytes(fmtItem(item.name, item.quantity, item.price, item.total)));
+    commands.push(textToBytes(fmtItem(item.name, item.quantity, item.total)));
     commands.push(FEED_LINE);
   });
 
   commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
 
-  // Subtotal only if there are charges/discount
-  const hasExtras = (data.additionalCharges && data.additionalCharges.length > 0) || data.discount > 0;
-  if (hasExtras) {
-    commands.push(textToBytes(fmtLine('Sub', `${data.subtotal.toFixed(0)}`)));
-    commands.push(FEED_LINE);
-  }
+  // Qty and subtotal line
+  commands.push(textToBytes(fmtLine(`Qty: ${totalQty}`, `Sub: ${data.subtotal.toFixed(0)}`)));
+  commands.push(FEED_LINE);
 
   // Additional charges - compact
   if (data.additionalCharges && data.additionalCharges.length > 0) {

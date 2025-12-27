@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ interface Item {
   stock_quantity?: number;
   minimum_stock_alert?: number;
   quantity_step?: number;
-  display_order?: number;
+  
 }
 
 const Items: React.FC = () => {
@@ -40,10 +40,6 @@ const Items: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState<string[]>([]);
-  
-  // Drag and drop state
-  const dragItem = useRef<number | null>(null);
-  const dragOverItem = useRef<number | null>(null);
 
   // Enable real-time updates
   useRealTimeUpdates();
@@ -83,7 +79,6 @@ const Items: React.FC = () => {
       const { data, error } = await supabase
         .from('items')
         .select('*')
-        .order('display_order', { ascending: true, nullsFirst: false })
         .order('name');
 
       if (error) throw error;
@@ -98,58 +93,6 @@ const Items: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Drag handlers
-  const handleDragStart = (index: number) => {
-    dragItem.current = index;
-  };
-
-  const handleDragEnter = (index: number) => {
-    dragOverItem.current = index;
-  };
-
-  const handleDragEnd = async () => {
-    if (dragItem.current === null || dragOverItem.current === null) return;
-    if (dragItem.current === dragOverItem.current) return;
-
-    const itemsCopy = [...activeItems];
-    const draggedItem = itemsCopy[dragItem.current];
-    itemsCopy.splice(dragItem.current, 1);
-    itemsCopy.splice(dragOverItem.current, 0, draggedItem);
-
-    // Update display_order for all items
-    const updates = itemsCopy.map((item, index) => ({
-      id: item.id,
-      display_order: index + 1
-    }));
-
-    // Optimistic update
-    const newItems = items.map(item => {
-      const update = updates.find(u => u.id === item.id);
-      return update ? { ...item, display_order: update.display_order } : item;
-    });
-    setItems(newItems);
-
-    // Save to database
-    try {
-      for (const update of updates) {
-        await supabase
-          .from('items')
-          .update({ display_order: update.display_order } as any)
-          .eq('id', update.id);
-      }
-      toast({
-        title: "Order saved",
-        description: "Item display order updated",
-      });
-    } catch (error) {
-      console.error('Error updating order:', error);
-      fetchItems(); // Revert on error
-    }
-
-    dragItem.current = null;
-    dragOverItem.current = null;
   };
 
   const fetchCategories = async () => {
@@ -309,12 +252,7 @@ const Items: React.FC = () => {
                   {activeItems.map((item, index) => (
                     <Card 
                       key={item.id} 
-                      className={`overflow-hidden hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing ${isLowStock(item) ? 'border-2 border-orange-500 dark:border-orange-400' : 'border-muted'}`}
-                      draggable={profile?.role === 'admin'}
-                      onDragStart={() => handleDragStart(index)}
-                      onDragEnter={() => handleDragEnter(index)}
-                      onDragEnd={handleDragEnd}
-                      onDragOver={(e) => e.preventDefault()}
+                      className={`overflow-hidden hover:shadow-md transition-shadow ${isLowStock(item) ? 'border-2 border-orange-500 dark:border-orange-400' : 'border-muted'}`}
                     >
                       <div className="flex flex-col h-full">
                         {item.image_url && (
