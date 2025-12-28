@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Package, Search, Plus } from 'lucide-react';
+import { Package, Search, Plus, GripVertical } from 'lucide-react';
 import { AddItemDialog } from '@/components/AddItemDialog';
 import { EditItemDialog } from '@/components/EditItemDialog';
 import { ItemCategoryManagement } from '@/components/ItemCategoryManagement';
@@ -29,7 +29,7 @@ interface Item {
   stock_quantity?: number;
   minimum_stock_alert?: number;
   quantity_step?: number;
-  
+  display_order?: number;
 }
 
 const Items: React.FC = () => {
@@ -40,7 +40,11 @@ const Items: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState<string[]>([]);
-
+  const [isReordering, setIsReordering] = useState(false);
+  
+  // Drag and drop refs
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
   // Enable real-time updates
   useRealTimeUpdates();
 
@@ -79,6 +83,7 @@ const Items: React.FC = () => {
       const { data, error } = await supabase
         .from('items')
         .select('*')
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('name');
 
       if (error) throw error;
@@ -92,6 +97,63 @@ const Items: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Drag handlers
+  const handleDragStart = (index: number) => {
+    dragItem.current = index;
+  };
+
+  const handleDragEnter = (index: number) => {
+    dragOverItem.current = index;
+  };
+
+  const handleDragEnd = async () => {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    if (dragItem.current === dragOverItem.current) {
+      dragItem.current = null;
+      dragOverItem.current = null;
+      return;
+    }
+
+    setIsReordering(true);
+    const itemsCopy = [...activeItems];
+    const draggedItem = itemsCopy[dragItem.current];
+    itemsCopy.splice(dragItem.current, 1);
+    itemsCopy.splice(dragOverItem.current, 0, draggedItem);
+
+    // Update display_order for all reordered items
+    const updates = itemsCopy.map((item, idx) => ({
+      id: item.id,
+      display_order: idx + 1
+    }));
+
+    try {
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('items')
+          .update({ display_order: update.display_order } as any)
+          .eq('id', update.id);
+        if (error) throw error;
+      }
+      
+      toast({
+        title: "Order Updated",
+        description: "Item order saved successfully",
+      });
+      fetchItems();
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update item order",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReordering(false);
+      dragItem.current = null;
+      dragOverItem.current = null;
     }
   };
 
@@ -252,9 +314,20 @@ const Items: React.FC = () => {
                   {activeItems.map((item, index) => (
                     <Card 
                       key={item.id} 
-                      className={`overflow-hidden hover:shadow-md transition-shadow ${isLowStock(item) ? 'border-2 border-orange-500 dark:border-orange-400' : 'border-muted'}`}
+                      draggable={profile?.role === 'admin'}
+                      onDragStart={() => handleDragStart(index)}
+                      onDragEnter={() => handleDragEnter(index)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => e.preventDefault()}
+                      className={`overflow-hidden hover:shadow-md transition-all ${isLowStock(item) ? 'border-2 border-orange-500 dark:border-orange-400' : 'border-muted'} ${profile?.role === 'admin' ? 'cursor-grab active:cursor-grabbing' : ''} ${isReordering ? 'opacity-50' : ''}`}
                     >
                       <div className="flex flex-col h-full">
+                        {profile?.role === 'admin' && (
+                          <div className="bg-muted/50 py-1 px-2 flex items-center justify-center gap-1 text-muted-foreground text-[10px]">
+                            <GripVertical className="w-3 h-3" />
+                            <span>Drag to reorder</span>
+                          </div>
+                        )}
                         {item.image_url && (
                           <div className="w-full aspect-[4/3] overflow-hidden bg-muted/20 relative">
                             <img
