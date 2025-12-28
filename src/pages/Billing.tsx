@@ -938,8 +938,8 @@ const Billing = () => {
 
       const printData: PrintData = {
         billNo: billNumber,
-        date: format(new Date(), 'MMM dd, yyyy'),
-        time: format(new Date(), 'hh:mm a'),
+        date: format(now, 'MMM dd, yyyy'),
+        time: format(now, 'hh:mm a'),
         items: validCart.map(item => ({
           name: item.name,
           quantity: item.quantity,

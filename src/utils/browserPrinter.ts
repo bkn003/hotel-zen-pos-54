@@ -32,9 +32,8 @@ export const printBrowserReceipt = (data: PrintData) => {
     .time { font-size: 8px; }
   `;
 
-  // Get current time
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  // Use the bill's time, not current time
+  const timeStr = data.time || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   
   // Calculate total qty
   const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
