@@ -11,7 +11,16 @@ const DOUBLE_SIZE = new Uint8Array([GS, 0x21, 0x11]);
 const NORMAL_SIZE = new Uint8Array([GS, 0x21, 0x00]);
 const FEED_LINE = new Uint8Array([0x0A]);
 const FEED_LINES = (n: number) => new Uint8Array([ESC, 0x64, n]);
-const CUT = new Uint8Array([GS, 0x56, 0x41, 0x10]); // Cut full with feed
+
+// Paper Cut Commands - Multiple formats for different printers
+const CUT_FULL = new Uint8Array([GS, 0x56, 0x00]); // Full cut immediately
+const CUT_PARTIAL = new Uint8Array([GS, 0x56, 0x01]); // Partial cut immediately
+const CUT_FEED_FULL = new Uint8Array([GS, 0x56, 0x41, 0x03]); // Feed 3 lines then full cut
+const CUT_FEED_PARTIAL = new Uint8Array([GS, 0x56, 0x42, 0x03]); // Feed 3 lines then partial cut
+
+// Alternative cut command for some printers
+const CUT_ALT = new Uint8Array([ESC, 0x69]); // ESC i - full cut
+const CUT_ALT_PARTIAL = new Uint8Array([ESC, 0x6D]); // ESC m - partial cut
 
 // Social Media Icons (Base64 SVGs for Canvas)
 // We use simple black versions for printing validity
@@ -360,10 +369,16 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   // Footer - minimal
   commands.push(ALIGN_CENTER);
   commands.push(textToBytes('Thank you!'));
+  commands.push(FEED_LINE);
+  
+  // Minimal feed before cut - just enough to clear the cutter
   commands.push(FEED_LINES(2));
-
-  // Cut paper
-  commands.push(CUT);
+  
+  // Send multiple cut commands for maximum compatibility
+  // Different printers respond to different commands
+  commands.push(CUT_FEED_FULL);    // GS V A 3 - most common
+  commands.push(CUT_FULL);          // GS V 0 - alternative
+  commands.push(CUT_ALT);           // ESC i - fallback for some printers
 
   // Combine all commands
   const totalLength = commands.reduce((sum, arr) => sum + arr.length, 0);

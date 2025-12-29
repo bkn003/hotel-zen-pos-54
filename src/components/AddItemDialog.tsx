@@ -53,7 +53,8 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
     quantity_step: '1',
     category: '',
     image_url: '',
-    is_active: true
+    is_active: true,
+    unlimited_stock: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -78,10 +79,12 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.purchase_rate || !formData.stock_quantity) {
+    if (!formData.name || !formData.price || !formData.purchase_rate || (!formData.unlimited_stock && !formData.stock_quantity)) {
       toast({
         title: "Error",
-        description: "Name, selling price, purchase rate, and stock quantity are required",
+        description: formData.unlimited_stock 
+          ? "Name, selling price, and purchase rate are required"
+          : "Name, selling price, purchase rate, and stock quantity are required",
         variant: "destructive",
       });
       return;
@@ -110,13 +113,14 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
         purchase_rate: parseFloat(formData.purchase_rate),
         unit: formData.unit,
         base_value: parseFloat(formData.base_value),
-        stock_quantity: parseFloat(formData.stock_quantity),
-        minimum_stock_alert: parseFloat(formData.minimum_stock_alert) || 0,
+        stock_quantity: formData.unlimited_stock ? null : parseFloat(formData.stock_quantity),
+        minimum_stock_alert: formData.unlimited_stock ? null : (parseFloat(formData.minimum_stock_alert) || 0),
         quantity_step: parseFloat(formData.quantity_step),
         category: formData.category === 'none' ? null : formData.category.trim(),
         image_url: formData.image_url.trim() || null,
-        is_active: formData.is_active
-      });
+        is_active: formData.is_active,
+        unlimited_stock: formData.unlimited_stock
+      } as any);
 
       if (error) throw error;
 
@@ -137,7 +141,8 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
         quantity_step: '1',
         category: '', 
         image_url: '',
-        is_active: true 
+        is_active: true,
+        unlimited_stock: false
       });
       setOpen(false);
       onItemAdded();
@@ -250,32 +255,45 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
             />
           </div>
 
-          <div>
-            <Label htmlFor="stock_quantity">Stock Quantity *</Label>
-            <Input
-              id="stock_quantity"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.stock_quantity}
-              onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-              placeholder="Available stock"
-              required
+          <div className="flex items-center space-x-2 py-2">
+            <Checkbox
+              id="unlimited_stock"
+              checked={formData.unlimited_stock}
+              onCheckedChange={(checked) => setFormData({ ...formData, unlimited_stock: checked as boolean })}
             />
+            <Label htmlFor="unlimited_stock" className="font-medium">Unlimited Stock (no tracking)</Label>
           </div>
 
-          <div>
-            <Label htmlFor="minimum_stock_alert">Minimum Stock Alert</Label>
-            <Input
-              id="minimum_stock_alert"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.minimum_stock_alert}
-              onChange={(e) => setFormData({ ...formData, minimum_stock_alert: e.target.value })}
-              placeholder="Alert when stock below"
-            />
-          </div>
+          {!formData.unlimited_stock && (
+            <>
+              <div>
+                <Label htmlFor="stock_quantity">Stock Quantity *</Label>
+                <Input
+                  id="stock_quantity"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.stock_quantity}
+                  onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                  placeholder="Available stock"
+                  required={!formData.unlimited_stock}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="minimum_stock_alert">Minimum Stock Alert</Label>
+                <Input
+                  id="minimum_stock_alert"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.minimum_stock_alert}
+                  onChange={(e) => setFormData({ ...formData, minimum_stock_alert: e.target.value })}
+                  placeholder="Alert when stock below"
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <Label htmlFor="quantity_step">Quantity Step</Label>
