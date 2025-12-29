@@ -240,12 +240,23 @@ const Billing = () => {
   // Fetch functions defined before useEffect
   const fetchItems = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('items').select('*').eq('is_active', true).order('display_order' as any, { ascending: true, nullsFirst: false }).order('name');
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
       if (error) throw error;
-      setItems(data || []);
+      
+      // Sort by display_order client-side if the field exists
+      const sortedData = (data || []).sort((a: any, b: any) => {
+        const orderA = a.display_order ?? 9999;
+        const orderB = b.display_order ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      
+      setItems(sortedData);
     } catch (error) {
       console.error('Error fetching items:', error);
       toast({

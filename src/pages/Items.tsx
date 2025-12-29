@@ -80,14 +80,22 @@ const Items: React.FC = () => {
 
   const fetchItems = async () => {
     try {
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .order('display_order', { ascending: true, nullsFirst: false })
-        .order('name');
+      // Try with display_order first, fallback to name only if column doesn't exist
+      let query = supabase.from('items').select('*');
+      
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
-      setItems(data || []);
+      
+      // Sort by display_order client-side if the field exists
+      const sortedData = (data || []).sort((a: any, b: any) => {
+        const orderA = a.display_order ?? 9999;
+        const orderB = b.display_order ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      
+      setItems(sortedData);
     } catch (error) {
       console.error('Error fetching items:', error);
       toast({
