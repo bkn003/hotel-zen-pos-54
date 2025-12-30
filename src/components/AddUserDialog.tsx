@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Eye, EyeOff } from 'lucide-react';
+import { isStrongPassword, isValidEmail } from '@/utils/securityUtils';
 
 interface AddUserDialogProps {
   onUserAdded: () => void;
@@ -28,6 +29,28 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded }) => 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate email format
+    if (!isValidEmail(formData.email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate strong password
+    const passwordCheck = isStrongPassword(formData.password);
+    if (!passwordCheck.valid) {
+      toast({
+        title: "Weak Password",
+        description: passwordCheck.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -126,7 +149,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded }) => 
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                 required
                 placeholder="Enter password"
-                minLength={6}
+                minLength={8}
               />
               <Button
                 type="button"

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Store, Clock, Loader2 } from 'lucide-react';
-import { checkRateLimit, clearRateLimit, isValidEmail, logSecurityEvent } from '@/utils/securityUtils';
+import { checkRateLimit, clearRateLimit, isValidEmail, isStrongPassword, logSecurityEvent } from '@/utils/securityUtils';
 
 const Auth = () => {
   const { user, profile, signIn, signUp, signOut, loading: authLoading } = useAuth();
@@ -157,6 +157,19 @@ const Auth = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // For signup, enforce strong password requirements
+    if (!isLogin) {
+      const passwordCheck = isStrongPassword(formData.password);
+      if (!passwordCheck.valid) {
+        toast({
+          title: "Weak Password",
+          description: passwordCheck.message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setLoading(true);
@@ -332,7 +345,7 @@ const Auth = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                     required
                     placeholder="Enter your password"
-                    minLength={6}
+                    minLength={8}
                     className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all pr-12"
                   />
                   <button
