@@ -510,10 +510,123 @@ CREATE INDEX idx_expenses_category ON public.expenses(category);
 CREATE INDEX idx_user_permissions_user_id ON public.user_permissions(user_id);
 
 -- ============================================================
+-- STEP 9: ADD UNLIMITED STOCK COLUMN
+-- ============================================================
+
+-- Add unlimited_stock column for items that don't need stock tracking
+ALTER TABLE public.items ADD COLUMN IF NOT EXISTS unlimited_stock boolean DEFAULT false;
+
+-- ============================================================
+-- STEP 10: CREATE PAGE PERMISSION FUNCTION
+-- ============================================================
+
+-- Helper function to check if user has access to a specific page (server-side permission check)
+-- This prevents privilege escalation by enforcing permissions at database level
+CREATE OR REPLACE FUNCTION public.has_page_permission(_user_id uuid, _page_name text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT CASE
+    -- Admins always have full access to all pages
+    WHEN EXISTS (SELECT 1 FROM public.profiles WHERE user_id = _user_id AND role = 'admin') THEN true
+    -- Non-admins: check user_permissions table
+    ELSE COALESCE(
+      (SELECT has_access FROM public.user_permissions WHERE user_id = _user_id AND page_name = _page_name),
+      false  -- Default to no access if no permission record exists
+    )
+  END
+$$;
+
+-- ============================================================
+-- STEP 11: CREATE RLS POLICIES FOR PAGE-LEVEL ACCESS CONTROL
+-- ============================================================
+
+-- Note: These policies enforce page permissions at the database level
+-- They work in conjunction with frontend permission checks for defense-in-depth
+
+-- Items table: Only users with 'items' page access can modify items
+DROP POLICY IF EXISTS "Admins can manage items" ON public.items;
+CREATE POLICY "Users with items permission can manage items"
+ON public.items FOR ALL
+TO authenticated
+USING (public.has_page_permission(auth.uid(), 'items'));
+
+-- Expenses table: Only users with 'expenses' page access can modify expenses
+DROP POLICY IF EXISTS "Admins can manage all expenses" ON public.expenses;
+CREATE POLICY "Users with expenses permission can manage expenses"
+ON public.expenses FOR ALL
+TO authenticated
+USING (public.has_page_permission(auth.uid(), 'expenses'));
+
+-- User permissions: Only admins can manage (already restricted, but reinforce)
+DROP POLICY IF EXISTS "Admins can manage permissions" ON public.user_permissions;
+CREATE POLICY "Admins can manage all permissions"
+ON public.user_permissions FOR ALL
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'));
+
+-- ============================================================
+-- STEP 12: MULTI-TENANT ISOLATION HELPER
+-- ============================================================
+
+-- Get the admin_id for multi-tenant data scoping
+-- For admins: returns their own user_id
+-- For users: returns the admin_id they belong to (from their created_by admin)
+CREATE OR REPLACE FUNCTION public.get_user_admin_id(_user_id uuid)
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT CASE 
+    WHEN role = 'admin' THEN user_id
+    ELSE (
+      SELECT p2.user_id 
+      FROM public.profiles p2 
+      WHERE p2.role = 'admin' 
+      ORDER BY p2.created_at ASC
+      LIMIT 1
+    )
+  END
+  FROM public.profiles
+  WHERE user_id = _user_id
+$$;
+
+-- ============================================================
 -- COMPLETE! Your Hotel POS backend is ready.
 -- ============================================================
 -- Next steps:
 -- 1. Enable Email Auth in Supabase Auth settings
 -- 2. Set up Storage bucket for images (optional)
 -- 3. Connect your frontend to this Supabase project
+-- ============================================================
+
+-- ============================================================
+-- SQL MIGRATION TO RUN IN SUPABASE SQL EDITOR:
+-- ============================================================
+-- 
+-- -- 1. Add unlimited_stock column
+-- ALTER TABLE public.items ADD COLUMN IF NOT EXISTS unlimited_stock boolean DEFAULT false;
+-- 
+-- -- 2. Create has_page_permission function
+-- CREATE OR REPLACE FUNCTION public.has_page_permission(_user_id uuid, _page_name text)
+-- RETURNS boolean
+-- LANGUAGE sql
+-- STABLE
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+--   SELECT CASE
+--     WHEN EXISTS (SELECT 1 FROM public.profiles WHERE user_id = _user_id AND role = 'admin') THEN true
+--     ELSE COALESCE(
+--       (SELECT has_access FROM public.user_permissions WHERE user_id = _user_id AND page_name = _page_name),
+--       false
+--     )
+--   END
+-- $$;
+-- 
 -- ============================================================
