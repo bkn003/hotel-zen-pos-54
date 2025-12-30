@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { LogOut, User, Hotel } from 'lucide-react';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const Header: React.FC = () => {
+  const { t } = useTranslation();
   const { profile, signOut } = useAuth();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
@@ -34,8 +37,10 @@ export const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2">
+            <LanguageSwitcher />
+            
             <Badge variant={profile.role === 'admin' ? 'default' : 'outline'} className="hidden md:flex text-xs">
-              {profile.role === 'admin' ? 'Admin' : 'Staff'}
+              {profile.role === 'admin' ? t('users.admin') : t('users.user')}
             </Badge>
 
             <DropdownMenu>
@@ -54,7 +59,7 @@ export const Header: React.FC = () => {
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold">{profile.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {profile.role === 'admin' ? 'Hotel Administrator' : 'Staff Member'}
+                    {profile.role === 'admin' ? t('users.admin') : t('users.user')}
                   </p>
                 </div>
 
@@ -65,7 +70,7 @@ export const Header: React.FC = () => {
                   className="text-destructive focus:text-destructive cursor-pointer rounded-lg mx-1"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  {t('auth.signOut')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -79,10 +84,10 @@ export const Header: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LogOut className="w-5 h-5 text-destructive" />
-              Confirm Sign Out
+              {t('auth.signOutConfirm')}
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to sign out from ZEN POS?
+              {t('auth.signOutDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:gap-0">
@@ -91,7 +96,7 @@ export const Header: React.FC = () => {
               onClick={() => setShowSignOutConfirm(false)}
               className="flex-1 sm:flex-none"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -99,7 +104,7 @@ export const Header: React.FC = () => {
               className="flex-1 sm:flex-none"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              {t('auth.signOut')}
             </Button>
           </DialogFooter>
         </DialogContent>
