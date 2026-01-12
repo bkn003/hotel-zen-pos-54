@@ -41,12 +41,29 @@ const Settings = () => {
     return saved !== null ? saved === 'true' : true; // Default to enabled
   });
 
+  // Bill numbering setting - continue from yesterday (true) or start fresh daily (false)
+  const [continueBillFromYesterday, setContinueBillFromYesterday] = useState(() => {
+    const saved = localStorage.getItem('hotel_pos_continue_bill_number');
+    return saved !== null ? saved === 'true' : true; // Default to continue from yesterday
+  });
+
   const handleAutoPrintToggle = (enabled: boolean) => {
     setAutoPrintEnabled(enabled);
     localStorage.setItem('hotel_pos_auto_print', String(enabled));
     toast({
       title: enabled ? "Auto-Print Enabled" : "Auto-Print Disabled",
       description: enabled ? "Bills will be printed automatically after saving." : "Bills will be saved without printing.",
+    });
+  };
+
+  const handleBillNumberingToggle = (continueFromYesterday: boolean) => {
+    setContinueBillFromYesterday(continueFromYesterday);
+    localStorage.setItem('hotel_pos_continue_bill_number', String(continueFromYesterday));
+    toast({
+      title: continueFromYesterday ? "Continue Numbering" : "Fresh Daily Numbering",
+      description: continueFromYesterday
+        ? "Bill numbers will continue from where they left off yesterday."
+        : "Bill numbers will start from 001 each day with date prefix (e.g., 12/01/26-001).",
     });
   };
 
@@ -312,6 +329,48 @@ const Settings = () => {
                   checked={autoPrintEnabled}
                   onCheckedChange={handleAutoPrintToggle}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bill Numbering Settings */}
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center space-x-2">
+                <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-base sm:text-lg">Bill Numbering</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="bill-numbering" className="text-sm font-medium">
+                    Continue Bill Numbers from Yesterday
+                  </Label>
+                  <p className="text-xs text-muted-foreground max-w-sm">
+                    {continueBillFromYesterday
+                      ? "Bill numbers continue sequentially (e.g., BILL-000082, 000083...)."
+                      : "Bill numbers start fresh daily with date prefix (e.g., 12/01/26-001, 12/01/26-002...)."}
+                  </p>
+                </div>
+                <Switch
+                  id="bill-numbering"
+                  checked={continueBillFromYesterday}
+                  onCheckedChange={handleBillNumberingToggle}
+                />
+              </div>
+
+              {/* Preview */}
+              <div className="bg-muted/50 rounded-lg p-3 border">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Preview:</p>
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-lg font-bold font-mono">
+                      {continueBillFromYesterday ? "BILL-000082" : `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '/')}-001`}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Next bill number</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

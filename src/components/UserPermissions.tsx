@@ -18,6 +18,9 @@ const AVAILABLE_PAGES = [
   { name: 'dashboard', label: 'Dashboard', description: 'View dashboard overview' },
   { name: 'analytics', label: 'Analytics', description: 'View sales analytics' },
   { name: 'billing', label: 'Billing', description: 'Create and manage bills' },
+  { name: 'serviceArea', label: 'Service Area', description: 'Manage order service' },
+  { name: 'kitchen', label: 'Kitchen Display', description: 'Kitchen order screen' },
+  { name: 'customerDisplay', label: 'Customer Display', description: 'Public order board' },
   { name: 'items', label: 'Items', description: 'Manage menu items' },
   { name: 'expenses', label: 'Expenses', description: 'Track expenses' },
   { name: 'reports', label: 'Reports', description: 'View bill reports' },
@@ -174,8 +177,8 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
                       key={page.name}
                       onClick={() => togglePermission(user.user_id, page.name, hasAccess)}
                       className={`p-2 rounded-lg border cursor-pointer transition-all ${hasAccess
-                          ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800'
-                          : 'bg-gray-50 border-gray-200 dark:bg-gray-900/30 dark:border-gray-700'
+                        ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800'
+                        : 'bg-gray-50 border-gray-200 dark:bg-gray-900/30 dark:border-gray-700'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-1">

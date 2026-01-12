@@ -11,6 +11,9 @@ interface UserPermissions {
   analytics: boolean;
   settings: boolean;
   users: boolean;
+  serviceArea: boolean;
+  kitchen: boolean;
+  customerDisplay: boolean;
 }
 
 const DEFAULT_PERMISSIONS: UserPermissions = {
@@ -22,6 +25,9 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
   analytics: false,
   settings: false,
   users: false,
+  serviceArea: false,
+  kitchen: false,
+  customerDisplay: false,
 };
 
 // All permissions granted for admins
@@ -34,6 +40,9 @@ const ADMIN_PERMISSIONS: UserPermissions = {
   analytics: true,
   settings: true,
   users: true,
+  serviceArea: true,
+  kitchen: true,
+  customerDisplay: true,
 };
 
 // Cache key prefix and TTL (2 minutes - short so admin changes take effect quickly)

@@ -821,9 +821,12 @@ const Billing = () => {
 
       // Generate Bill Number
       let billNumber: string;
+      const continueBillFromYesterday = localStorage.getItem('hotel_pos_continue_bill_number') !== 'false';
+
       if (isOffline) {
         billNumber = `BILL-OFF-${Date.now()}`;
-      } else {
+      } else if (continueBillFromYesterday) {
+        // Continue sequential numbering from all bills
         const { data: allBillNos } = await supabase
           .from('bills')
           .select('bill_no')
@@ -843,6 +846,33 @@ const Billing = () => {
           });
         }
         billNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+      } else {
+        // Start fresh daily with date prefix: DD/MM/YY-NNN
+        const today = new Date();
+        const datePrefix = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getFullYear()).slice(-2)}`;
+        const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        // Get today's bills only
+        const { data: todayBills } = await supabase
+          .from('bills')
+          .select('bill_no')
+          .eq('date', todayDateString)
+          .order('created_at', { ascending: false });
+
+        let todayMaxNumber = 0;
+        if (todayBills && todayBills.length > 0) {
+          todayBills.forEach(bill => {
+            // Match pattern DD/MM/YY-NNN
+            const match = bill.bill_no.match(/-(\d{3})$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > todayMaxNumber) {
+                todayMaxNumber = num;
+              }
+            }
+          });
+        }
+        billNumber = `${datePrefix}-${String(todayMaxNumber + 1).padStart(3, '0')}`;
       }
 
       const now = new Date();
@@ -868,7 +898,11 @@ const Billing = () => {
         payment_details: paymentData.paymentAmounts,
         additional_charges: additionalChargesArray,
         created_by: profile?.user_id,
-        date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+        // Service Area & Kitchen Display status - enables realtime updates
+        service_status: 'pending',
+        kitchen_status: 'pending',
+        status_updated_at: now.toISOString()
       };
 
       // OFFLINE MODE - queue and try print
