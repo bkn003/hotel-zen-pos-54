@@ -57,7 +57,8 @@ const KitchenDisplay = () => {
     // Fetch kitchen orders
     const fetchBills = useCallback(async () => {
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
             const { data, error } = await supabase
                 .from('bills')
@@ -96,12 +97,21 @@ const KitchenDisplay = () => {
     // Initial fetch
     useEffect(() => {
         fetchBills();
+
+        // Polling fallback every 30 seconds
+        const pollInterval = setInterval(() => {
+            console.log('Kitchen Display: Polling for updates...');
+            fetchBills();
+        }, 30000);
+
+        return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
     // Realtime subscription
     useEffect(() => {
+        console.log('Kitchen Display: Setting up realtime subscription...');
         const channel = supabase
-            .channel('kitchen-display-bills')
+            .channel('kitchen-display-changes')
             .on(
                 'postgres_changes',
                 {
@@ -110,20 +120,23 @@ const KitchenDisplay = () => {
                     table: 'bills',
                 },
                 (payload) => {
-                    console.log('Kitchen: Bill change detected', payload);
+                    console.log('Kitchen Display: Realtime change detected!', payload);
                     fetchBills();
 
                     // Announce new orders
                     if (payload.eventType === 'INSERT' ||
                         (payload.eventType === 'UPDATE' &&
-                            (payload.old as any)?.kitchen_status === null)) {
+                            !(payload.old as any)?.kitchen_status && (payload.new as any).kitchen_status === 'pending')) {
                         announce(`New order. Bill number ${(payload.new as any).bill_no}`);
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log('Kitchen Display: Subscription status:', status);
+            });
 
         return () => {
+            console.log('Kitchen Display: Cleaning up subscription');
             supabase.removeChannel(channel);
         };
     }, [fetchBills, announce]);
@@ -219,7 +232,11 @@ const KitchenDisplay = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                        </div>
                         <Button
                             variant="outline"
                             size="icon"

@@ -33,7 +33,8 @@ const CustomerDisplay = () => {
     // Fetch bills
     const fetchBills = useCallback(async () => {
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
             const { data, error } = await supabase
                 .from('bills')
@@ -47,6 +48,7 @@ const CustomerDisplay = () => {
 
             if (error) throw error;
 
+            console.log(`Customer Display: Fetched ${data?.length || 0} bills for ${today}`);
             setBills((data as unknown as DisplayBill[]) || []);
         } catch (error) {
             console.error('Error fetching display bills:', error);
@@ -58,12 +60,21 @@ const CustomerDisplay = () => {
     // Initial fetch
     useEffect(() => {
         fetchBills();
+
+        // Polling fallback every 30 seconds
+        const pollInterval = setInterval(() => {
+            console.log('Customer Display: Polling for updates...');
+            fetchBills();
+        }, 30000);
+
+        return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
     // Realtime subscription
     useEffect(() => {
+        console.log('Customer Display: Setting up realtime subscription...');
         const channel = supabase
-            .channel('customer-display-bills')
+            .channel('customer-display-changes')
             .on(
                 'postgres_changes',
                 {
@@ -71,13 +82,17 @@ const CustomerDisplay = () => {
                     schema: 'public',
                     table: 'bills',
                 },
-                () => {
+                (payload) => {
+                    console.log('Customer Display: Realtime change detected!', payload);
                     fetchBills();
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log('Customer Display: Subscription status:', status);
+            });
 
         return () => {
+            console.log('Customer Display: Cleaning up subscription');
             supabase.removeChannel(channel);
         };
     }, [fetchBills]);

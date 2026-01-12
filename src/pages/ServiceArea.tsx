@@ -45,7 +45,8 @@ const ServiceArea = () => {
     // Fetch bills that need service
     const fetchBills = useCallback(async () => {
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
             const { data, error } = await supabase
                 .from('bills')
@@ -78,6 +79,7 @@ const ServiceArea = () => {
 
             if (error) throw error;
 
+            console.log(`Service Area: Fetched ${data?.length || 0} bills for ${today}`);
             setBills((data as unknown as ServiceBill[]) || []);
         } catch (error) {
             console.error('Error fetching service bills:', error);
@@ -94,12 +96,21 @@ const ServiceArea = () => {
     // Initial fetch
     useEffect(() => {
         fetchBills();
+
+        // Polling fallback every 30 seconds
+        const pollInterval = setInterval(() => {
+            console.log('Service Area: Polling for updates...');
+            fetchBills();
+        }, 30000);
+
+        return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
     // Realtime subscription
     useEffect(() => {
+        console.log('Service Area: Setting up realtime subscription...');
         const channel = supabase
-            .channel('service-area-bills')
+            .channel('service-area-bills-changes')
             .on(
                 'postgres_changes',
                 {
@@ -108,13 +119,19 @@ const ServiceArea = () => {
                     table: 'bills',
                 },
                 (payload) => {
-                    console.log('Service Area: Bill change detected', payload);
+                    console.log('Service Area: Realtime change detected!', payload);
                     fetchBills();
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log('Service Area: Subscription status:', status);
+                if (status === 'SUBSCRIBED') {
+                    console.log('Service Area: Successfully joined realtime channel');
+                }
+            });
 
         return () => {
+            console.log('Service Area: Cleaning up subscription');
             supabase.removeChannel(channel);
         };
     }, [fetchBills]);
@@ -208,8 +225,14 @@ const ServiceArea = () => {
         <div className="p-3 sm:p-4 space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Service Area</h1>
+                <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Service Area</h1>
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
+                            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[8px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                        </div>
+                    </div>
                     <p className="text-xs sm:text-sm text-muted-foreground">
                         {bills.length} bill{bills.length !== 1 ? 's' : ''} waiting for service
                     </p>

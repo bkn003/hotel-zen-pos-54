@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -42,7 +42,7 @@ import { InstallPrompt } from './components/InstallPrompt';
 
 const App = () => {
   // Always On Display State
-  const [aodEnabled, setAodEnabled] = React.useState(() => {
+  const [aodEnabled, setAodEnabled] = useState(() => {
     const saved = localStorage.getItem('hotel_pos_aod_enabled');
     return saved === null ? true : saved === 'true';
   });
@@ -51,7 +51,7 @@ const App = () => {
   useWakeLock(aodEnabled);
 
   // Listen for AOD preference changes
-  React.useEffect(() => {
+  useEffect(() => {
     const handleAodChange = (e: CustomEvent) => {
       setAodEnabled(e.detail);
     };
