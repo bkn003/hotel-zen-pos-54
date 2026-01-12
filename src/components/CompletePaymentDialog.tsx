@@ -12,6 +12,8 @@ interface CartItem {
   price: number;
   quantity: number;
   unit?: string;
+  base_value?: number;
+  quantity_step?: number;
 }
 
 const getSimplifiedUnit = (unit?: string): string => {
@@ -85,7 +87,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('flat');
   const [selectedCharges, setSelectedCharges] = useState<Record<string, boolean>>({});
-  const [itemPriceOverrides, setItemPriceOverrides] = useState<Record<string, number>>({});
+  const [itemTotalOverrides, setItemTotalOverrides] = useState<Record<string, number>>({});
   const [chargeAmountOverrides, setChargeAmountOverrides] = useState<Record<string, number>>({});
   const [itemQuantityOverrides, setItemQuantityOverrides] = useState<Record<string, number>>({});
   const [showDiscount, setShowDiscount] = useState(false);
@@ -102,16 +104,22 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       const currentItem = cart.find(item => item.id === itemId);
       if (!currentItem) return prev;
       const currentQty = prev[itemId] !== undefined ? prev[itemId] : currentItem.quantity;
-      const newQty = Math.max(0, currentQty + change);
+      const step = currentItem.quantity_step || 1;
+      const actualChange = change > 0 ? step : -step;
+      const newQty = Math.max(0, currentQty + actualChange);
       return { ...prev, [itemId]: newQty };
     });
   };
 
   // Calculate subtotal with price and quantity overrides
   const cartSubtotal = cart.reduce((sum, item) => {
-    const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
     const effectiveQty = getEffectiveQty(item);
-    return sum + (effectivePrice * effectiveQty);
+    if (itemTotalOverrides[item.id] !== undefined) {
+      return sum + itemTotalOverrides[item.id];
+    }
+    const baseValue = item.base_value || 1;
+    const itemTotal = (effectiveQty / baseValue) * item.price;
+    return sum + itemTotal;
   }, 0);
 
   const totalAdditionalCharges = additionalCharges
@@ -160,11 +168,22 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       });
 
     const finalItems = cart.map(item => {
-      const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
-      const effectiveQty = getEffectiveQty(item); // Uses itemQuantityOverrides
+      const effectiveQty = getEffectiveQty(item);
+      const baseValue = item.base_value || 1;
+      let finalPrice = item.price;
+
+      // If the total was overridden, we need to calculate what the unit price should be
+      // so that (qty / base_value) * finalPrice = overriddenTotal
+      if (itemTotalOverrides[item.id] !== undefined) {
+        const overriddenTotal = itemTotalOverrides[item.id];
+        if (effectiveQty > 0) {
+          finalPrice = (overriddenTotal * baseValue) / effectiveQty;
+        }
+      }
+
       return {
         ...item,
-        price: effectivePrice,
+        price: finalPrice,
         quantity: effectiveQty
       };
     });
@@ -202,7 +221,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       setPaymentAmounts({});
       setDiscount(0);
       setDiscountType('flat');
-      setItemPriceOverrides({});
+      setItemTotalOverrides({});
       setChargeAmountOverrides({});
       setItemQuantityOverrides({});
       setShowDiscount(false);
@@ -291,8 +310,10 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
             </div>
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
               {cart.map((item, index) => {
-                const effectivePrice = itemPriceOverrides[item.id] !== undefined ? itemPriceOverrides[item.id] : item.price;
                 const effectiveQty = getEffectiveQty(item);
+                const isTotalOverridden = itemTotalOverrides[item.id] !== undefined;
+                const lineTotal = isTotalOverridden ? itemTotalOverrides[item.id] : (effectiveQty / (item.base_value || 1)) * item.price;
+
 
                 // Pastel colors for cart items - cycling
                 const colorClasses = [
@@ -341,15 +362,15 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                       <span className="text-xs text-muted-foreground mx-0.5">×</span>
                       <Input
                         type="number"
-                        value={effectivePrice}
+                        value={itemTotalOverrides[item.id] !== undefined ? itemTotalOverrides[item.id] : (effectiveQty / (item.base_value || 1)) * item.price}
                         onChange={(e) => {
-                          const newPrice = Number(e.target.value) || 0;
-                          setItemPriceOverrides(prev => ({ ...prev, [item.id]: newPrice }));
+                          const newTotal = Number(e.target.value) || 0;
+                          setItemTotalOverrides(prev => ({ ...prev, [item.id]: newTotal }));
                         }}
-                        className="h-7 w-14 text-xs text-center p-0 border-orange-400 bg-orange-50 dark:bg-orange-900/30 rounded font-bold"
+                        className="h-7 w-16 text-xs text-center p-0 border-orange-400 bg-orange-50 dark:bg-orange-900/30 rounded font-bold"
                         min="0"
                         step="1"
-                        title="Edit price"
+                        title="Edit total price"
                       />
                       <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)} className="h-6 w-6 p-0 text-destructive hover:bg-red-50">
                         <Trash2 className="h-3 w-3" />

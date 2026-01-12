@@ -41,7 +41,7 @@ const Items: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState<string[]>([]);
   const [isReordering, setIsReordering] = useState(false);
-  
+
   // Drag and drop refs
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
@@ -82,11 +82,11 @@ const Items: React.FC = () => {
     try {
       // Try with display_order first, fallback to name only if column doesn't exist
       let query = supabase.from('items').select('*');
-      
+
       const { data, error } = await query.order('name');
 
       if (error) throw error;
-      
+
       // Sort by display_order client-side if the field exists
       const sortedData = (data || []).sort((a: any, b: any) => {
         const orderA = a.display_order ?? 9999;
@@ -94,7 +94,7 @@ const Items: React.FC = () => {
         if (orderA !== orderB) return orderA - orderB;
         return (a.name || '').localeCompare(b.name || '');
       });
-      
+
       setItems(sortedData);
     } catch (error) {
       console.error('Error fetching items:', error);
@@ -145,7 +145,7 @@ const Items: React.FC = () => {
           .eq('id', update.id);
         if (error) throw error;
       }
-      
+
       toast({
         title: "Order Updated",
         description: "Item order saved successfully",
@@ -320,8 +320,8 @@ const Items: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                   {activeItems.map((item, index) => (
-                    <Card 
-                      key={item.id} 
+                    <Card
+                      key={item.id}
                       draggable={profile?.role === 'admin'}
                       onDragStart={() => handleDragStart(index)}
                       onDragEnter={() => handleDragEnter(index)}
@@ -368,6 +368,9 @@ const Items: React.FC = () => {
                             <div>
                               <span className="font-bold text-base text-primary block leading-none">
                                 ₹{item.price.toFixed(0)}
+                                <span className="font-normal text-[10px] text-muted-foreground">
+                                  /{item.base_value && item.base_value > 1 ? item.base_value : ''}{(item.unit || 'pc').replace(/pieces?|piece\s?\(pc\)/i, 'pc').replace(/grams?|gram\s?\(g\)/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?|liter\s?\(l\)/i, 'L').replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg')}
+                                </span>
                               </span>
                               {item.stock_quantity !== null && item.stock_quantity !== undefined && (
                                 <span className={`text-[10px] ${isLowStock(item) ? 'text-orange-500 font-semibold' : 'text-muted-foreground'}`}>
@@ -425,6 +428,9 @@ const Items: React.FC = () => {
                           <div className="mt-auto pt-1 flex items-end justify-between">
                             <span className="font-bold text-base text-muted-foreground block leading-none">
                               ₹{item.price.toFixed(0)}
+                              <span className="font-normal text-[10px]">
+                                /{item.base_value && item.base_value > 1 ? item.base_value : ''}{(item.unit || 'pc').replace(/pieces?|piece\s?\(pc\)/i, 'pc').replace(/grams?|gram\s?\(g\)/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?|liter\s?\(l\)/i, 'L').replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg')}
+                              </span>
                             </span>
                             {profile?.role === 'admin' && (
                               <EditItemDialog item={item} onItemUpdated={handleItemAdded} />

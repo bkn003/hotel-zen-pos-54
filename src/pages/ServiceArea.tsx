@@ -44,6 +44,8 @@ const ServiceArea = () => {
 
     // Fetch bills that need service
     const fetchBills = useCallback(async () => {
+        const startTime = performance.now();
+        console.time('ServiceArea:fetchBills');
         try {
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -68,7 +70,8 @@ const ServiceArea = () => {
               id,
               name,
               price,
-              unit
+              unit,
+              base_value
             )
           )
         `)
@@ -79,7 +82,10 @@ const ServiceArea = () => {
 
             if (error) throw error;
 
-            console.log(`Service Area: Fetched ${data?.length || 0} bills for ${today}`);
+            const endTime = performance.now();
+            console.timeEnd('ServiceArea:fetchBills');
+            console.log(`Service Area: Fetched ${data?.length || 0} bills for ${today} in ${(endTime - startTime).toFixed(2)}ms`);
+
             setBills((data as unknown as ServiceBill[]) || []);
         } catch (error) {
             console.error('Error fetching service bills:', error);
@@ -133,6 +139,18 @@ const ServiceArea = () => {
         return () => {
             console.log('Service Area: Cleaning up subscription');
             supabase.removeChannel(channel);
+        };
+    }, [fetchBills]);
+
+    // Listen for instant local 'bills-updated' event (0ms latency)
+    useEffect(() => {
+        const handleBillsUpdated = () => {
+            console.log('Service Area: Instant bills-updated event received!');
+            fetchBills();
+        };
+        window.addEventListener('bills-updated', handleBillsUpdated);
+        return () => {
+            window.removeEventListener('bills-updated', handleBillsUpdated);
         };
     }, [fetchBills]);
 
@@ -228,9 +246,9 @@ const ServiceArea = () => {
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2">
                         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Service Area</h1>
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-[8px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-green-600">Live</span>
                         </div>
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground">
@@ -289,13 +307,13 @@ const ServiceArea = () => {
                                         return (
                                             <div
                                                 key={item.id}
-                                                className="flex items-center justify-between text-xs sm:text-sm"
+                                                className="flex items-center justify-between py-0.5"
                                             >
-                                                <span className="font-medium truncate flex-1 pr-2">
+                                                <span className="font-semibold text-sm sm:text-base text-foreground truncate flex-1 pr-2">
                                                     {item.quantity}× {item.items?.name || 'Item'}
                                                 </span>
-                                                <span className="text-muted-foreground text-[10px] sm:text-xs whitespace-nowrap">
-                                                    {shortUnit}
+                                                <span className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap bg-muted px-1 rounded">
+                                                    {item.items?.base_value && item.items.base_value > 1 ? `${item.items.base_value}${shortUnit}` : shortUnit}
                                                 </span>
                                             </div>
                                         );

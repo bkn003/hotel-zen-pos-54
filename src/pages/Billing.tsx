@@ -23,6 +23,8 @@ interface Item {
   is_active: boolean;
   category?: string;
   unit?: string;
+  base_value?: number;
+  quantity_step?: number;
   stock_quantity?: number;
   minimum_stock_alert?: number;
 }
@@ -245,9 +247,9 @@ const Billing = () => {
         .select('*')
         .eq('is_active', true)
         .order('name');
-      
+
       if (error) throw error;
-      
+
       // Sort by display_order client-side if the field exists
       const sortedData = (data || []).sort((a: any, b: any) => {
         const orderA = a.display_order ?? 9999;
@@ -255,7 +257,7 @@ const Billing = () => {
         if (orderA !== orderB) return orderA - orderB;
         return (a.name || '').localeCompare(b.name || '');
       });
-      
+
       setItems(sortedData);
     } catch (error) {
       console.error('Error fetching items:', error);
@@ -451,7 +453,10 @@ const Billing = () => {
             name,
             price,
             image_url,
-            is_active
+            is_active,
+            unit,
+            base_value,
+            quantity_step
           )
         `).eq('bill_id', billId);
       if (billItemsError) {
@@ -462,15 +467,20 @@ const Billing = () => {
 
       // Convert bill items to cart items
       if (billItems && billItems.length > 0) {
-        const cartItems: CartItem[] = billItems.map((billItem: BillItem) => ({
-          id: billItem.items.id,
-          name: billItem.items.name,
-          price: billItem.price,
-          // Use the price from the bill item (historical price)
-          image_url: billItem.items.image_url,
-          is_active: billItem.items.is_active,
-          quantity: billItem.quantity
-        }));
+        const cartItems: CartItem[] = billItems.map((billItem: BillItem) => {
+          const itemData = billItem.items as any;
+          return {
+            id: itemData.id,
+            name: itemData.name,
+            price: billItem.price, // Use price from bill item
+            image_url: itemData.image_url,
+            is_active: itemData.is_active,
+            unit: itemData.unit,
+            base_value: itemData.base_value,
+            quantity_step: itemData.quantity_step,
+            quantity: billItem.quantity
+          };
+        });
         setCart(cartItems);
         setDiscount(editingBill?.discount || 0);
         setSelectedPayment(editingBill?.payment_mode || '');
@@ -495,15 +505,18 @@ const Billing = () => {
   const addToCart = (item: Item) => {
     setCart(prev => {
       const existing = prev.find(cartItem => cartItem.id === item.id);
+      const step = item.quantity_step || 1;
+      const baseValue = item.base_value || 1;
+
       if (existing) {
         return prev.map(cartItem => cartItem.id === item.id ? {
           ...cartItem,
-          quantity: cartItem.quantity + 1
+          quantity: cartItem.quantity + step
         } : cartItem);
       }
       return [...prev, {
         ...item,
-        quantity: 1
+        quantity: baseValue
       }];
     });
     // Clear search after adding to cart for user friendliness
@@ -513,7 +526,9 @@ const Billing = () => {
     setCart(prev => {
       return prev.map(item => {
         if (item.id === id) {
-          const newQuantity = Math.max(0, item.quantity + change);
+          const step = item.quantity_step || 1;
+          const actualChange = change > 0 ? step : -step;
+          const newQuantity = Math.max(0, item.quantity + actualChange);
           return {
             ...item,
             quantity: newQuantity
@@ -563,7 +578,11 @@ const Billing = () => {
     localStorage.setItem('billing-view-mode', mode);
   };
   const getTotalAmount = () => {
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = cart.reduce((sum, item) => {
+      const baseValue = item.base_value || 1;
+      const itemTotal = (item.quantity / baseValue) * item.price;
+      return sum + itemTotal;
+    }, 0);
     return Math.max(0, subtotal - discount);
   };
   const total = getTotalAmount();
@@ -633,13 +652,16 @@ const Billing = () => {
       }
 
       // Insert new bill items
-      const billItems = cart.map(item => ({
-        bill_id: editingBill.id,
-        item_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.price * item.quantity
-      }));
+      const billItems = cart.map(item => {
+        const baseValue = item.base_value || 1;
+        return {
+          bill_id: editingBill.id,
+          item_id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          total: (item.quantity / baseValue) * item.price
+        };
+      });
       const {
         error: itemsError
       } = await supabase.from('bill_items').insert(billItems);
@@ -682,13 +704,16 @@ const Billing = () => {
     if (!billData) throw new Error('Failed to create bill record');
 
     // 2. Create Bill Items
-    const billItems = validCart.map(item => ({
-      bill_id: billData.id,
-      item_id: item.id,
-      quantity: item.quantity,
-      price: item.price,
-      total: item.price * item.quantity
-    }));
+    const billItems = validCart.map(item => {
+      const baseValue = item.base_value || 1;
+      return {
+        bill_id: billData.id,
+        item_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        total: (item.quantity / baseValue) * item.price
+      };
+    });
 
     const { error: itemsError } = await supabase
       .from('bill_items')
@@ -721,6 +746,9 @@ const Billing = () => {
       description: `Bill ${billNumber} generated!`,
       duration: 2000
     });
+
+    // Dispatch instant event for real-time updates across all pages
+    window.dispatchEvent(new CustomEvent('bills-updated'));
 
     return billData;
   };
@@ -876,7 +904,10 @@ const Billing = () => {
       }
 
       const now = new Date();
-      const subtotal = validCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const subtotal = validCart.reduce((sum, item) => {
+        const baseValue = item.base_value || 1;
+        return sum + (item.quantity / baseValue) * item.price;
+      }, 0);
       const totalAdditionalCharges = paymentData.additionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
       const totalAmount = subtotal + totalAdditionalCharges - paymentData.discount;
 
@@ -985,12 +1016,15 @@ const Billing = () => {
         billNo: billNumber,
         date: format(now, 'MMM dd, yyyy'),
         time: format(now, 'hh:mm a'),
-        items: validCart.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.price * item.quantity
-        })),
+        items: validCart.map(item => {
+          const baseValue = item.base_value || 1;
+          return {
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            total: (item.quantity / baseValue) * item.price
+          };
+        }),
         subtotal: subtotal,
         additionalCharges: additionalChargesArray,
         discount: paymentData.discount,
@@ -1145,7 +1179,9 @@ const Billing = () => {
 
               <div className="flex-1 flex flex-col min-h-0 px-0.5">
                 <h3 className="font-semibold text-sm mb-0.5 line-clamp-1 flex-shrink-0">{item.name}</h3>
-                <p className="text-primary mb-1 flex-shrink-0 font-bold text-sm">₹{item.price.toFixed(2)} / {unitLabel}</p>
+                <p className="text-primary mb-1 flex-shrink-0 font-bold text-sm">
+                  ₹{item.price.toFixed(2)} / {item.base_value && item.base_value > 1 ? `${item.base_value}${unitLabel}` : unitLabel}
+                </p>
 
                 {isInCart ? (
                   <div className="flex items-center justify-center gap-1.5 mt-auto">
@@ -1189,7 +1225,7 @@ const Billing = () => {
                       {/* Name and Price */}
                       <div>
                         <h3 className="font-semibold text-sm">{item.name}</h3>
-                        <p className="text-lg font-bold text-primary">₹{item.price}/{getSimplifiedUnit(item.unit)}</p>
+                        <p className="text-lg font-bold text-primary">₹{item.price}/{item.base_value && item.base_value > 1 ? `${item.base_value}${getSimplifiedUnit(item.unit)}` : getSimplifiedUnit(item.unit)}</p>
                       </div>
                     </div>
 
@@ -1280,7 +1316,7 @@ const Billing = () => {
 
             <div className="flex justify-end mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
               <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Total: ₹{(item.price * item.quantity).toFixed(0)}
+                Total: ₹{((item.quantity / (item.base_value || 1)) * item.price).toFixed(0)}
               </span>
             </div>
           </div>)}

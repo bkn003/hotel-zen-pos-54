@@ -61,6 +61,7 @@ interface ItemReport {
   category: string;
   total_quantity: number;
   total_revenue: number;
+  unit?: string;
 }
 
 const Reports: React.FC = () => {
@@ -370,7 +371,8 @@ const Reports: React.FC = () => {
                 items (
                   name,
                   category,
-                  is_active
+                  is_active,
+                  unit
                 )
               )
             `)
@@ -431,7 +433,8 @@ const Reports: React.FC = () => {
                     item_name: item.items?.name || 'Unknown',
                     category: item.items?.category || 'Unknown',
                     total_quantity: item.quantity,
-                    total_revenue: item.total
+                    total_revenue: item.total,
+                    unit: item.items?.unit
                   });
                 }
               });
@@ -1263,7 +1266,10 @@ const Reports: React.FC = () => {
                           <p className="text-xs text-muted-foreground">{item.category}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-sm">Qty: {item.total_quantity}</p>
+                          <p className="font-semibold text-sm">
+                            Qty: {item.total_quantity}
+                            {item.unit ? ` ${item.unit.replace(/pieces?|piece\s?\(pc\)/i, 'pc').replace(/grams?|gram\s?\(g\)/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?|liter\s?\(l\)/i, 'L').replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg')}` : ''}
+                          </p>
                           <p className="text-xs text-primary">₹{item.total_revenue.toFixed(2)}</p>
                         </div>
                       </div>

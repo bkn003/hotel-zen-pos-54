@@ -73,7 +73,9 @@ const KitchenDisplay = () => {
             quantity,
             items (
               id,
-              name
+              name,
+              unit,
+              base_value
             )
           )
         `)
@@ -109,9 +111,9 @@ const KitchenDisplay = () => {
 
     // Realtime subscription
     useEffect(() => {
-        console.log('Kitchen Display: Setting up realtime subscription...');
+        console.log('Kitchen: Setting up realtime subscription...');
         const channel = supabase
-            .channel('kitchen-display-changes')
+            .channel('kitchen-bills-changes')
             .on(
                 'postgres_changes',
                 {
@@ -120,26 +122,42 @@ const KitchenDisplay = () => {
                     table: 'bills',
                 },
                 (payload) => {
-                    console.log('Kitchen Display: Realtime change detected!', payload);
+                    console.log('Kitchen: Realtime change detected!', payload);
                     fetchBills();
 
-                    // Announce new orders
-                    if (payload.eventType === 'INSERT' ||
-                        (payload.eventType === 'UPDATE' &&
-                            !(payload.old as any)?.kitchen_status && (payload.new as any).kitchen_status === 'pending')) {
-                        announce(`New order. Bill number ${(payload.new as any).bill_no}`);
+                    // Voice announcement for new orders
+                    if (payload.eventType === 'INSERT' && voiceEnabled) {
+                        announce(`New order received, Bill number ${payload.new?.bill_no}`);
                     }
                 }
             )
             .subscribe((status) => {
-                console.log('Kitchen Display: Subscription status:', status);
+                console.log('Kitchen: Subscription status:', status);
             });
 
+        // Polling fallback every 30 seconds
+        const pollInterval = setInterval(() => {
+            console.log('Kitchen: Polling for updates...');
+            fetchBills();
+        }, 30000);
+
         return () => {
-            console.log('Kitchen Display: Cleaning up subscription');
             supabase.removeChannel(channel);
+            clearInterval(pollInterval);
         };
-    }, [fetchBills, announce]);
+    }, [fetchBills, voiceEnabled, announce]);
+
+    // Listen for instant local 'bills-updated' event (0ms latency)
+    useEffect(() => {
+        const handleBillsUpdated = () => {
+            console.log('Kitchen: Instant bills-updated event received!');
+            fetchBills();
+        };
+        window.addEventListener('bills-updated', handleBillsUpdated);
+        return () => {
+            window.removeEventListener('bills-updated', handleBillsUpdated);
+        };
+    }, [fetchBills]);
 
     // Update kitchen status
     const updateKitchenStatus = async (
@@ -388,7 +406,12 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                                 {item.items?.name || 'Unknown'}
                             </span>
                             <Badge variant="outline" className="font-bold">
-                                ×{item.quantity}
+                                {item.quantity}
+                                {(() => {
+                                    const unit = item.items?.unit || '';
+                                    const shortUnit = unit.replace(/pieces?/i, 'pc').replace(/grams?/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?/i, 'L').replace(/kilograms?|kg/i, 'kg');
+                                    return item.items?.base_value && item.items.base_value > 1 ? `${item.items.base_value}${shortUnit}` : shortUnit;
+                                })()}
                             </Badge>
                         </div>
                     ))}
