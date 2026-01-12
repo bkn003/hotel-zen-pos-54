@@ -104,12 +104,22 @@ export const isWithinUndoWindow = (date: Date | string, windowMinutes: number = 
  */
 export const getShortUnit = (unit?: string): string => {
   if (!unit) return 'pc';
-  return unit
-    .replace(/pieces?|piece\s?\(pc\)/i, 'pc')
-    .replace(/grams?|gram\s?\(g\)/i, 'g')
-    .replace(/milliliters?|ml/i, 'ml')
-    .replace(/liters?|liter\s?\(l\)/i, 'L')
-    .replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg');
+
+  const unitLower = unit.toLowerCase().trim();
+
+  // Check for common unit patterns and return short form
+  if (unitLower.includes('kilogram') || unitLower === 'kg') return 'kg';
+  if (unitLower.includes('gram') || unitLower === 'g') return 'g';
+  if (unitLower.includes('liter') || unitLower === 'l') return 'L';
+  if (unitLower.includes('milliliter') || unitLower === 'ml') return 'ml';
+  if (unitLower.includes('piece') || unitLower === 'pc') return 'pc';
+
+  // If unit contains parentheses with short form, extract it
+  const match = unit.match(/\(([^)]+)\)/);
+  if (match) return match[1];
+
+  // Default: return first 2-3 characters as short form
+  return unit.substring(0, 3).toLowerCase();
 };
 
 /**

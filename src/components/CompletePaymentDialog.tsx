@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Minus, Trash2, Percent, ChevronDown, ChevronUp } from 'lucide-react';
+import { getShortUnit } from '@/utils/timeUtils';
 
 interface CartItem {
   id: string;
@@ -16,25 +17,10 @@ interface CartItem {
   quantity_step?: number;
 }
 
-const getSimplifiedUnit = (unit?: string): string => {
-  if (!unit) return 'pc';
-  const unitMap: Record<string, string> = {
-    'Piece (pc)': 'pc',
-    'Kilogram (kg)': 'kg',
-    'Gram (g)': 'g',
-    'Liter (L)': 'lt',
-    'Milliliter (mL)': 'ml',
-    'Dozen (dz)': 'dz',
-    'Box (box)': 'box',
-    'Packet (pkt)': 'pkt',
-  };
-  return unitMap[unit] || unit.toLowerCase();
-};
-
 const isWeightOrVolumeUnit = (unit?: string): boolean => {
   if (!unit) return false;
-  const weightVolumeUnits = ['kg', 'Kilogram (kg)', 'g', 'Gram (g)', 'lt', 'Liter (L)', 'ml', 'Milliliter (mL)'];
-  return weightVolumeUnits.includes(unit) || weightVolumeUnits.includes(getSimplifiedUnit(unit));
+  const shortUnit = getShortUnit(unit);
+  return ['kg', 'g', 'L', 'ml'].includes(shortUnit);
 };
 
 interface PaymentType {
@@ -329,7 +315,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   <div key={item.id} className={`flex items-center justify-between p-1.5 rounded-lg gap-1 border ${colorClass}`}>
                     <div className="flex-1 min-w-0 mr-1">
                       <div className="font-semibold truncate text-sm">{index + 1}.{item.name}</div>
-                      <div className="text-xs text-muted-foreground">₹{item.price}/{getSimplifiedUnit(item.unit)}</div>
+                      <div className="text-xs text-muted-foreground">₹{item.price}/{getShortUnit(item.unit)}</div>
                     </div>
                     <div className="flex items-center gap-0.5">
                       <Button

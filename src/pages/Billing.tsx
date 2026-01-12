@@ -15,6 +15,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { printReceipt, PrintData } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { format } from 'date-fns';
+import { getShortUnit } from '@/utils/timeUtils';
 interface Item {
   id: string;
   name: string;
@@ -36,21 +37,7 @@ const isLowStock = (item: Item): boolean => {
   return item.stock_quantity <= item.minimum_stock_alert;
 };
 
-// Utility function to get simplified unit names
-const getSimplifiedUnit = (unit?: string): string => {
-  if (!unit) return 'pc';
-  const unitMap: Record<string, string> = {
-    'Piece (pc)': 'pc',
-    'Kilogram (kg)': 'kg',
-    'Gram (g)': 'g',
-    'Liter (L)': 'lt',
-    'Milliliter (mL)': 'ml',
-    'Dozen (dz)': 'dz',
-    'Box (box)': 'box',
-    'Packet (pkt)': 'pkt'
-  };
-  return unitMap[unit] || unit.toLowerCase();
-};
+// Removed inline getSimplifiedUnit - now using getShortUnit from timeUtils
 interface CartItem extends Item {
   quantity: number;
 }
@@ -1147,7 +1134,7 @@ const Billing = () => {
               cacheImageUrl(item.id, item.image_url);
             }
             const isInCart = cartItem && cartItem.quantity > 0;
-            const unitLabel = getSimplifiedUnit(item.unit);
+            const unitLabel = getShortUnit(item.unit);
             const lowStock = isLowStock(item);
             return <div key={item.id} className={`relative bg-card rounded-xl border-2 p-1.5 flex flex-col shadow-sm transition-all duration-300 ${isInCart ? 'border-primary shadow-primary/20 shadow-md' : lowStock ? 'border-orange-500 dark:border-orange-400' : 'border-gray-200 dark:border-gray-700 hover:border-primary/30'}`}>
               {/* Image container with quantity badge */}
@@ -1225,7 +1212,7 @@ const Billing = () => {
                       {/* Name and Price */}
                       <div>
                         <h3 className="font-semibold text-sm">{item.name}</h3>
-                        <p className="text-lg font-bold text-primary">₹{item.price}/{item.base_value && item.base_value > 1 ? `${item.base_value}${getSimplifiedUnit(item.unit)}` : getSimplifiedUnit(item.unit)}</p>
+                        <p className="text-lg font-bold text-primary">₹{item.price}/{item.base_value && item.base_value > 1 ? `${item.base_value}${getShortUnit(item.unit)}` : getShortUnit(item.unit)}</p>
                       </div>
                     </div>
 
