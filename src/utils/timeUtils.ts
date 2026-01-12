@@ -10,7 +10,7 @@
  */
 export const formatTimeAMPM = (date: Date | string): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  
+
   if (isNaN(d.getTime())) {
     return '--:-- --';
   }
@@ -18,13 +18,13 @@ export const formatTimeAMPM = (date: Date | string): string => {
   let hours = d.getHours();
   const minutes = d.getMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';
-  
+
   hours = hours % 12;
   hours = hours ? hours : 12; // 0 should be 12
-  
+
   const hoursStr = hours.toString().padStart(2, '0');
   const minutesStr = minutes.toString().padStart(2, '0');
-  
+
   return `${hoursStr}:${minutesStr} ${ampm}`;
 };
 
@@ -35,18 +35,18 @@ export const formatTimeAMPM = (date: Date | string): string => {
  */
 export const formatDateTimeAMPM = (date: Date | string): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  
+
   if (isNaN(d.getTime())) {
     return '-- --- | --:-- --';
   }
 
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   const day = d.getDate().toString().padStart(2, '0');
   const month = months[d.getMonth()];
   const time = formatTimeAMPM(d);
-  
+
   return `${day} ${month} | ${time}`;
 };
 
@@ -57,7 +57,7 @@ export const formatDateTimeAMPM = (date: Date | string): string => {
  */
 export const getTimeElapsed = (date: Date | string): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  
+
   if (isNaN(d.getTime())) {
     return '--';
   }
@@ -65,7 +65,7 @@ export const getTimeElapsed = (date: Date | string): string => {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
-  
+
   if (diffMins < 1) {
     return 'Just now';
   } else if (diffMins < 60) {
@@ -85,7 +85,7 @@ export const getTimeElapsed = (date: Date | string): string => {
  */
 export const isWithinUndoWindow = (date: Date | string, windowMinutes: number = 5): boolean => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  
+
   if (isNaN(d.getTime())) {
     return false;
   }
@@ -93,6 +93,49 @@ export const isWithinUndoWindow = (date: Date | string, windowMinutes: number = 
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = diffMs / (1000 * 60);
-  
+
   return diffMins <= windowMinutes;
+};
+
+/**
+ * Get simplified short unit from full unit string
+ * @param unit - Full unit string like "Gram (g)" or "Piece (pc)"
+ * @returns Short unit like "g" or "pc"
+ */
+export const getShortUnit = (unit?: string): string => {
+  if (!unit) return 'pc';
+  return unit
+    .replace(/pieces?|piece\s?\(pc\)/i, 'pc')
+    .replace(/grams?|gram\s?\(g\)/i, 'g')
+    .replace(/milliliters?|ml/i, 'ml')
+    .replace(/liters?|liter\s?\(l\)/i, 'L')
+    .replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg');
+};
+
+/**
+ * Format quantity with smart unit conversion
+ * Converts 1000g+ to kg, 1000ml+ to L
+ * @param quantity - The quantity value
+ * @param unit - The unit string (short form like "g", "ml", "pc")
+ * @returns Formatted string like "1.2kg" or "5pc"
+ */
+export const formatQuantityWithUnit = (quantity: number, unit?: string): string => {
+  const shortUnit = getShortUnit(unit);
+
+  // Convert grams to kg if >= 1000
+  if (shortUnit === 'g' && quantity >= 1000) {
+    return `${(quantity / 1000).toFixed(1)}kg`;
+  }
+
+  // Convert ml to L if >= 1000
+  if (shortUnit === 'ml' && quantity >= 1000) {
+    return `${(quantity / 1000).toFixed(1)}L`;
+  }
+
+  // For whole numbers, don't show decimal
+  if (Number.isInteger(quantity)) {
+    return `${quantity}${shortUnit}`;
+  }
+
+  return `${quantity.toFixed(1)}${shortUnit}`;
 };

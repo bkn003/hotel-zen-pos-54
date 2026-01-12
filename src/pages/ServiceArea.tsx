@@ -9,6 +9,7 @@ import { Check, X, Undo2, ChefHat, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTimeAMPM, getTimeElapsed, isWithinUndoWindow } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
+import { getShortUnit } from '@/utils/timeUtils';
 
 // Types
 interface BillItem {
@@ -301,8 +302,7 @@ const ServiceArea = () => {
                             <div className="border-t border-b py-1.5 my-1.5">
                                 <div className="space-y-0.5">
                                     {bill.bill_items.map((item) => {
-                                        const unit = item.items?.unit || 'pcs';
-                                        const shortUnit = unit.replace(/pieces?/i, 'pc').replace(/grams?/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?/i, 'L').replace(/kilograms?|kg/i, 'kg');
+                                        const shortUnit = getShortUnit(item.items?.unit);
 
                                         return (
                                             <div
@@ -310,10 +310,7 @@ const ServiceArea = () => {
                                                 className="flex items-center justify-between py-0.5"
                                             >
                                                 <span className="font-semibold text-sm sm:text-base text-foreground truncate flex-1 pr-2">
-                                                    {item.quantity}× {item.items?.name || 'Item'}
-                                                </span>
-                                                <span className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap bg-muted px-1 rounded">
-                                                    {item.items?.base_value && item.items.base_value > 1 ? `${item.items.base_value}${shortUnit}` : shortUnit}
+                                                    {item.quantity}{shortUnit} {item.items?.name || 'Item'}
                                                 </span>
                                             </div>
                                         );

@@ -8,6 +8,7 @@ import { ChefHat, Clock, Bell, Volume2, VolumeX } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getTimeElapsed, formatTimeAMPM } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
+import { getShortUnit } from '@/utils/timeUtils';
 
 // Types
 interface BillItem {
@@ -406,12 +407,7 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                                 {item.items?.name || 'Unknown'}
                             </span>
                             <Badge variant="outline" className="font-bold">
-                                {item.quantity}
-                                {(() => {
-                                    const unit = item.items?.unit || '';
-                                    const shortUnit = unit.replace(/pieces?/i, 'pc').replace(/grams?/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?/i, 'L').replace(/kilograms?|kg/i, 'kg');
-                                    return item.items?.base_value && item.items.base_value > 1 ? `${item.items.base_value}${shortUnit}` : shortUnit;
-                                })()}
+                                {item.quantity}{getShortUnit(item.items?.unit)}
                             </Badge>
                         </div>
                     ))}

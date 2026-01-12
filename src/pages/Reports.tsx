@@ -20,6 +20,7 @@ import { cachedFetch, CACHE_KEYS, invalidateRelatedData } from '@/utils/cacheUti
 import { printReceipt } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { offlineManager } from '@/utils/offlineManager';
+import { formatQuantityWithUnit, getShortUnit } from '@/utils/timeUtils';
 
 interface Bill {
   id: string;
@@ -1103,11 +1104,11 @@ const Reports: React.FC = () => {
       {/* Detailed Reports */}
       <Tabs defaultValue="bills" className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="grid w-full grid-cols-4 min-w-[300px] h-8">
-            <TabsTrigger value="bills" className="text-xs">Bills</TabsTrigger>
-            <TabsTrigger value="items" disabled={billFilter === 'deleted'} className="text-xs">Items</TabsTrigger>
-            <TabsTrigger value="payments" disabled={billFilter === 'deleted'} className="text-xs">Payments</TabsTrigger>
-            <TabsTrigger value="profit" disabled={billFilter === 'deleted'} className="text-xs">P&L</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 min-w-[300px] h-10">
+            <TabsTrigger value="bills" className="text-sm font-medium">Bills</TabsTrigger>
+            <TabsTrigger value="items" disabled={billFilter === 'deleted'} className="text-sm font-medium">Items</TabsTrigger>
+            <TabsTrigger value="payments" disabled={billFilter === 'deleted'} className="text-sm font-medium">Payments</TabsTrigger>
+            <TabsTrigger value="profit" disabled={billFilter === 'deleted'} className="text-sm font-medium">P&L</TabsTrigger>
           </TabsList>
         </div>
 
@@ -1260,17 +1261,16 @@ const Reports: React.FC = () => {
                       );
                     })
                     .map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 sm:p-4 bg-muted/50 rounded-lg">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm truncate">{item.item_name}</h3>
-                          <p className="text-xs text-muted-foreground">{item.category}</p>
+                          <h3 className="font-semibold text-base truncate">{item.item_name}</h3>
+                          <p className="text-sm text-muted-foreground">{item.category}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-sm">
-                            Qty: {item.total_quantity}
-                            {item.unit ? ` ${item.unit.replace(/pieces?|piece\s?\(pc\)/i, 'pc').replace(/grams?|gram\s?\(g\)/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?|liter\s?\(l\)/i, 'L').replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg')}` : ''}
+                          <p className="font-semibold text-base">
+                            Qty: {formatQuantityWithUnit(item.total_quantity, item.unit)}
                           </p>
-                          <p className="text-xs text-primary">₹{item.total_revenue.toFixed(2)}</p>
+                          <p className="text-sm text-primary font-medium">₹{item.total_revenue.toFixed(2)}</p>
                         </div>
                       </div>
                     ))}
@@ -1305,10 +1305,10 @@ const Reports: React.FC = () => {
                     })
                     .sort(([, amountA], [, amountB]) => amountB - amountA)
                     .map(([method, amount]) => (
-                      <div key={method} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div key={method} className="flex items-center justify-between p-3 sm:p-4 bg-muted/50 rounded-lg">
                         <div>
-                          <h3 className="font-semibold text-sm capitalize">{method}</h3>
-                          <p className="text-xs text-muted-foreground">
+                          <h3 className="font-semibold text-base capitalize">{method}</h3>
+                          <p className="text-sm text-muted-foreground">
                             {activeBills.filter(b => {
                               // Count bills that have this method in payment_details
                               if (b.payment_details && typeof b.payment_details === 'object') {
@@ -1320,8 +1320,8 @@ const Reports: React.FC = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-sm text-primary">₹{amount.toFixed(2)}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="font-semibold text-base text-primary">₹{amount.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">
                             {((amount / totalSales) * 100).toFixed(1)}%
                           </p>
                         </div>
@@ -1350,8 +1350,8 @@ const Reports: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-success mb-3">Revenue</h3>
-                    <div className="space-y-2 text-xs">
+                    <h3 className="text-base font-semibold text-success mb-3">Revenue</h3>
+                    <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Total Sales</span>
                         <span className="font-semibold">₹{totalSales.toFixed(2)}</span>
@@ -1370,8 +1370,8 @@ const Reports: React.FC = () => {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-destructive mb-3">Expenses</h3>
-                    <div className="space-y-2 text-xs">
+                    <h3 className="text-base font-semibold text-destructive mb-3">Expenses</h3>
+                    <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Total Expenses</span>
                         <span className="font-semibold">₹{totalExpenses.toFixed(2)}</span>
@@ -1391,13 +1391,13 @@ const Reports: React.FC = () => {
                 </div>
 
                 <div className="border-t pt-4">
-                  <div className="flex justify-between items-center text-sm font-bold">
+                  <div className="flex justify-between items-center text-base font-bold">
                     <span>Net Profit/Loss</span>
                     <span className={profit >= 0 ? 'text-success' : 'text-destructive'}>
                       ₹{profit.toFixed(2)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Profit Margin: {totalSales > 0 ? ((profit / totalSales) * 100).toFixed(2) : '0.00'}%
                   </p>
                 </div>

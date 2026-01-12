@@ -12,6 +12,7 @@ import { AddItemDialog } from '@/components/AddItemDialog';
 import { EditItemDialog } from '@/components/EditItemDialog';
 import { ItemCategoryManagement } from '@/components/ItemCategoryManagement';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
+import { getShortUnit } from '@/utils/timeUtils';
 
 interface Item {
   id: string;
@@ -368,8 +369,8 @@ const Items: React.FC = () => {
                             <div>
                               <span className="font-bold text-base text-primary block leading-none">
                                 ₹{item.price.toFixed(0)}
-                                <span className="font-normal text-[10px] text-muted-foreground">
-                                  /{item.base_value && item.base_value > 1 ? item.base_value : ''}{(item.unit || 'pc').replace(/pieces?|piece\s?\(pc\)/i, 'pc').replace(/grams?|gram\s?\(g\)/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?|liter\s?\(l\)/i, 'L').replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg')}
+                                <span className="text-base text-primary">
+                                  /{item.base_value && item.base_value > 1 ? item.base_value : ''}{getShortUnit(item.unit)}
                                 </span>
                               </span>
                               {item.stock_quantity !== null && item.stock_quantity !== undefined && (
@@ -428,8 +429,8 @@ const Items: React.FC = () => {
                           <div className="mt-auto pt-1 flex items-end justify-between">
                             <span className="font-bold text-base text-muted-foreground block leading-none">
                               ₹{item.price.toFixed(0)}
-                              <span className="font-normal text-[10px]">
-                                /{item.base_value && item.base_value > 1 ? item.base_value : ''}{(item.unit || 'pc').replace(/pieces?|piece\s?\(pc\)/i, 'pc').replace(/grams?|gram\s?\(g\)/i, 'g').replace(/milliliters?|ml/i, 'ml').replace(/liters?|liter\s?\(l\)/i, 'L').replace(/kilograms?|kilogram\s?\(kg\)/i, 'kg')}
+                              <span className="text-base">
+                                /{item.base_value && item.base_value > 1 ? item.base_value : ''}{getShortUnit(item.unit)}
                               </span>
                             </span>
                             {profile?.role === 'admin' && (
