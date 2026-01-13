@@ -59,6 +59,20 @@ const App = () => {
     return () => window.removeEventListener('aod-changed', handleAodChange as EventListener);
   }, []);
 
+  // Listen for Font Scale changes
+  useEffect(() => {
+    const handleFontScaleChange = (e: CustomEvent) => {
+      document.documentElement.style.setProperty('--app-font-scale', e.detail);
+    };
+    window.addEventListener('font-scale-changed', handleFontScaleChange as EventListener);
+
+    // Apply saved font scale on startup
+    const savedScale = localStorage.getItem('hotel_pos_font_scale') || '1';
+    document.documentElement.style.setProperty('--app-font-scale', savedScale);
+
+    return () => window.removeEventListener('font-scale-changed', handleFontScaleChange as EventListener);
+  }, []);
+
   // Theme colors for status bar (meta theme-color)
   const themeColors: Record<string, string> = {
     'blue': '#3b82f6',

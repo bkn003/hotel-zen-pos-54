@@ -1150,14 +1150,14 @@ const Billing = () => {
 
                 {/* Low stock badge - shown at top left */}
                 {lowStock && (
-                  <div className="absolute top-1 left-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                    Low
+                  <div className="absolute top-1 left-1 bg-orange-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                    Low: {formatQuantityWithUnit(item.stock_quantity!, item.unit)}
                   </div>
                 )}
 
                 {/* Small rectangle quantity badge - shown when item is in cart */}
                 {isInCart && (
-                  <div className="absolute bottom-1 right-1 bg-[hsl(var(--qty-badge))] text-white text-xs font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-0.5">
+                  <div className="absolute bottom-1 right-1 bg-[hsl(var(--qty-badge))] text-white text-[13px] font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-0.5">
                     <span>{formatQuantityWithUnit(cartItem.quantity, item.unit)}</span>
                   </div>
                 )}

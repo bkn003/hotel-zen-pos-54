@@ -86,6 +86,9 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 220 40% 96%;
     --sidebar-border: 220 19% 20%;
     --sidebar-ring: 218 90% 55%;
+
+    /* Accessibility Settings */
+    --app-font-scale: 1;
   }
 
   .dark {
@@ -620,21 +623,21 @@ All colors MUST be HSL.
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    /* Responsive root font size */
-    font-size: 14px;
+    /* Responsive root font size with scaling support */
+    font-size: calc(14px * var(--app-font-scale, 1));
   }
-
+  
   /* Medium screens */
   @media (min-width: 480px) {
     html {
-      font-size: 15px;
+      font-size: calc(15px * var(--app-font-scale, 1));
     }
   }
-
+  
   /* Large screens */
   @media (min-width: 768px) {
     html {
-      font-size: 16px;
+      font-size: calc(16px * var(--app-font-scale, 1));
     }
   }
 

@@ -65,7 +65,7 @@ export const BottomNavigation: React.FC = () => {
                 )} />
               </div>
               <span className={cn(
-                "text-[9px] sm:text-[10px] mt-0.5 transition-all duration-300 font-medium truncate max-w-full",
+                "text-[11px] sm:text-[12px] mt-0.5 transition-all duration-300 font-medium truncate max-w-full",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}>{label}</span>
             </NavLink>

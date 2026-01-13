@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Settings as SettingsIcon, DollarSign, Monitor, Plus, Edit, Trash2, Printer } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Monitor, Plus, Edit, Trash2, Printer, Type } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AddAdditionalChargeDialog } from '@/components/AddAdditionalChargeDialog';
@@ -53,6 +53,21 @@ const Settings = () => {
     toast({
       title: enabled ? "Auto-Print Enabled" : "Auto-Print Disabled",
       description: enabled ? "Bills will be printed automatically after saving." : "Bills will be saved without printing.",
+    });
+  };
+
+  // Font scale setting
+  const [fontScale, setFontScale] = useState(() => {
+    return localStorage.getItem('hotel_pos_font_scale') || '1';
+  });
+
+  const handleFontScaleChange = (scale: string) => {
+    setFontScale(scale);
+    localStorage.setItem('hotel_pos_font_scale', scale);
+    window.dispatchEvent(new CustomEvent('font-scale-changed', { detail: scale }));
+    toast({
+      title: "Text Size Updated",
+      description: `App-wide text size set to ${Math.round(parseFloat(scale) * 100)}%`,
     });
   };
 
@@ -329,6 +344,45 @@ const Settings = () => {
                   checked={autoPrintEnabled}
                   onCheckedChange={handleAutoPrintToggle}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Accessibility Settings */}
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center space-x-2">
+                <Type className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-base sm:text-lg">Accessibility</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 space-y-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Text Size (Overall App)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Normal', value: '1', percent: '100%' },
+                    { label: 'Large', value: '1.15', percent: '115%' },
+                    { label: 'Extra Large', value: '1.3', percent: '130%' },
+                    { label: 'Maximum', value: '1.45', percent: '145%' }
+                  ].map((s) => (
+                    <Button
+                      key={s.value}
+                      variant={fontScale === s.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleFontScaleChange(s.value)}
+                      className="flex-1 min-w-[100px] h-11"
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs font-bold">{s.label}</span>
+                        <span className="text-[10px] opacity-80">{s.percent}</span>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Adjusting this will scale the text size across the entire application for better visibility.
+                </p>
               </div>
             </CardContent>
           </Card>
