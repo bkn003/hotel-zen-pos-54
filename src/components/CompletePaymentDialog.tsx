@@ -77,6 +77,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const getSmartTotalQuantity = () => {
     return cart.reduce((qty, item) => {
       const effectiveQty = getEffectiveQty(item);
+      if (effectiveQty <= 0) return qty;
       if (isWeightOrVolumeUnit(item.unit)) {
         return qty + 1;
       }

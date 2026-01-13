@@ -468,7 +468,7 @@ const Billing = () => {
             quantity: billItem.quantity
           };
         });
-        setCart(cartItems);
+        setCart(cartItems.filter(item => item.quantity > 0));
         setDiscount(editingBill?.discount || 0);
         setSelectedPayment(editingBill?.payment_mode || '');
       }
@@ -522,7 +522,7 @@ const Billing = () => {
           };
         }
         return item;
-      });
+      }).filter(item => item.quantity > 0);
     });
   };
   const startEditingQuantity = (id: string, currentQuantity: number) => {
