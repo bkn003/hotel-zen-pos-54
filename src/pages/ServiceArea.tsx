@@ -9,7 +9,6 @@ import { Check, X, Undo2, ChefHat, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTimeAMPM, getTimeElapsed, isWithinUndoWindow, formatQuantityWithUnit } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
-import { getShortUnit } from '@/utils/timeUtils';
 
 // BroadcastChannel for instant cross-tab/cross-device updates
 const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
@@ -162,12 +161,12 @@ const ServiceArea = () => {
     // Listen for BroadcastChannel updates (cross-tab instant sync)
     useEffect(() => {
         if (!billsChannel) return;
-        
+
         const handleMessage = (event: MessageEvent) => {
             console.log('Service Area: BroadcastChannel update received!', event.data);
             fetchBills();
         };
-        
+
         billsChannel.addEventListener('message', handleMessage);
         return () => billsChannel.removeEventListener('message', handleMessage);
     }, [fetchBills]);

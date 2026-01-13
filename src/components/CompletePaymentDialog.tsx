@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Minus, Trash2, Percent, ChevronDown, ChevronUp } from 'lucide-react';
-import { getShortUnit } from '@/utils/timeUtils';
+import { getShortUnit, formatQuantityWithUnit } from '@/utils/timeUtils';
 
 interface CartItem {
   id: string;

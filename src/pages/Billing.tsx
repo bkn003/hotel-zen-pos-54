@@ -15,7 +15,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { printReceipt, PrintData } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { format } from 'date-fns';
-import { getShortUnit } from '@/utils/timeUtils';
+import { getShortUnit, formatQuantityWithUnit } from '@/utils/timeUtils';
 interface Item {
   id: string;
   name: string;
@@ -1158,8 +1158,7 @@ const Billing = () => {
                 {/* Small rectangle quantity badge - shown when item is in cart */}
                 {isInCart && (
                   <div className="absolute bottom-1 right-1 bg-[hsl(var(--qty-badge))] text-white text-xs font-bold px-2 py-0.5 rounded shadow-md flex items-center gap-0.5">
-                    <span>{cartItem.quantity}</span>
-                    <span>{unitLabel}</span>
+                    <span>{formatQuantityWithUnit(cartItem.quantity, item.unit)}</span>
                   </div>
                 )}
               </div>

@@ -12,7 +12,7 @@ import { AddItemDialog } from '@/components/AddItemDialog';
 import { EditItemDialog } from '@/components/EditItemDialog';
 import { ItemCategoryManagement } from '@/components/ItemCategoryManagement';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
-import { getShortUnit } from '@/utils/timeUtils';
+import { getShortUnit, formatQuantityWithUnit } from '@/utils/timeUtils';
 
 interface Item {
   id: string;
@@ -375,7 +375,7 @@ const Items: React.FC = () => {
                               </span>
                               {item.stock_quantity !== null && item.stock_quantity !== undefined && (
                                 <span className={`text-[10px] ${isLowStock(item) ? 'text-orange-500 font-semibold' : 'text-muted-foreground'}`}>
-                                  Stk: {item.stock_quantity}
+                                  Stk: {formatQuantityWithUnit(item.stock_quantity, item.unit)}
                                 </span>
                               )}
                             </div>

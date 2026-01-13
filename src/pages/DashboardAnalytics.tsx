@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, Package } from 'lucide-react';
+import { formatQuantityWithUnit } from '@/utils/timeUtils';
 
 interface SalesData {
   date: string;
@@ -355,7 +356,7 @@ const DashboardAnalytics = () => {
                             <div className="flex items-center gap-3 mt-1">
                               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 <ShoppingBag className="w-3 h-3" />
-                                <span className="font-medium text-foreground">{item.quantity}</span> {item.unit || 'pcs'} sold
+                                <span className="font-medium text-foreground">{formatQuantityWithUnit(item.quantity, item.unit)}</span> sold
                               </span>
                             </div>
                           </div>

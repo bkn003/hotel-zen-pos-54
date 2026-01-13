@@ -1504,7 +1504,7 @@ const Reports: React.FC = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-sm">Qty: {item.quantity}</p>
+                        <p className="font-medium text-sm">Qty: {formatQuantityWithUnit(item.quantity, item.items?.unit)}</p>
                         <p className="text-xs">₹{item.total.toFixed(2)}</p>
                       </div>
                     </div>

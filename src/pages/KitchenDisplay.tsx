@@ -6,9 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChefHat, Clock, Bell, Volume2, VolumeX } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { getTimeElapsed, formatTimeAMPM } from '@/utils/timeUtils';
+import { getTimeElapsed, formatTimeAMPM, formatQuantityWithUnit } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
-import { getShortUnit } from '@/utils/timeUtils';
 
 // Types
 interface BillItem {
@@ -414,7 +413,7 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                                 {item.items?.name || 'Unknown'}
                             </span>
                             <Badge variant="outline" className="font-bold">
-                                {item.quantity}{getShortUnit(item.items?.unit)}
+                                {formatQuantityWithUnit(item.quantity, item.items?.unit)}
                             </Badge>
                         </div>
                     ))}
