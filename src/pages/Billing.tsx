@@ -15,7 +15,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { printReceipt, PrintData } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { format } from 'date-fns';
-import { getShortUnit, formatQuantityWithUnit } from '@/utils/timeUtils';
+import { getShortUnit, formatQuantityWithUnit, isWeightOrVolumeUnit } from '@/utils/timeUtils';
 interface Item {
   id: string;
   name: string;
@@ -1316,7 +1316,9 @@ const Billing = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 text-white">
             <ShoppingCart className="w-5 h-5" />
-            <span className="font-bold text-lg">{cart.reduce((sum, item) => sum + item.quantity, 0)} items</span>
+            <span className="font-bold text-lg">
+              {cart.filter(i => i.quantity > 0).length} {cart.filter(i => i.quantity > 0).length === 1 ? 'item' : 'items'}
+            </span>
             <span className="font-bold text-xl">₹{total.toFixed(2)}</span>
           </div>
           <div className="flex items-center gap-2">

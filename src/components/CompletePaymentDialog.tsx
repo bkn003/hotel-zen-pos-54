@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Minus, Trash2, Percent, ChevronDown, ChevronUp } from 'lucide-react';
-import { getShortUnit, formatQuantityWithUnit } from '@/utils/timeUtils';
+import { getShortUnit, formatQuantityWithUnit, isWeightOrVolumeUnit } from '@/utils/timeUtils';
 
 interface CartItem {
   id: string;
@@ -16,12 +16,6 @@ interface CartItem {
   base_value?: number;
   quantity_step?: number;
 }
-
-const isWeightOrVolumeUnit = (unit?: string): boolean => {
-  if (!unit) return false;
-  const shortUnit = getShortUnit(unit);
-  return ['kg', 'g', 'L', 'ml'].includes(shortUnit);
-};
 
 interface PaymentType {
   id: string;
@@ -79,6 +73,17 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   const [showDiscount, setShowDiscount] = useState(false);
   const hasInitialized = React.useRef(false);
 
+  // Get total quantity for charges (smart count: 1 for weighted items, sum for pieces)
+  const getSmartTotalQuantity = () => {
+    return cart.reduce((qty, item) => {
+      const effectiveQty = getEffectiveQty(item);
+      if (isWeightOrVolumeUnit(item.unit)) {
+        return qty + 1;
+      }
+      return qty + effectiveQty;
+    }, 0);
+  };
+
   // Get effective quantity for an item
   const getEffectiveQty = (item: CartItem) => {
     return itemQuantityOverrides[item.id] !== undefined ? itemQuantityOverrides[item.id] : item.quantity;
@@ -118,7 +123,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
       if (charge.charge_type === 'fixed') {
         return sum + charge.amount;
       } else if (charge.charge_type === 'per_unit') {
-        const totalQuantity = cart.reduce((qty, item) => qty + getEffectiveQty(item), 0);
+        const totalQuantity = getSmartTotalQuantity();
         return sum + (charge.amount * totalQuantity);
       } else if (charge.charge_type === 'percentage') {
         return sum + (cartSubtotal * charge.amount / 100);
@@ -139,7 +144,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
   };
 
   const handleCompletePayment = () => {
-    const totalQuantity = cart.reduce((qty, item) => qty + getEffectiveQty(item), 0);
+    const totalQuantity = getSmartTotalQuantity();
 
     const selectedAdditionalCharges = additionalCharges
       .filter(charge => selectedCharges[charge.id])
@@ -377,7 +382,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               <div className="space-y-0.5">
                 {additionalCharges.map((charge) => {
                   const isSelected = selectedCharges[charge.id];
-                  const totalQuantity = cart.reduce((qty, item) => qty + getEffectiveQty(item), 0);
+                  const totalQuantity = getSmartTotalQuantity();
                   const baseAmount = charge.charge_type === 'fixed' ? charge.amount :
                     charge.charge_type === 'per_unit' ? charge.amount * totalQuantity :
                       cartSubtotal * charge.amount / 100;
@@ -470,7 +475,7 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
               <span>₹{cartSubtotal.toFixed(2)}</span>
             </div>
             {additionalCharges.filter(charge => selectedCharges[charge.id]).map((charge) => {
-              const totalQuantity = cart.reduce((qty, item) => qty + getEffectiveQty(item), 0);
+              const totalQuantity = getSmartTotalQuantity();
               const displayAmount = chargeAmountOverrides[charge.id] !== undefined ? chargeAmountOverrides[charge.id] :
                 charge.charge_type === 'fixed' ? charge.amount :
                   charge.charge_type === 'per_unit' ? charge.amount * totalQuantity :

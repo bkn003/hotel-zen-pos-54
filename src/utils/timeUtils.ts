@@ -149,3 +149,14 @@ export const formatQuantityWithUnit = (quantity: number, unit?: string): string 
 
   return `${quantity.toFixed(1)}${shortUnit}`;
 };
+
+/**
+ * Check if a unit represents a weight or volume measurement
+ * @param unit - The unit string
+ * @returns Boolean indicating if it's weight/volume
+ */
+export const isWeightOrVolumeUnit = (unit?: string): boolean => {
+  if (!unit) return false;
+  const shortUnit = getShortUnit(unit).toLowerCase();
+  return ['kg', 'g', 'l', 'ml'].includes(shortUnit);
+};
