@@ -17,7 +17,9 @@ interface BillItem {
     items: {
         id: string;
         name: string;
-    };
+        unit?: string;
+        base_value?: number;
+    } | null;
 }
 
 interface KitchenBill {
@@ -61,7 +63,8 @@ const KitchenDisplay = () => {
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            const { data, error } = await supabase
+            // Build query - cast to any to avoid type inference issues with custom columns
+            const query = (supabase as any)
                 .from('bills')
                 .select(`
           id,
@@ -87,9 +90,13 @@ const KitchenDisplay = () => {
                 .neq('service_status', 'rejected')
                 .order('created_at', { ascending: true }); // Oldest first for FIFO
 
+            const result = await query;
+            const data = result.data as KitchenBill[] | null;
+            const error = result.error;
+
             if (error) throw error;
 
-            setBills((data as unknown as KitchenBill[]) || []);
+            setBills(data || []);
         } catch (error) {
             console.error('Error fetching kitchen bills:', error);
         } finally {

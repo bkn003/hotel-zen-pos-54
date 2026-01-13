@@ -36,7 +36,8 @@ const CustomerDisplay = () => {
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            const { data, error } = await supabase
+            // Build query - cast to any to avoid type inference issues with custom columns
+            const query = (supabase as any)
                 .from('bills')
                 .select('id, bill_no, created_at, kitchen_status, service_status')
                 .eq('date', today)
@@ -46,10 +47,14 @@ const CustomerDisplay = () => {
                 .neq('service_status', 'rejected')
                 .order('created_at', { ascending: true });
 
+            const result = await query;
+            const data = result.data as DisplayBill[] | null;
+            const error = result.error;
+
             if (error) throw error;
 
             console.log(`Customer Display: Fetched ${data?.length || 0} bills for ${today}`);
-            setBills((data as unknown as DisplayBill[]) || []);
+            setBills(data || []);
         } catch (error) {
             console.error('Error fetching display bills:', error);
         } finally {

@@ -5,7 +5,7 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    requiredPermission: 'dashboard' | 'billing' | 'items' | 'expenses' | 'reports' | 'analytics' | 'settings' | 'users';
+    requiredPermission: 'dashboard' | 'billing' | 'items' | 'expenses' | 'reports' | 'analytics' | 'settings' | 'users' | 'serviceArea' | 'kitchen';
     adminOnly?: boolean;
 }
 
