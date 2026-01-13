@@ -156,6 +156,17 @@ const Billing = () => {
   });
   const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const syncChannelRef = useRef<any>(null);
+
+  // Setup Global Sync Channel for Cross-Device updates
+  useEffect(() => {
+    const channel = supabase.channel('pos-global-sync', {
+      config: { broadcast: { self: true } }
+    }).subscribe();
+
+    syncChannelRef.current = channel;
+    return () => { supabase.removeChannel(channel); };
+  }, []);
   const [billSettings, setBillSettings] = useState<{
     shopName: string;
     address: string;
@@ -737,9 +748,16 @@ const Billing = () => {
       duration: 2000
     });
 
-    // Dispatch instant event for real-time updates across all pages
+    // Dispatch instant events for same-device (BroadcastChannel) and cross-device (Supabase Broadcast)
     window.dispatchEvent(new CustomEvent('bills-updated'));
     billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
+
+    // Cross-device signaling (sub-200ms)
+    syncChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'bills-updated',
+      payload: { bill_no: billNumber }
+    });
 
     return billData;
   };

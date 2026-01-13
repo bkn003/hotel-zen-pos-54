@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
@@ -46,6 +46,22 @@ const ServiceArea = () => {
     const [recentBills, setRecentBills] = useState<ServiceBill[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
+    const syncChannelRef = useRef<any>(null);
+
+    // Setup Global Sync Channel for Cross-Device updates
+    useEffect(() => {
+        const channel = supabase.channel('pos-global-sync', {
+            config: { broadcast: { self: true } }
+        })
+            .on('broadcast', { event: 'bills-updated' }, () => {
+                console.log('ServiceArea: Cross-device broadcast received!');
+                fetchBills(true);
+            })
+            .subscribe();
+
+        syncChannelRef.current = channel;
+        return () => { supabase.removeChannel(channel); };
+    }, [fetchBills]);
 
     // Fetch bills that need service AND recently processed ones
     const fetchBills = useCallback(async (silent = false) => {
@@ -190,6 +206,13 @@ const ServiceArea = () => {
             // Refresh in background to sync with server truth
             fetchBills(true);
             billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
+
+            // Broadcast to other devices (Sub-200ms)
+            syncChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'bills-updated',
+                payload: { bill_id: billId, status }
+            });
         } catch (error) {
             console.error('Update failed, rolling back:', error);
             // 3. Rollback on failure

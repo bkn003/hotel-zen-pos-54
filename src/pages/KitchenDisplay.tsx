@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,22 @@ const KitchenDisplay = () => {
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
     const [voiceEnabled, setVoiceEnabled] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const syncChannelRef = useRef<any>(null);
+
+    // Setup Global Sync Channel for Cross-Device updates
+    useEffect(() => {
+        const channel = supabase.channel('pos-global-sync', {
+            config: { broadcast: { self: true } }
+        })
+            .on('broadcast', { event: 'bills-updated' }, () => {
+                console.log('Kitchen: Cross-device broadcast received!');
+                fetchBills(true);
+            })
+            .subscribe();
+
+        syncChannelRef.current = channel;
+        return () => { supabase.removeChannel(channel); };
+    }, [fetchBills]);
 
     // Update current time every minute
     useEffect(() => {
@@ -140,8 +156,13 @@ const KitchenDisplay = () => {
                 toast({ title: '👨‍🍳 Preparing', description: `Started #${billNo}` });
             }
 
-            // Sync others
+            // Sync others (Same-device 0ms, Cross-device <200ms)
             billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
+            syncChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'bills-updated',
+                payload: { bill_id: billId, status }
+            });
         } catch (error) {
             console.error('Update failed:', error);
             // 3. Rollback on failure
