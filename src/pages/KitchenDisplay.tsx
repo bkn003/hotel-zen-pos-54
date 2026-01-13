@@ -9,26 +9,8 @@ import { toast } from '@/hooks/use-toast';
 import { getTimeElapsed, formatTimeAMPM, formatQuantityWithUnit } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
 
-// Types
-interface BillItem {
-    id: string;
-    quantity: number;
-    items: {
-        id: string;
-        name: string;
-        unit?: string;
-        base_value?: number;
-    } | null;
-}
-
-interface KitchenBill {
-    id: string;
-    bill_no: string;
-    created_at: string;
-    kitchen_status: 'pending' | 'preparing' | 'ready' | 'served' | 'completed' | 'rejected';
-    service_status: 'pending' | 'preparing' | 'ready' | 'served' | 'completed' | 'rejected';
-    bill_items: BillItem[];
-}
+// BroadcastChannel for instant cross-tab sync
+const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
 
 const KitchenDisplay = () => {
     const [bills, setBills] = useState<KitchenBill[]>([]);
@@ -46,143 +28,103 @@ const KitchenDisplay = () => {
     // Voice announcement function
     const announce = useCallback((text: string) => {
         if (!voiceEnabled || !('speechSynthesis' in window)) return;
-
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-IN';
         utterance.rate = 0.9;
         utterance.pitch = 1;
         utterance.volume = 1;
-
         window.speechSynthesis.speak(utterance);
     }, [voiceEnabled]);
 
     // Fetch kitchen orders
-    const fetchBills = useCallback(async () => {
+    const fetchBills = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            // Build query - cast to any to avoid type inference issues with custom columns
             const query = (supabase as any)
                 .from('bills')
                 .select(`
-          id,
-          bill_no,
-          created_at,
-          kitchen_status,
-          service_status,
-          bill_items (
-            id,
-            quantity,
-            items (
-              id,
-              name,
-              unit,
-              base_value
-            )
-          )
-        `)
+                    id, bill_no, created_at, kitchen_status, service_status,
+                    bill_items (
+                        id, quantity, items (id, name, unit, base_value)
+                    )
+                `)
                 .eq('date', today)
                 .or('is_deleted.is.null,is_deleted.eq.false')
                 .in('kitchen_status', ['pending', 'preparing', 'ready'])
                 .neq('service_status', 'completed')
                 .neq('service_status', 'rejected')
-                .order('created_at', { ascending: true }); // Oldest first for FIFO
+                .order('created_at', { ascending: true });
 
             const result = await query;
-            const data = result.data as KitchenBill[] | null;
-            const error = result.error;
-
-            if (error) throw error;
-
-            setBills(data || []);
+            if (result.error) throw result.error;
+            setBills(result.data || []);
         } catch (error) {
             console.error('Error fetching kitchen bills:', error);
+            if (!silent) {
+                toast({
+                    title: 'Syncing...',
+                    description: 'Connection slow, retrying in background',
+                });
+            }
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
     // Initial fetch
     useEffect(() => {
         fetchBills();
-
-        // Polling fallback every 30 seconds
-        const pollInterval = setInterval(() => {
-            console.log('Kitchen Display: Polling for updates...');
-            fetchBills();
-        }, 30000);
-
+        const pollInterval = setInterval(() => fetchBills(true), 30000);
         return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
     // Realtime subscription
     useEffect(() => {
-        console.log('Kitchen: Setting up realtime subscription...');
         const channel = supabase
-            .channel('kitchen-bills-changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'bills',
-                },
-                (payload) => {
-                    console.log('Kitchen: Realtime change detected!', payload);
-                    fetchBills();
-
-                    // Voice announcement for new orders
-                    if (payload.eventType === 'INSERT' && voiceEnabled) {
-                        announce(`New order received, Bill number ${payload.new?.bill_no}`);
-                    }
+            .channel('kitchen-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, (payload) => {
+                fetchBills(true);
+                if (payload.eventType === 'INSERT' && voiceEnabled) {
+                    announce(`New order received, Bill number ${payload.new?.bill_no}`);
                 }
-            )
-            .subscribe((status) => {
-                console.log('Kitchen: Subscription status:', status);
-            });
+            })
+            .subscribe();
 
-        // Polling fallback every 30 seconds
-        const pollInterval = setInterval(() => {
-            console.log('Kitchen: Polling for updates...');
-            fetchBills();
-        }, 30000);
-
-        return () => {
-            supabase.removeChannel(channel);
-            clearInterval(pollInterval);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [fetchBills, voiceEnabled, announce]);
 
-    // Listen for instant local 'bills-updated' event (0ms latency)
+    // Listen for BroadcastChannel updates (0ms cross-tab sync)
     useEffect(() => {
-        const handleBillsUpdated = () => {
-            console.log('Kitchen: Instant bills-updated event received!');
-            fetchBills();
-        };
-        window.addEventListener('bills-updated', handleBillsUpdated);
-        return () => {
-            window.removeEventListener('bills-updated', handleBillsUpdated);
-        };
+        if (!billsChannel) return;
+        const handleMessage = () => fetchBills(true);
+        billsChannel.addEventListener('message', handleMessage);
+        return () => billsChannel.removeEventListener('message', handleMessage);
     }, [fetchBills]);
 
-    // Update kitchen status
+    /**
+     * OPTIMISTIC UPDATE: Instant (0ms) response
+     */
     const updateKitchenStatus = async (
         billId: string,
         billNo: string,
         status: 'preparing' | 'ready'
     ) => {
-        setProcessingBillId(billId);
+        const prevBills = [...bills];
 
+        // 1. Instant local update (Optimistic UI)
+        setBills(prev => prev.map(bill =>
+            bill.id === billId
+                ? { ...bill, kitchen_status: status, service_status: status === 'ready' ? 'ready' : bill.service_status }
+                : bill
+        ));
+
+        // 2. Perform background update
         try {
-            const updateData: any = {
-                kitchen_status: status,
-            };
-
-            // When marking ready, also update service_status
-            if (status === 'ready') {
-                updateData.service_status = 'ready';
-            }
+            const updateData: any = { kitchen_status: status };
+            if (status === 'ready') updateData.service_status = 'ready';
 
             const { error } = await supabase
                 .from('bills')
@@ -192,28 +134,23 @@ const KitchenDisplay = () => {
             if (error) throw error;
 
             if (status === 'ready') {
-                // Voice announcement
                 announce(`Bill number ${billNo} is ready`);
-
-                toast({
-                    title: '🔔 Order Ready!',
-                    description: `Bill #${billNo} is ready for service`,
-                });
+                toast({ title: '🔔 Order Ready!', description: `Bill #${billNo} is ready` });
             } else {
-                toast({
-                    title: '👨‍🍳 Preparing',
-                    description: `Started preparing Bill #${billNo}`,
-                });
+                toast({ title: '👨‍🍳 Preparing', description: `Started #${billNo}` });
             }
+
+            // Sync others
+            billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
         } catch (error) {
-            console.error('Error updating kitchen status:', error);
+            console.error('Update failed:', error);
+            // 3. Rollback on failure
+            setBills(prevBills);
             toast({
-                title: 'Error',
-                description: 'Failed to update order status',
-                variant: 'destructive',
+                title: 'Update Failed',
+                description: 'Please check your connection',
+                variant: 'destructive'
             });
-        } finally {
-            setProcessingBillId(null);
         }
     };
 

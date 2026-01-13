@@ -16,6 +16,9 @@ import { printReceipt, PrintData } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { format } from 'date-fns';
 import { getShortUnit, formatQuantityWithUnit, isWeightOrVolumeUnit } from '@/utils/timeUtils';
+
+// BroadcastChannel for instant cross-tab sync
+const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
 interface Item {
   id: string;
   name: string;
@@ -736,6 +739,7 @@ const Billing = () => {
 
     // Dispatch instant event for real-time updates across all pages
     window.dispatchEvent(new CustomEvent('bills-updated'));
+    billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
 
     return billData;
   };

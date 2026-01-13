@@ -43,68 +43,64 @@ interface ServiceBill {
 const ServiceArea = () => {
     const { profile } = useAuth();
     const [bills, setBills] = useState<ServiceBill[]>([]);
+    const [recentBills, setRecentBills] = useState<ServiceBill[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
 
-    // Fetch bills that need service
-    const fetchBills = useCallback(async () => {
-        const startTime = performance.now();
-        console.time('ServiceArea:fetchBills');
+    // Fetch bills that need service AND recently processed ones
+    const fetchBills = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
+
         try {
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-            // Build query - cast to any to avoid type inference issues with custom columns
-            const query = (supabase as any)
+            // 1. Fetch Active Bills
+            const activeQuery = (supabase as any)
                 .from('bills')
                 .select(`
-          id,
-          bill_no,
-          total_amount,
-          date,
-          created_at,
-          service_status,
-          kitchen_status,
-          status_updated_at,
-          bill_items (
-            id,
-            quantity,
-            price,
-            total,
-            items (
-              id,
-              name,
-              price,
-              unit,
-              base_value
-            )
-          )
-        `)
+                    id, bill_no, total_amount, date, created_at,
+                    service_status, kitchen_status, status_updated_at,
+                    bill_items (
+                        id, quantity, price, total,
+                        items (id, name, price, unit, base_value)
+                    )
+                `)
                 .eq('date', today)
                 .or('is_deleted.is.null,is_deleted.eq.false')
                 .in('service_status', ['pending', 'ready', 'preparing'])
                 .order('created_at', { ascending: false });
 
-            const result = await query;
-            const data = result.data as ServiceBill[] | null;
-            const error = result.error;
+            // 2. Fetch Recently Processed (for Undo)
+            const recentQuery = (supabase as any)
+                .from('bills')
+                .select('id, bill_no, service_status, status_updated_at')
+                .eq('date', today)
+                .in('service_status', ['completed', 'rejected'])
+                .gte('status_updated_at', fiveMinutesAgo)
+                .order('status_updated_at', { ascending: false })
+                .limit(10);
 
-            if (error) throw error;
+            const [activeResult, recentResult] = await Promise.all([activeQuery, recentQuery]);
 
-            const endTime = performance.now();
-            console.timeEnd('ServiceArea:fetchBills');
-            console.log(`Service Area: Fetched ${data?.length || 0} bills for ${today} in ${(endTime - startTime).toFixed(2)}ms`);
+            if (activeResult.error) throw activeResult.error;
+            if (recentResult.error) throw recentResult.error;
 
-            setBills(data || []);
+            setBills(activeResult.data || []);
+            setRecentBills(recentResult.data || []);
         } catch (error) {
             console.error('Error fetching service bills:', error);
-            toast({
-                title: 'Error',
-                description: 'Failed to load bills',
-                variant: 'destructive',
-            });
+            // Only show toast if it's a hard load (not polling)
+            if (!silent) {
+                toast({
+                    title: 'Syncing...',
+                    description: 'Connection slow, retrying in background',
+                    variant: 'default', // Less aggressive than destructive
+                });
+            }
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
@@ -113,73 +109,68 @@ const ServiceArea = () => {
         fetchBills();
 
         // Polling fallback every 30 seconds
-        const pollInterval = setInterval(() => {
-            console.log('Service Area: Polling for updates...');
-            fetchBills();
-        }, 30000);
-
+        const pollInterval = setInterval(() => fetchBills(true), 30000);
         return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
-    // Realtime subscription with enhanced speed
+    // Realtime subscription
     useEffect(() => {
-        console.log('Service Area: Setting up realtime subscription...');
         const channel = supabase
-            .channel('service-area-bills-changes', {
-                config: {
-                    broadcast: { self: true },
-                    presence: { key: 'service-area' }
-                }
+            .channel('service-area-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, () => {
+                fetchBills(true);
+                billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
             })
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'bills',
-                },
-                (payload) => {
-                    console.log('Service Area: Realtime change detected!', payload);
-                    fetchBills();
-                    // Broadcast to other tabs/devices
-                    billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
-                }
-            )
-            .subscribe((status) => {
-                console.log('Service Area: Subscription status:', status);
-                if (status === 'SUBSCRIBED') {
-                    console.log('Service Area: Successfully joined realtime channel');
-                }
-            });
+            .subscribe();
 
-        return () => {
-            console.log('Service Area: Cleaning up subscription');
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [fetchBills]);
 
-    // Listen for BroadcastChannel updates (cross-tab instant sync)
+    // Listen for BroadcastChannel updates
     useEffect(() => {
         if (!billsChannel) return;
-
-        const handleMessage = (event: MessageEvent) => {
-            console.log('Service Area: BroadcastChannel update received!', event.data);
-            fetchBills();
-        };
-
+        const handleMessage = () => fetchBills(true);
         billsChannel.addEventListener('message', handleMessage);
         return () => billsChannel.removeEventListener('message', handleMessage);
     }, [fetchBills]);
 
-    // Update bill status
+    /**
+     * OPTIMISTIC UPDATE: Instant (0ms) response
+     */
     const updateBillStatus = async (
         billId: string,
         status: 'completed' | 'rejected' | 'pending'
     ) => {
-        setProcessingBillId(billId);
+        // Capture previous state for rollback
+        const prevActive = [...bills];
+        const prevRecent = [...recentBills];
 
+        // 1. Instant local update (Optimistic UI)
+        if (status === 'pending') {
+            // Un-doing: Move from recent to active
+            const billToRestore = recentBills.find(b => b.id === billId);
+            if (billToRestore) {
+                setRecentBills(prev => prev.filter(b => b.id !== billId));
+                // Note: We don't have full bill_items in the 'recent' query usually, 
+                // so we'll wait for the fetch to populate the active list fully,
+                // but we can show a placeholder or wait for fetch.
+                // For better UX, let's trigger fetchBills(true) immediately.
+            }
+        } else {
+            // Completing/Rejecting: Move from active to recent
+            const billToMove = bills.find(b => b.id === billId);
+            if (billToMove) {
+                setBills(prev => prev.filter(b => b.id !== billId));
+                setRecentBills(prev => [{
+                    ...billToMove,
+                    service_status: status,
+                    status_updated_at: new Date().toISOString()
+                }, ...prev].slice(0, 10));
+            }
+        }
+
+        // 2. Perform background update
         try {
-            // Type assertion needed until database migration is applied and types regenerated
             const { error } = await supabase
                 .from('bills')
                 .update({
@@ -191,26 +182,24 @@ const ServiceArea = () => {
             if (error) throw error;
 
             toast({
-                title: status === 'completed' ? '✅ Completed' :
-                    status === 'rejected' ? '❌ Rejected' : '↩️ Reverted',
-                description: `Bill status updated`,
+                title: status === 'completed' ? '✅ Bill Done' :
+                    status === 'rejected' ? '❌ Bill Rejected' : '↩️ Bill Restored',
+                duration: 2000,
             });
 
-            // Update local state immediately for responsiveness
-            setBills(prev =>
-                status === 'pending'
-                    ? prev // Will be fetched by realtime
-                    : prev.filter(b => b.id !== billId)
-            );
+            // Refresh in background to sync with server truth
+            fetchBills(true);
+            billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
         } catch (error) {
-            console.error('Error updating bill status:', error);
+            console.error('Update failed, rolling back:', error);
+            // 3. Rollback on failure
+            setBills(prevActive);
+            setRecentBills(prevRecent);
             toast({
-                title: 'Error',
-                description: 'Failed to update bill status',
+                title: 'Connection Error',
+                description: 'Could not update status. Please try again.',
                 variant: 'destructive',
             });
-        } finally {
-            setProcessingBillId(null);
         }
     };
 
@@ -232,24 +221,16 @@ const ServiceArea = () => {
                 </Badge>
             );
         }
-        return (
-            <Badge variant="secondary">
-                PENDING
-            </Badge>
-        );
+        return <Badge variant="secondary">PENDING</Badge>;
     };
 
-    if (loading) {
+    if (loading && bills.length === 0) {
         return (
             <div className="p-4 space-y-4">
                 <h1 className="text-2xl font-bold">Service Area</h1>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[...Array(6)].map((_, i) => (
-                        <Card key={i} className="p-4 animate-pulse">
-                            <div className="h-6 bg-muted rounded w-1/2 mb-3" />
-                            <div className="h-4 bg-muted rounded w-3/4 mb-2" />
-                            <div className="h-4 bg-muted rounded w-1/2" />
-                        </Card>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[...Array(8)].map((_, i) => (
+                        <Card key={i} className="p-4 animate-pulse h-48 bg-muted/50" />
                     ))}
                 </div>
             </div>
@@ -258,7 +239,6 @@ const ServiceArea = () => {
 
     return (
         <div className="p-3 sm:p-4 space-y-4">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2">
@@ -269,96 +249,73 @@ const ServiceArea = () => {
                         </div>
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                        {bills.length} bill{bills.length !== 1 ? 's' : ''} waiting for service
+                        {bills.length} bill{bills.length !== 1 ? 's' : ''} waiting
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fetchBills()}
-                >
+                <Button variant="outline" size="sm" onClick={() => fetchBills()}>
                     Refresh
                 </Button>
             </div>
 
-            {/* Bills Grid */}
+            {/* Active Bills Grid */}
             {bills.length === 0 ? (
-                <Card className="p-8 text-center">
+                <Card className="p-12 text-center border-dashed bg-muted/20">
                     <div className="text-muted-foreground">
-                        <Check className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-medium">All caught up!</p>
-                        <p className="text-sm">No bills waiting for service</p>
+                        <Check className="w-16 h-16 mx-auto mb-4 opacity-20 text-green-500" />
+                        <p className="text-xl font-bold text-foreground">All caught up!</p>
+                        <p className="text-sm">No pending bills to serve</p>
                     </div>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {bills.map((bill) => (
                         <Card
                             key={bill.id}
                             className={cn(
-                                "p-2 sm:p-3 transition-all duration-300",
-                                bill.kitchen_status === 'ready' && "ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20",
-                                processingBillId === bill.id && "opacity-50"
+                                "p-3 flex flex-col transition-all duration-300 shadow-sm hover:shadow-md",
+                                bill.kitchen_status === 'ready' && "ring-2 ring-green-500 bg-green-50/50 dark:bg-green-950/20"
                             )}
                         >
-                            {/* Compact Bill Header */}
-                            <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                                        #{bill.bill_no}
-                                    </h3>
-                                    <span className="text-[10px] text-muted-foreground">
+                                    <h3 className="text-xl font-black text-foreground">#{bill.bill_no}</h3>
+                                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">
                                         {getTimeElapsed(bill.created_at)}
                                     </span>
                                 </div>
                                 {getStatusBadge(bill)}
                             </div>
 
-                            {/* All Items - Compact with qty×item format */}
-                            <div className="border-t border-b py-1.5 my-1.5">
-                                <div className="space-y-0.5">
-                                    {bill.bill_items.map((item) => {
-                                        const qtyWithUnit = formatQuantityWithUnit(item.quantity, item.items?.unit);
-
-                                        return (
-                                            <div
-                                                key={item.id}
-                                                className="flex items-center py-0.5"
-                                            >
-                                                <span className="font-semibold text-sm sm:text-base text-foreground truncate flex-1 pr-2">
-                                                    <span className="text-primary font-bold">{qtyWithUnit}</span>
-                                                    <span className="text-muted-foreground mx-1">×</span>
-                                                    {item.items?.name || 'Item'}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                            <ScrollArea className="flex-1 max-h-[120px] mb-3 pr-2">
+                                <div className="space-y-1">
+                                    {bill.bill_items.map((item) => (
+                                        <div key={item.id} className="flex items-center text-sm">
+                                            <span className="font-bold text-primary mr-2">
+                                                {formatQuantityWithUnit(item.quantity, item.items?.unit)}
+                                            </span>
+                                            <span className="text-muted-foreground text-xs mr-1">×</span>
+                                            <span className="font-medium truncate">{item.items?.name}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                                {/* Total items count */}
-                                <div className="text-right text-xs text-muted-foreground mt-1 border-t pt-1">
-                                    {bill.bill_items.length} item{bill.bill_items.length !== 1 ? 's' : ''}
-                                </div>
-                            </div>
+                            </ScrollArea>
 
-                            {/* Compact Action Buttons */}
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-2 mt-auto">
                                 <Button
                                     size="sm"
-                                    className="flex-1 h-8 bg-green-600 hover:bg-green-700 text-white text-xs"
+                                    className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-bold"
                                     onClick={() => updateBillStatus(bill.id, 'completed')}
-                                    disabled={processingBillId === bill.id}
                                 >
-                                    <Check className="w-3 h-3 mr-1" />
+                                    <Check className="w-4 h-4 mr-1.5" />
                                     Done
                                 </Button>
                                 <Button
                                     size="sm"
                                     variant="destructive"
-                                    className="flex-1 h-8 text-xs"
+                                    className="flex-1 h-10 font-bold"
                                     onClick={() => updateBillStatus(bill.id, 'rejected')}
-                                    disabled={processingBillId === bill.id}
                                 >
-                                    <X className="w-3 h-3 mr-1" />
+                                    <X className="w-4 h-4 mr-1.5" />
                                     Reject
                                 </Button>
                             </div>
@@ -367,66 +324,37 @@ const ServiceArea = () => {
                 </div>
             )}
 
-            {/* Recently Completed (for Undo) */}
-            <RecentlyCompletedSection onUndo={(billId) => updateBillStatus(billId, 'pending')} />
+            {/* Recently Processed - Now directly using component state */}
+            {recentBills.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-dashed">
+                    <h3 className="text-sm font-bold text-muted-foreground mb-4 flex items-center gap-2 uppercase tracking-widest">
+                        <Undo2 className="w-4 h-4" />
+                        Recently Processed (Undo)
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {recentBills.map((bill) => (
+                            <Button
+                                key={bill.id}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateBillStatus(bill.id, 'pending')}
+                                disabled={!isWithinUndoWindow(bill.status_updated_at)}
+                                className="gap-2 h-10 border-2 hover:bg-muted/50"
+                            >
+                                <Undo2 className="w-3 h-3 text-muted-foreground" />
+                                <span className="font-bold">#{bill.bill_no}</span>
+                                <Badge variant={bill.service_status === 'completed' ? 'default' : 'destructive'} className="h-5 px-1.5 min-w-[20px] justify-center">
+                                    {bill.service_status === 'completed' ? '✓' : '✗'}
+                                </Badge>
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-// Recently Completed Bills for Undo
-const RecentlyCompletedSection: React.FC<{ onUndo: (billId: string) => void }> = ({ onUndo }) => {
-    const [recentBills, setRecentBills] = useState<ServiceBill[]>([]);
-
-    useEffect(() => {
-        const fetchRecent = async () => {
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-            const query = (supabase as any)
-                .from('bills')
-                .select('id, bill_no, service_status, status_updated_at')
-                .in('service_status', ['completed', 'rejected'])
-                .gte('status_updated_at', fiveMinutesAgo)
-                .order('status_updated_at', { ascending: false })
-                .limit(5);
-
-            const { data } = await query;
-            setRecentBills((data as ServiceBill[]) || []);
-        };
-
-        fetchRecent();
-
-        // Refresh every 30 seconds to update undo availability
-        const interval = setInterval(fetchRecent, 30000);
-        return () => clearInterval(interval);
-    }, []);
-
-    if (recentBills.length === 0) return null;
-
-    return (
-        <div className="mt-6 pt-4 border-t">
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                Recently Processed (Undo available)
-            </h3>
-            <div className="flex flex-wrap gap-2">
-                {recentBills.map((bill) => (
-                    <Button
-                        key={bill.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onUndo(bill.id)}
-                        disabled={!isWithinUndoWindow(bill.status_updated_at)}
-                        className="gap-1"
-                    >
-                        <Undo2 className="w-3 h-3" />
-                        #{bill.bill_no}
-                        <Badge variant={bill.service_status === 'completed' ? 'default' : 'destructive'} className="ml-1 text-xs">
-                            {bill.service_status === 'completed' ? '✓' : '✗'}
-                        </Badge>
-                    </Button>
-                ))}
-            </div>
-        </div>
-    );
-};
+export default ServiceArea;
 
 export default ServiceArea;
