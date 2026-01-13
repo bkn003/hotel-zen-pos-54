@@ -121,6 +121,7 @@ const DashboardAnalytics = () => {
         .select(`
           quantity, 
           price, 
+          total,
           item_id, 
           items(name, unit),
           bills!inner(date, is_deleted)
@@ -164,9 +165,11 @@ const DashboardAnalytics = () => {
         const name = item.items?.name || 'Unknown';
         const unit = item.items?.unit || 'pcs';
         const current = itemsMap.get(name) || { quantity: 0, revenue: 0, unit };
+        // Use the pre-calculated 'total' field which correctly accounts for base_value
+        // This fixes the issue where quantity * price gave wrong results for weight-based items
         itemsMap.set(name, {
           quantity: current.quantity + Number(item.quantity),
-          revenue: current.revenue + (Number(item.quantity) * Number(item.price)),
+          revenue: current.revenue + Number(item.total),
           unit: unit,
         });
       });
