@@ -1,4 +1,5 @@
 import { PrintData } from './bluetoothPrinter';
+import { formatQuantityWithUnit } from './timeUtils';
 
 export const printBrowserReceipt = (data: PrintData) => {
   const iframe = document.createElement('iframe');
@@ -30,18 +31,20 @@ export const printBrowserReceipt = (data: PrintData) => {
     .total { font-size: 11px; font-weight: bold; }
     .thx { font-size: 9px; margin-top: 3px; }
     .time { font-size: 8px; }
+    .qty { font-size: 9px; font-weight: bold; }
   `;
 
   // Use the bill's time, not current time
   const timeStr = data.time || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   
-  // Calculate total qty
-  const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
+  // Calculate total items count
+  const totalItems = data.items.length;
 
-  // Compact item rows with qty and total
-  let itemsHtml = data.items.map(item => 
-    `<div class="row item"><span class="name">${item.name}</span><span>x${item.quantity} = ${item.total.toFixed(0)}</span></div>`
-  ).join('');
+  // Compact item rows with qty (with unit) and total
+  let itemsHtml = data.items.map(item => {
+    const qtyWithUnit = formatQuantityWithUnit(item.quantity, item.unit);
+    return `<div class="row item"><span class="name">${qtyWithUnit} × ${item.name}</span><span>₹${item.total.toFixed(0)}</span></div>`;
+  }).join('');
 
   // Additional charges compact
   let chargesHtml = (data.additionalCharges || []).map(c => 
@@ -61,7 +64,7 @@ export const printBrowserReceipt = (data: PrintData) => {
       <div class="s"></div>
       ${itemsHtml}
       <div class="s"></div>
-      <div class="row"><span>Qty: ${totalQty}</span><span>Sub: ${data.subtotal.toFixed(0)}</span></div>
+      <div class="row"><span>Items: ${totalItems}</span><span>Sub: ${data.subtotal.toFixed(0)}</span></div>
       ${chargesHtml}
       ${data.discount > 0 ? `<div class="row"><span>Disc</span><span>-${data.discount.toFixed(0)}</span></div>` : ''}
       <div class="row total"><span>TOTAL</span><span>Rs.${data.total.toFixed(0)}</span></div>

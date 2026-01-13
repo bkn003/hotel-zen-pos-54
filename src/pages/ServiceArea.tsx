@@ -7,9 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, X, Undo2, ChefHat, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { formatDateTimeAMPM, getTimeElapsed, isWithinUndoWindow } from '@/utils/timeUtils';
+import { formatDateTimeAMPM, getTimeElapsed, isWithinUndoWindow, formatQuantityWithUnit } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
 import { getShortUnit } from '@/utils/timeUtils';
+
+// BroadcastChannel for instant cross-tab/cross-device updates
+const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
 
 // Types
 interface BillItem {
@@ -22,7 +25,8 @@ interface BillItem {
         name: string;
         price: number;
         unit?: string;
-    };
+        base_value?: number;
+    } | null;
 }
 
 interface ServiceBill {
@@ -51,7 +55,8 @@ const ServiceArea = () => {
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            const { data, error } = await supabase
+            // Build query - cast to any to avoid type inference issues with custom columns
+            const query = (supabase as any)
                 .from('bills')
                 .select(`
           id,
@@ -81,13 +86,17 @@ const ServiceArea = () => {
                 .in('service_status', ['pending', 'ready', 'preparing'])
                 .order('created_at', { ascending: false });
 
+            const result = await query;
+            const data = result.data as ServiceBill[] | null;
+            const error = result.error;
+
             if (error) throw error;
 
             const endTime = performance.now();
             console.timeEnd('ServiceArea:fetchBills');
             console.log(`Service Area: Fetched ${data?.length || 0} bills for ${today} in ${(endTime - startTime).toFixed(2)}ms`);
 
-            setBills((data as unknown as ServiceBill[]) || []);
+            setBills(data || []);
         } catch (error) {
             console.error('Error fetching service bills:', error);
             toast({
@@ -113,11 +122,16 @@ const ServiceArea = () => {
         return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
-    // Realtime subscription
+    // Realtime subscription with enhanced speed
     useEffect(() => {
         console.log('Service Area: Setting up realtime subscription...');
         const channel = supabase
-            .channel('service-area-bills-changes')
+            .channel('service-area-bills-changes', {
+                config: {
+                    broadcast: { self: true },
+                    presence: { key: 'service-area' }
+                }
+            })
             .on(
                 'postgres_changes',
                 {
@@ -128,6 +142,8 @@ const ServiceArea = () => {
                 (payload) => {
                     console.log('Service Area: Realtime change detected!', payload);
                     fetchBills();
+                    // Broadcast to other tabs/devices
+                    billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
                 }
             )
             .subscribe((status) => {
@@ -143,16 +159,17 @@ const ServiceArea = () => {
         };
     }, [fetchBills]);
 
-    // Listen for instant local 'bills-updated' event (0ms latency)
+    // Listen for BroadcastChannel updates (cross-tab instant sync)
     useEffect(() => {
-        const handleBillsUpdated = () => {
-            console.log('Service Area: Instant bills-updated event received!');
+        if (!billsChannel) return;
+        
+        const handleMessage = (event: MessageEvent) => {
+            console.log('Service Area: BroadcastChannel update received!', event.data);
             fetchBills();
         };
-        window.addEventListener('bills-updated', handleBillsUpdated);
-        return () => {
-            window.removeEventListener('bills-updated', handleBillsUpdated);
-        };
+        
+        billsChannel.addEventListener('message', handleMessage);
+        return () => billsChannel.removeEventListener('message', handleMessage);
     }, [fetchBills]);
 
     // Update bill status
@@ -298,23 +315,29 @@ const ServiceArea = () => {
                                 {getStatusBadge(bill)}
                             </div>
 
-                            {/* All Items - No Scroll, Compact Layout */}
+                            {/* All Items - Compact with qty×item format */}
                             <div className="border-t border-b py-1.5 my-1.5">
                                 <div className="space-y-0.5">
                                     {bill.bill_items.map((item) => {
-                                        const shortUnit = getShortUnit(item.items?.unit);
+                                        const qtyWithUnit = formatQuantityWithUnit(item.quantity, item.items?.unit);
 
                                         return (
                                             <div
                                                 key={item.id}
-                                                className="flex items-center justify-between py-0.5"
+                                                className="flex items-center py-0.5"
                                             >
                                                 <span className="font-semibold text-sm sm:text-base text-foreground truncate flex-1 pr-2">
-                                                    {item.quantity}{shortUnit} {item.items?.name || 'Item'}
+                                                    <span className="text-primary font-bold">{qtyWithUnit}</span>
+                                                    <span className="text-muted-foreground mx-1">×</span>
+                                                    {item.items?.name || 'Item'}
                                                 </span>
                                             </div>
                                         );
                                     })}
+                                </div>
+                                {/* Total items count */}
+                                <div className="text-right text-xs text-muted-foreground mt-1 border-t pt-1">
+                                    {bill.bill_items.length} item{bill.bill_items.length !== 1 ? 's' : ''}
                                 </div>
                             </div>
 
@@ -359,7 +382,7 @@ const RecentlyCompletedSection: React.FC<{ onUndo: (billId: string) => void }> =
         const fetchRecent = async () => {
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-            const { data } = await supabase
+            const query = (supabase as any)
                 .from('bills')
                 .select('id, bill_no, service_status, status_updated_at')
                 .in('service_status', ['completed', 'rejected'])
@@ -367,7 +390,8 @@ const RecentlyCompletedSection: React.FC<{ onUndo: (billId: string) => void }> =
                 .order('status_updated_at', { ascending: false })
                 .limit(5);
 
-            setRecentBills((data as unknown as ServiceBill[]) || []);
+            const { data } = await query;
+            setRecentBills((data as ServiceBill[]) || []);
         };
 
         fetchRecent();

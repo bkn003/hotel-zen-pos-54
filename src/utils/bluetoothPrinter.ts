@@ -234,6 +234,7 @@ interface BillItem {
   quantity: number;
   price: number;
   total: number;
+  unit?: string;
 }
 
 interface PrintData {

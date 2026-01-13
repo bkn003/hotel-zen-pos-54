@@ -315,7 +315,9 @@ export const CompletePaymentDialog: React.FC<CompletePaymentDialogProps> = ({
                   <div key={item.id} className={`flex items-center justify-between p-1.5 rounded-lg gap-1 border ${colorClass}`}>
                     <div className="flex-1 min-w-0 mr-1">
                       <div className="font-semibold truncate text-sm">{index + 1}.{item.name}</div>
-                      <div className="text-xs text-muted-foreground">₹{item.price}/{getShortUnit(item.unit)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        ₹{item.price}/{item.base_value || 1}{getShortUnit(item.unit)}
+                      </div>
                     </div>
                     <div className="flex items-center gap-0.5">
                       <Button
