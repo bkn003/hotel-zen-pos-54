@@ -152,15 +152,23 @@ const ServiceArea = () => {
 
     // === LAYER 2: Local BroadcastChannel (Same browser, 0ms) ===
     useEffect(() => {
-        if (!localBroadcast) return;
+        // Listen to both local broadcast channels
+        const billingChannel = typeof BroadcastChannel !== 'undefined' 
+            ? new BroadcastChannel('bills-updates') : null;
+        
         const handleLocal = (event: MessageEvent) => {
-            if (event.data?.type === 'bills') {
-                console.log('[ServiceArea] Local broadcast received');
-                debouncedFetch(true);
-            }
+            console.log('[ServiceArea] Local broadcast received:', event.data);
+            debouncedFetch(true);
         };
-        localBroadcast.addEventListener('message', handleLocal);
-        return () => localBroadcast.removeEventListener('message', handleLocal);
+        
+        localBroadcast?.addEventListener('message', handleLocal);
+        billingChannel?.addEventListener('message', handleLocal);
+        
+        return () => {
+            localBroadcast?.removeEventListener('message', handleLocal);
+            billingChannel?.removeEventListener('message', handleLocal);
+            billingChannel?.close();
+        };
     }, [debouncedFetch]);
 
     // === LAYER 3: Window custom events (Same tab) ===
@@ -243,18 +251,24 @@ const ServiceArea = () => {
                 duration: 2000,
             });
 
-            // 3. Multi-layer broadcast for instant cross-device sync
+            // === INSTANT 4-LAYER SYNC for Undo ===
             // Layer 1: Local BroadcastChannel (0ms same browser)
-            localBroadcast?.postMessage({ type: 'bills' });
+            localBroadcast?.postMessage({ type: 'bills', action: 'status-update', billId });
+            
+            // Also broadcast to billing channel
+            const billingChannel = typeof BroadcastChannel !== 'undefined' 
+                ? new BroadcastChannel('bills-updates') : null;
+            billingChannel?.postMessage({ type: 'bills', action: 'undo', billId });
+            billingChannel?.close();
             
             // Layer 2: Supabase Broadcast (<100ms cross-device)
             broadcastChannelRef.current?.send({
                 type: 'broadcast',
                 event: 'bills-sync',
-                payload: { bill_id: billId, status, timestamp: Date.now() }
+                payload: { bill_id: billId, status, action: 'undo', timestamp: Date.now() }
             });
 
-            // Refresh in background
+            // Background refresh
             fetchBills(true);
         } catch (error) {
             console.error('Update failed, rolling back:', error);

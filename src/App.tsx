@@ -25,6 +25,7 @@ import KitchenDisplay from "./pages/KitchenDisplay";
 import CustomerDisplay from "./pages/CustomerDisplay";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { PendingBillsQueue } from "./components/PendingBillsQueue";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -212,6 +213,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <InstallPrompt />
+          <PendingBillsQueue />
           <BrowserRouter>
             <AuthProvider>
               <Routes>
