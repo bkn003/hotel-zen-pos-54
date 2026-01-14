@@ -109,8 +109,11 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           is_edited: boolean | null
+          kitchen_status: Database["public"]["Enums"]["service_status"] | null
           payment_details: Json | null
           payment_mode: Database["public"]["Enums"]["payment_method"]
+          service_status: Database["public"]["Enums"]["service_status"] | null
+          status_updated_at: string | null
           total_amount: number
         }
         Insert: {
@@ -123,8 +126,11 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           is_edited?: boolean | null
+          kitchen_status?: Database["public"]["Enums"]["service_status"] | null
           payment_details?: Json | null
           payment_mode: Database["public"]["Enums"]["payment_method"]
+          service_status?: Database["public"]["Enums"]["service_status"] | null
+          status_updated_at?: string | null
           total_amount: number
         }
         Update: {
@@ -137,8 +143,11 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           is_edited?: boolean | null
+          kitchen_status?: Database["public"]["Enums"]["service_status"] | null
           payment_details?: Json | null
           payment_mode?: Database["public"]["Enums"]["payment_method"]
+          service_status?: Database["public"]["Enums"]["service_status"] | null
+          status_updated_at?: string | null
           total_amount?: number
         }
         Relationships: []
@@ -170,60 +179,6 @@ export type Database = {
           printer_name?: string | null
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      shop_settings: {
-        Row: {
-          id: string
-          user_id: string
-          shop_name: string | null
-          address: string | null
-          contact_number: string | null
-          logo_url: string | null
-          facebook: string | null
-          show_facebook: boolean
-          instagram: string | null
-          show_instagram: boolean
-          whatsapp: string | null
-          show_whatsapp: boolean
-          printer_width: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          shop_name?: string | null
-          address?: string | null
-          contact_number?: string | null
-          logo_url?: string | null
-          facebook?: string | null
-          show_facebook?: boolean
-          instagram?: string | null
-          show_instagram?: boolean
-          whatsapp?: string | null
-          show_whatsapp?: boolean
-          printer_width?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          shop_name?: string | null
-          address?: string | null
-          contact_number?: string | null
-          logo_url?: string | null
-          facebook?: string | null
-          show_facebook?: boolean
-          instagram?: string | null
-          show_instagram?: boolean
-          whatsapp?: string | null
-          show_whatsapp?: boolean
-          printer_width?: string
-          created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -348,6 +303,7 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          display_order: number | null
           id: string
           image_url: string | null
           is_active: boolean
@@ -359,6 +315,7 @@ export type Database = {
           sale_count: number | null
           stock_quantity: number | null
           unit: string | null
+          unlimited_stock: boolean | null
           updated_at: string
         }
         Insert: {
@@ -367,6 +324,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          display_order?: number | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -378,6 +336,7 @@ export type Database = {
           sale_count?: number | null
           stock_quantity?: number | null
           unit?: string | null
+          unlimited_stock?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -386,6 +345,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          display_order?: number | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -397,6 +357,7 @@ export type Database = {
           sale_count?: number | null
           stock_quantity?: number | null
           unit?: string | null
+          unlimited_stock?: boolean | null
           updated_at?: string
         }
         Relationships: []
@@ -464,6 +425,60 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_settings: {
+        Row: {
+          address: string | null
+          contact_number: string | null
+          created_at: string | null
+          facebook: string | null
+          id: string
+          instagram: string | null
+          logo_url: string | null
+          printer_width: string | null
+          shop_name: string | null
+          show_facebook: boolean | null
+          show_instagram: boolean | null
+          show_whatsapp: boolean | null
+          updated_at: string | null
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_number?: string | null
+          created_at?: string | null
+          facebook?: string | null
+          id?: string
+          instagram?: string | null
+          logo_url?: string | null
+          printer_width?: string | null
+          shop_name?: string | null
+          show_facebook?: boolean | null
+          show_instagram?: boolean | null
+          show_whatsapp?: boolean | null
+          updated_at?: string | null
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_number?: string | null
+          created_at?: string | null
+          facebook?: string | null
+          id?: string
+          instagram?: string | null
+          logo_url?: string | null
+          printer_width?: string | null
+          shop_name?: string | null
+          show_facebook?: boolean | null
+          show_instagram?: boolean | null
+          show_whatsapp?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           created_at: string
@@ -520,12 +535,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_page_permission: {
+        Args: { _page_name: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "super_admin"
       payment_method: "cash" | "upi" | "card" | "other"
       payment_mode: "cash" | "card" | "upi" | "online"
+      service_status:
+        | "pending"
+        | "preparing"
+        | "ready"
+        | "served"
+        | "completed"
+        | "rejected"
       user_status: "active" | "paused" | "deleted"
     }
     CompositeTypes: {
@@ -540,116 +565,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {
@@ -657,6 +682,14 @@ export const Constants = {
       app_role: ["admin", "user", "super_admin"],
       payment_method: ["cash", "upi", "card", "other"],
       payment_mode: ["cash", "card", "upi", "online"],
+      service_status: [
+        "pending",
+        "preparing",
+        "ready",
+        "served",
+        "completed",
+        "rejected",
+      ],
       user_status: ["active", "paused", "deleted"],
     },
   },
