@@ -1,13 +1,52 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateRelatedData, dataCache, CACHE_KEYS } from '@/utils/cacheUtils';
 import { toast } from '@/hooks/use-toast';
 
-export const useRealTimeUpdates = () => {
-  useEffect(() => {
-    console.log('Setting up real-time updates...');
+// Global BroadcastChannel for instant same-browser sync
+const localBroadcast = typeof BroadcastChannel !== 'undefined' 
+  ? new BroadcastChannel('pos-instant-sync') 
+  : null;
 
+export const useRealTimeUpdates = () => {
+  const broadcastChannelRef = useRef<any>(null);
+
+  useEffect(() => {
+    console.log('Setting up real-time updates with instant broadcast...');
+
+    // ============ INSTANT BROADCAST CHANNEL (Sub-100ms cross-device) ============
+    const broadcastChannel = supabase.channel('pos-global-broadcast', {
+      config: { broadcast: { self: true } }
+    })
+      .on('broadcast', { event: 'bills-sync' }, (payload) => {
+        console.log('[BROADCAST] Bills instant sync:', payload);
+        invalidateRelatedData('bills');
+        window.dispatchEvent(new CustomEvent('bills-updated'));
+      })
+      .on('broadcast', { event: 'items-sync' }, () => {
+        console.log('[BROADCAST] Items instant sync');
+        invalidateRelatedData('items');
+        window.dispatchEvent(new CustomEvent('items-updated'));
+      })
+      .subscribe();
+
+    broadcastChannelRef.current = broadcastChannel;
+
+    // Local tab sync via BroadcastChannel (0ms for same browser)
+    const handleLocalSync = (event: MessageEvent) => {
+      const { type } = event.data || {};
+      if (type === 'bills') {
+        invalidateRelatedData('bills');
+        window.dispatchEvent(new CustomEvent('bills-updated'));
+      } else if (type === 'items') {
+        invalidateRelatedData('items');
+        window.dispatchEvent(new CustomEvent('items-updated'));
+      }
+    };
+    localBroadcast?.addEventListener('message', handleLocalSync);
+
+    // ============ POSTGRES CHANGES (Fallback, ~2-5s latency) ============
     // Listen for bills changes
     const billsChannel = supabase
       .channel('bills-changes')
@@ -19,13 +58,17 @@ export const useRealTimeUpdates = () => {
           table: 'bills'
         },
         (payload) => {
-          console.log('Bills change detected:', payload);
+          console.log('Bills change detected via postgres_changes:', payload);
           invalidateRelatedData('bills');
-
-          // Trigger a page reload for reports to update
-          if (window.location.pathname === '/reports') {
-            window.dispatchEvent(new CustomEvent('bills-updated'));
-          }
+          window.dispatchEvent(new CustomEvent('bills-updated'));
+          
+          // Broadcast to other devices instantly
+          broadcastChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'bills-sync',
+            payload: { source: 'postgres_changes', timestamp: Date.now() }
+          });
+          localBroadcast?.postMessage({ type: 'bills' });
         }
       )
       .subscribe();
@@ -44,6 +87,14 @@ export const useRealTimeUpdates = () => {
           console.log('Items change detected:', payload);
           invalidateRelatedData('items');
           window.dispatchEvent(new CustomEvent('items-updated'));
+
+          // Broadcast instantly
+          broadcastChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'items-sync',
+            payload: { timestamp: Date.now() }
+          });
+          localBroadcast?.postMessage({ type: 'items' });
 
           if (payload.eventType === 'INSERT') {
             toast({
@@ -203,6 +254,13 @@ export const useRealTimeUpdates = () => {
       supabase.removeChannel(additionalChargesChannel);
       supabase.removeChannel(shopSettingsChannel);
       supabase.removeChannel(displaySettingsChannel);
+      supabase.removeChannel(broadcastChannel);
+      localBroadcast?.removeEventListener('message', handleLocalSync);
     };
   }, []);
+};
+
+// Helper to trigger instant broadcast from anywhere in the app
+export const triggerInstantSync = (type: 'bills' | 'items') => {
+  localBroadcast?.postMessage({ type });
 };
