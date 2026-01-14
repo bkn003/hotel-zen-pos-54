@@ -5,13 +5,19 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, X, Undo2, ChefHat, Clock } from 'lucide-react';
+import { Check, X, Undo2, ChefHat, Clock, Wifi, WifiOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTimeAMPM, getTimeElapsed, isWithinUndoWindow, formatQuantityWithUnit } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
 
-// BroadcastChannel for instant cross-tab/cross-device updates
-const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
+// === INSTANT SYNC LAYER ===
+// 1. BroadcastChannel - 0ms same-browser tabs
+// 2. Supabase Broadcast - <100ms cross-device via WebSocket
+// 3. postgres_changes - ~2-5s fallback
+
+const localBroadcast = typeof BroadcastChannel !== 'undefined' 
+  ? new BroadcastChannel('pos-instant-sync') 
+  : null;
 
 // Types
 interface BillItem {
@@ -46,15 +52,35 @@ const ServiceArea = () => {
     const [recentBills, setRecentBills] = useState<ServiceBill[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
-    const syncChannelRef = useRef<any>(null);
+    const [isConnected, setIsConnected] = useState(true);
+    const broadcastChannelRef = useRef<any>(null);
+    const lastFetchRef = useRef<number>(0);
+    const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Debounced fetch to prevent multiple rapid calls
+    const debouncedFetch = useCallback((silent = true) => {
+        if (fetchDebounceRef.current) {
+            clearTimeout(fetchDebounceRef.current);
+        }
+        fetchDebounceRef.current = setTimeout(() => {
+            fetchBills(silent);
+        }, 50); // 50ms debounce
+    }, []);
 
     // Fetch bills that need service AND recently processed ones
     const fetchBills = useCallback(async (silent = false) => {
+        // Prevent fetching more than once per 500ms
+        const now = Date.now();
+        if (silent && now - lastFetchRef.current < 500) {
+            return;
+        }
+        lastFetchRef.current = now;
+
         if (!silent) setLoading(true);
 
         try {
-            const now = new Date();
-            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const nowDate = new Date();
+            const today = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`;
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
             // 1. Fetch Active Bills
@@ -90,14 +116,15 @@ const ServiceArea = () => {
 
             setBills(activeResult.data || []);
             setRecentBills(recentResult.data || []);
+            setIsConnected(true);
         } catch (error) {
             console.error('Error fetching service bills:', error);
-            // Only show toast if it's a hard load (not polling)
+            setIsConnected(false);
             if (!silent) {
                 toast({
-                    title: 'Syncing...',
-                    description: 'Connection slow, retrying in background',
-                    variant: 'default', // Less aggressive than destructive
+                    title: 'Connection Issue',
+                    description: 'Retrying in background...',
+                    variant: 'default',
                 });
             }
         } finally {
@@ -105,53 +132,72 @@ const ServiceArea = () => {
         }
     }, []);
 
-    // Setup Global Sync Channel for Cross-Device updates
+    // === LAYER 1: Supabase Broadcast (Cross-device, <100ms) ===
     useEffect(() => {
-        const channel = supabase.channel('pos-global-sync', {
+        const channel = supabase.channel('pos-global-broadcast', {
             config: { broadcast: { self: true } }
         })
-            .on('broadcast', { event: 'bills-updated' }, () => {
-                console.log('ServiceArea: Cross-device broadcast received!');
-                fetchBills(true);
+            .on('broadcast', { event: 'bills-sync' }, (payload) => {
+                console.log('[ServiceArea] Instant broadcast received:', payload);
+                debouncedFetch(true);
             })
-            .subscribe();
+            .subscribe((status) => {
+                console.log('[ServiceArea] Broadcast channel status:', status);
+                setIsConnected(status === 'SUBSCRIBED');
+            });
 
-        syncChannelRef.current = channel;
+        broadcastChannelRef.current = channel;
         return () => { supabase.removeChannel(channel); };
-    }, [fetchBills]);
+    }, [debouncedFetch]);
 
-    // Initial fetch
+    // === LAYER 2: Local BroadcastChannel (Same browser, 0ms) ===
     useEffect(() => {
-        fetchBills();
+        if (!localBroadcast) return;
+        const handleLocal = (event: MessageEvent) => {
+            if (event.data?.type === 'bills') {
+                console.log('[ServiceArea] Local broadcast received');
+                debouncedFetch(true);
+            }
+        };
+        localBroadcast.addEventListener('message', handleLocal);
+        return () => localBroadcast.removeEventListener('message', handleLocal);
+    }, [debouncedFetch]);
 
-        // Polling fallback every 30 seconds
-        const pollInterval = setInterval(() => fetchBills(true), 30000);
-        return () => clearInterval(pollInterval);
-    }, [fetchBills]);
+    // === LAYER 3: Window custom events (Same tab) ===
+    useEffect(() => {
+        const handleBillsUpdated = () => {
+            console.log('[ServiceArea] Window event: bills-updated');
+            debouncedFetch(true);
+        };
+        window.addEventListener('bills-updated', handleBillsUpdated);
+        return () => window.removeEventListener('bills-updated', handleBillsUpdated);
+    }, [debouncedFetch]);
 
-    // Realtime subscription
+    // === LAYER 4: postgres_changes (Fallback, ~2-5s) ===
     useEffect(() => {
         const channel = supabase
-            .channel('service-area-sync')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, () => {
-                fetchBills(true);
-                billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
+            .channel('service-area-postgres')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, (payload) => {
+                console.log('[ServiceArea] postgres_changes:', payload);
+                debouncedFetch(true);
             })
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [fetchBills]);
+    }, [debouncedFetch]);
 
-    // Listen for BroadcastChannel updates
+    // Initial fetch + polling fallback
     useEffect(() => {
-        if (!billsChannel) return;
-        const handleMessage = () => fetchBills(true);
-        billsChannel.addEventListener('message', handleMessage);
-        return () => billsChannel.removeEventListener('message', handleMessage);
+        fetchBills();
+        const pollInterval = setInterval(() => fetchBills(true), 30000); // 30s fallback
+        return () => {
+            clearInterval(pollInterval);
+            if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
+        };
     }, [fetchBills]);
 
     /**
-     * OPTIMISTIC UPDATE: Instant (0ms) response
+     * OPTIMISTIC UPDATE: Instant (0ms) response with multi-layer broadcast
      */
     const updateBillStatus = async (
         billId: string,
@@ -163,17 +209,11 @@ const ServiceArea = () => {
 
         // 1. Instant local update (Optimistic UI)
         if (status === 'pending') {
-            // Un-doing: Move from recent to active
             const billToRestore = recentBills.find(b => b.id === billId);
             if (billToRestore) {
                 setRecentBills(prev => prev.filter(b => b.id !== billId));
-                // Note: We don't have full bill_items in the 'recent' query usually, 
-                // so we'll wait for the fetch to populate the active list fully,
-                // but we can show a placeholder or wait for fetch.
-                // For better UX, let's trigger fetchBills(true) immediately.
             }
         } else {
-            // Completing/Rejecting: Move from active to recent
             const billToMove = bills.find(b => b.id === billId);
             if (billToMove) {
                 setBills(prev => prev.filter(b => b.id !== billId));
@@ -203,19 +243,21 @@ const ServiceArea = () => {
                 duration: 2000,
             });
 
-            // Refresh in background to sync with server truth
-            fetchBills(true);
-            billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
-
-            // Broadcast to other devices (Sub-200ms)
-            syncChannelRef.current?.send({
+            // 3. Multi-layer broadcast for instant cross-device sync
+            // Layer 1: Local BroadcastChannel (0ms same browser)
+            localBroadcast?.postMessage({ type: 'bills' });
+            
+            // Layer 2: Supabase Broadcast (<100ms cross-device)
+            broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'bills-updated',
-                payload: { bill_id: billId, status }
+                event: 'bills-sync',
+                payload: { bill_id: billId, status, timestamp: Date.now() }
             });
+
+            // Refresh in background
+            fetchBills(true);
         } catch (error) {
             console.error('Update failed, rolling back:', error);
-            // 3. Rollback on failure
             setBills(prevActive);
             setRecentBills(prevRecent);
             toast({
@@ -266,9 +308,23 @@ const ServiceArea = () => {
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2">
                         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Service Area</h1>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                        <div className={cn(
+                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full border",
+                            isConnected 
+                                ? "bg-green-500/10 border-green-500/20" 
+                                : "bg-red-500/10 border-red-500/20"
+                        )}>
+                            {isConnected ? (
+                                <>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-[10px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                                </>
+                            ) : (
+                                <>
+                                    <WifiOff className="w-3 h-3 text-red-500" />
+                                    <span className="text-[10px] uppercase tracking-wider font-bold text-red-600">Offline</span>
+                                </>
+                            )}
                         </div>
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground">

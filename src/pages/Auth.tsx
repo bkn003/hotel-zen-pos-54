@@ -345,7 +345,7 @@ const Auth = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                     required
                     placeholder="Enter your password"
-                    minLength={8}
+                    minLength={isLogin ? 6 : 8}
                     className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all pr-12"
                   />
                   <button
