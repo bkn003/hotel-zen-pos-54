@@ -12,6 +12,27 @@ import { cn } from '@/lib/utils';
 // BroadcastChannel for instant cross-tab sync
 const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
 
+// Type definition for kitchen bills
+interface KitchenBillItem {
+    id: string;
+    quantity: number;
+    items: {
+        id: string;
+        name: string;
+        unit?: string;
+        base_value?: number;
+    } | null;
+}
+
+interface KitchenBill {
+    id: string;
+    bill_no: string;
+    created_at: string;
+    kitchen_status: 'pending' | 'preparing' | 'ready' | 'served' | 'completed' | 'rejected';
+    service_status: 'pending' | 'preparing' | 'ready' | 'served' | 'completed' | 'rejected';
+    bill_items: KitchenBillItem[];
+}
+
 const KitchenDisplay = () => {
     const [bills, setBills] = useState<KitchenBill[]>([]);
     const [loading, setLoading] = useState(true);
@@ -19,21 +40,6 @@ const KitchenDisplay = () => {
     const [voiceEnabled, setVoiceEnabled] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
     const syncChannelRef = useRef<any>(null);
-
-    // Setup Global Sync Channel for Cross-Device updates
-    useEffect(() => {
-        const channel = supabase.channel('pos-global-sync', {
-            config: { broadcast: { self: true } }
-        })
-            .on('broadcast', { event: 'bills-updated' }, () => {
-                console.log('Kitchen: Cross-device broadcast received!');
-                fetchBills(true);
-            })
-            .subscribe();
-
-        syncChannelRef.current = channel;
-        return () => { supabase.removeChannel(channel); };
-    }, [fetchBills]);
 
     // Update current time every minute
     useEffect(() => {
@@ -89,6 +95,21 @@ const KitchenDisplay = () => {
             if (!silent) setLoading(false);
         }
     }, []);
+
+    // Setup Global Sync Channel for Cross-Device updates
+    useEffect(() => {
+        const channel = supabase.channel('pos-global-sync', {
+            config: { broadcast: { self: true } }
+        })
+            .on('broadcast', { event: 'bills-updated' }, () => {
+                console.log('Kitchen: Cross-device broadcast received!');
+                fetchBills(true);
+            })
+            .subscribe();
+
+        syncChannelRef.current = channel;
+        return () => { supabase.removeChannel(channel); };
+    }, [fetchBills]);
 
     // Initial fetch
     useEffect(() => {
@@ -190,6 +211,10 @@ const KitchenDisplay = () => {
     const preparingBills = bills.filter(b => b.kitchen_status === 'preparing');
     const readyBills = bills.filter(b => b.kitchen_status === 'ready');
 
+    const handleRefreshClick = () => {
+        fetchBills();
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background p-4">
@@ -228,7 +253,7 @@ const KitchenDisplay = () => {
                         >
                             {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={fetchBills}>
+                        <Button variant="outline" size="sm" onClick={handleRefreshClick}>
                             Refresh
                         </Button>
                     </div>

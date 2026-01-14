@@ -48,21 +48,6 @@ const ServiceArea = () => {
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
     const syncChannelRef = useRef<any>(null);
 
-    // Setup Global Sync Channel for Cross-Device updates
-    useEffect(() => {
-        const channel = supabase.channel('pos-global-sync', {
-            config: { broadcast: { self: true } }
-        })
-            .on('broadcast', { event: 'bills-updated' }, () => {
-                console.log('ServiceArea: Cross-device broadcast received!');
-                fetchBills(true);
-            })
-            .subscribe();
-
-        syncChannelRef.current = channel;
-        return () => { supabase.removeChannel(channel); };
-    }, [fetchBills]);
-
     // Fetch bills that need service AND recently processed ones
     const fetchBills = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -119,6 +104,21 @@ const ServiceArea = () => {
             if (!silent) setLoading(false);
         }
     }, []);
+
+    // Setup Global Sync Channel for Cross-Device updates
+    useEffect(() => {
+        const channel = supabase.channel('pos-global-sync', {
+            config: { broadcast: { self: true } }
+        })
+            .on('broadcast', { event: 'bills-updated' }, () => {
+                console.log('ServiceArea: Cross-device broadcast received!');
+                fetchBills(true);
+            })
+            .subscribe();
+
+        syncChannelRef.current = channel;
+        return () => { supabase.removeChannel(channel); };
+    }, [fetchBills]);
 
     // Initial fetch
     useEffect(() => {
@@ -377,7 +377,5 @@ const ServiceArea = () => {
         </div>
     );
 };
-
-export default ServiceArea;
 
 export default ServiceArea;
