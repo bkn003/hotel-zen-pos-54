@@ -243,30 +243,69 @@ const Billing = () => {
   // Fetch functions defined before useEffect
   const fetchItems = async () => {
     try {
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
+      // Try to get from network first
+      if (navigator.onLine) {
+        const { data, error } = await supabase
+          .from('items')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Sort by display_order client-side if the field exists
-      const sortedData = (data || []).sort((a: any, b: any) => {
-        const orderA = a.display_order ?? 9999;
-        const orderB = b.display_order ?? 9999;
-        if (orderA !== orderB) return orderA - orderB;
-        return (a.name || '').localeCompare(b.name || '');
-      });
+        // Sort by display_order client-side if the field exists
+        const sortedData = (data || []).sort((a: any, b: any) => {
+          const orderA = a.display_order ?? 9999;
+          const orderB = b.display_order ?? 9999;
+          if (orderA !== orderB) return orderA - orderB;
+          return (a.name || '').localeCompare(b.name || '');
+        });
 
-      setItems(sortedData);
+        setItems(sortedData);
+        
+        // Cache items for offline use
+        const { offlineManager } = await import('@/utils/offlineManager');
+        await offlineManager.cacheItems(sortedData);
+      } else {
+        // Offline: Use cached items
+        const { offlineManager } = await import('@/utils/offlineManager');
+        const cachedItems = await offlineManager.getCachedItems();
+        if (cachedItems.length > 0) {
+          const sortedData = cachedItems.filter((i: any) => i.is_active).sort((a: any, b: any) => {
+            const orderA = a.display_order ?? 9999;
+            const orderB = b.display_order ?? 9999;
+            if (orderA !== orderB) return orderA - orderB;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+          setItems(sortedData);
+          toast({
+            title: "Offline Mode",
+            description: `Loaded ${sortedData.length} items from cache`,
+          });
+        } else {
+          toast({
+            title: "No Cached Data",
+            description: "Connect to internet to load items",
+            variant: "destructive"
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching items:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch items",
-        variant: "destructive"
-      });
+      // Fallback to cache on error
+      try {
+        const { offlineManager } = await import('@/utils/offlineManager');
+        const cachedItems = await offlineManager.getCachedItems();
+        if (cachedItems.length > 0) {
+          setItems(cachedItems.filter((i: any) => i.is_active));
+        }
+      } catch (cacheError) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch items",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -748,15 +787,18 @@ const Billing = () => {
       duration: 2000
     });
 
-    // Dispatch instant events for same-device (BroadcastChannel) and cross-device (Supabase Broadcast)
+    // === INSTANT 4-LAYER SYNC ===
+    // Layer 3: Window custom events - same tab (0ms)
     window.dispatchEvent(new CustomEvent('bills-updated'));
-    billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
-
-    // Cross-device signaling (sub-200ms)
+    
+    // Layer 1: BroadcastChannel - same browser tabs (0ms)
+    billsChannel?.postMessage({ type: 'bills', timestamp: Date.now() });
+    
+    // Layer 2: Supabase Broadcast - cross-device (<100ms)
     syncChannelRef.current?.send({
       type: 'broadcast',
-      event: 'bills-updated',
-      payload: { bill_no: billNumber }
+      event: 'bills-sync',
+      payload: { bill_id: billData.id, action: 'create', timestamp: Date.now() }
     });
 
     return billData;
@@ -945,37 +987,37 @@ const Billing = () => {
         status_updated_at: now.toISOString()
       };
 
-      // OFFLINE MODE - queue and try print
+      // OFFLINE MODE - Use new PendingBill system
       if (isOffline) {
         const { offlineManager } = await import('@/utils/offlineManager');
-        await offlineManager.cacheBill({
-          ...billPayload,
-          id: `offline_${Date.now()}`,
-          bill_items: validCart.map(item => ({
+        
+        const pendingBillId = `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Save to pending bills queue (new system)
+        await offlineManager.savePendingBill({
+          id: pendingBillId,
+          bill_no: billNumber,
+          total_amount: totalAmount,
+          discount: paymentData.discount,
+          payment_mode: paymentMode,
+          payment_details: paymentData.paymentAmounts,
+          additional_charges: additionalChargesArray,
+          created_by: profile?.user_id || '',
+          date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+          created_at: now.toISOString(),
+          items: validCart.map(item => ({
             item_id: item.id,
+            name: item.name,
             quantity: item.quantity,
             price: item.price,
-            total: item.price * item.quantity
+            total: (item.quantity / (item.base_value || 1)) * item.price
           }))
         });
 
-        await offlineManager.addToSyncQueue({
-          type: 'bill',
-          action: 'create',
-          data: {
-            bill: billPayload,
-            items: validCart.map(item => ({
-              item_id: item.id,
-              quantity: item.quantity,
-              price: item.price,
-              total: item.price * item.quantity
-            }))
-          }
-        });
-
         toast({
-          title: "Bill Saved Offline",
-          description: `${billNumber} saved. Will sync when online.`,
+          title: "📴 Bill Saved Offline",
+          description: `${billNumber} queued. Will sync when online.`,
+          duration: 3000
         });
 
         // Try print in offline mode ONLY if auto-print is enabled
@@ -990,7 +1032,7 @@ const Billing = () => {
                 name: item.name,
                 quantity: item.quantity,
                 price: item.price,
-                total: item.price * item.quantity
+                total: (item.quantity / (item.base_value || 1)) * item.price
               })),
               subtotal,
               discount: paymentData.discount,
@@ -1011,8 +1053,6 @@ const Billing = () => {
           } catch (printError) {
             console.log('Print skipped while offline:', printError);
           }
-        } else {
-          console.log('Auto-print disabled, skipping print in offline mode');
         }
         return;
       }

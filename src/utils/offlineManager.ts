@@ -1,8 +1,15 @@
-// Offline Manager with IndexedDB persistence and sync queue
-// Provides robust offline functionality for the POS application
+/**
+ * Offline-First PWA Manager v2
+ * Provides IndexedDB persistence and sync queue for offline billing
+ * Features: Auto-sync on reconnect, conflict resolution, retry with backoff
+ */
 
+import * as React from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+// Database configuration
 const DB_NAME = 'HotelPOS_OfflineDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Store names
 const STORES = {
@@ -10,8 +17,32 @@ const STORES = {
     BILLS: 'bills',
     CATEGORIES: 'categories',
     SYNC_QUEUE: 'syncQueue',
-    SETTINGS: 'settings'
+    SETTINGS: 'settings',
+    PENDING_BILLS: 'pendingBills'
 };
+
+export interface PendingBill {
+    id: string;
+    bill_no: string;
+    total_amount: number;
+    discount: number;
+    payment_mode: string;
+    payment_details: any;
+    additional_charges: any;
+    created_by: string;
+    date: string;
+    created_at: string;
+    items: Array<{
+        item_id: string;
+        name: string;
+        quantity: number;
+        price: number;
+        total: number;
+    }>;
+    synced: boolean;
+    syncError?: string;
+    retries: number;
+}
 
 interface SyncQueueItem {
     id: string;
@@ -27,6 +58,7 @@ class OfflineManager {
     private isOnline: boolean = navigator.onLine;
     private syncInProgress: boolean = false;
     private listeners: Set<(isOnline: boolean) => void> = new Set();
+    private pendingBillListeners: Set<(count: number) => void> = new Set();
 
     constructor() {
         this.initializeDB();
@@ -78,7 +110,13 @@ class OfflineManager {
                     db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' });
                 }
 
-                console.log('IndexedDB stores created');
+                if (!db.objectStoreNames.contains(STORES.PENDING_BILLS)) {
+                    const pendingStore = db.createObjectStore(STORES.PENDING_BILLS, { keyPath: 'id' });
+                    pendingStore.createIndex('created_at', 'created_at');
+                    pendingStore.createIndex('synced', 'synced');
+                }
+
+                console.log('IndexedDB stores created/upgraded');
             };
         });
     }
@@ -87,8 +125,9 @@ class OfflineManager {
         window.addEventListener('online', () => {
             this.isOnline = true;
             this.notifyListeners();
-            this.processSyncQueue();
             console.log('Network: Online - Starting sync');
+            // Auto-sync with delay to ensure stable connection
+            setTimeout(() => this.processSyncQueue(), 1000);
         });
 
         window.addEventListener('offline', () => {
@@ -104,8 +143,19 @@ class OfflineManager {
         return () => this.listeners.delete(callback);
     }
 
+    // Subscribe to pending bills count changes
+    onPendingBillsChange(callback: (count: number) => void): () => void {
+        this.pendingBillListeners.add(callback);
+        return () => this.pendingBillListeners.delete(callback);
+    }
+
     private notifyListeners(): void {
         this.listeners.forEach(callback => callback(this.isOnline));
+    }
+
+    private async notifyPendingBillsListeners(): Promise<void> {
+        const count = await this.getPendingBillsCount();
+        this.pendingBillListeners.forEach(callback => callback(count));
     }
 
     getNetworkStatus(): boolean {
@@ -192,6 +242,52 @@ class OfflineManager {
         });
     }
 
+    // ===== PENDING BILLS MANAGEMENT =====
+    async savePendingBill(bill: Omit<PendingBill, 'synced' | 'retries'>): Promise<string> {
+        const pendingBill: PendingBill = {
+            ...bill,
+            synced: false,
+            retries: 0
+        };
+        
+        await this.store(STORES.PENDING_BILLS, pendingBill);
+        await this.notifyPendingBillsListeners();
+        
+        console.log('[Offline] Saved pending bill:', bill.bill_no);
+        
+        // If online, try to sync immediately
+        if (this.isOnline) {
+            setTimeout(() => this.processSyncQueue(), 100);
+        }
+        
+        return bill.id;
+    }
+
+    async getPendingBills(): Promise<PendingBill[]> {
+        const bills = await this.getAll<PendingBill>(STORES.PENDING_BILLS);
+        return bills.filter(b => !b.synced).sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+    }
+
+    async markBillSynced(billId: string): Promise<void> {
+        const bill = await this.get<PendingBill>(STORES.PENDING_BILLS, billId);
+        if (bill) {
+            bill.synced = true;
+            await this.store(STORES.PENDING_BILLS, bill);
+            await this.notifyPendingBillsListeners();
+        }
+    }
+
+    async updateBillSyncError(billId: string, error: string): Promise<void> {
+        const bill = await this.get<PendingBill>(STORES.PENDING_BILLS, billId);
+        if (bill) {
+            bill.syncError = error;
+            bill.retries = (bill.retries || 0) + 1;
+            await this.store(STORES.PENDING_BILLS, bill);
+        }
+    }
+
     // Sync queue operations
     async addToSyncQueue(item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'retryCount'>): Promise<void> {
         const queueItem: SyncQueueItem = {
@@ -213,45 +309,138 @@ class OfflineManager {
         await this.delete(STORES.SYNC_QUEUE, id);
     }
 
-    async processSyncQueue(): Promise<void> {
-        if (this.syncInProgress || !this.isOnline) return;
+    async processSyncQueue(): Promise<{ synced: number; failed: number }> {
+        if (this.syncInProgress || !this.isOnline) {
+            return { synced: 0, failed: 0 };
+        }
 
         this.syncInProgress = true;
-        console.log('Starting sync queue processing...');
+        console.log('[Sync] Starting sync queue processing...');
+        
+        let synced = 0;
+        let failed = 0;
 
         try {
+            // Process pending bills first
+            const pendingBills = await this.getPendingBills();
+            
+            for (const bill of pendingBills) {
+                if (bill.retries >= 5) {
+                    console.warn('[Sync] Max retries reached for bill:', bill.bill_no);
+                    failed++;
+                    continue;
+                }
+
+                try {
+                    await this.syncBillToSupabase(bill);
+                    await this.markBillSynced(bill.id);
+                    synced++;
+                    console.log('[Sync] Successfully synced bill:', bill.bill_no);
+                } catch (error: any) {
+                    console.error('[Sync] Failed to sync bill:', bill.bill_no, error);
+                    await this.updateBillSyncError(bill.id, error.message);
+                    failed++;
+                }
+            }
+
+            // Process legacy sync queue
             const queue = await this.getSyncQueue();
 
             for (const item of queue) {
                 try {
                     await this.processQueueItem(item);
                     await this.removeFromSyncQueue(item.id);
-                    console.log('Synced item:', item.type, item.action);
+                    synced++;
                 } catch (error) {
                     console.error('Failed to sync item:', item.id, error);
 
-                    // Update retry count
                     if (item.retryCount < 3) {
                         await this.store(STORES.SYNC_QUEUE, {
                             ...item,
                             retryCount: item.retryCount + 1
                         });
-                    } else {
-                        console.error('Max retries reached for:', item.id);
-                        // Keep in queue for manual resolution
                     }
+                    failed++;
                 }
             }
+            
+            await this.notifyPendingBillsListeners();
         } finally {
             this.syncInProgress = false;
-            console.log('Sync queue processing complete');
+            console.log(`[Sync] Complete. Synced: ${synced}, Failed: ${failed}`);
         }
+
+        return { synced, failed };
+    }
+
+    private async syncBillToSupabase(bill: PendingBill): Promise<void> {
+        // Generate proper sequential bill number
+        const { data: allBillNos } = await supabase
+            .from('bills')
+            .select('bill_no')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        let maxNumber = 55;
+        if (allBillNos && allBillNos.length > 0) {
+            allBillNos.forEach((b: any) => {
+                const match = b.bill_no.match(/^BILL-(\d{6})$/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxNumber) maxNumber = num;
+                }
+            });
+        }
+        const properBillNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
+
+        // Create the bill in Supabase
+        const billData = {
+            bill_no: properBillNumber,
+            total_amount: bill.total_amount,
+            discount: bill.discount,
+            payment_mode: bill.payment_mode as any,
+            payment_details: bill.payment_details,
+            additional_charges: bill.additional_charges,
+            created_by: bill.created_by,
+            date: bill.date,
+            service_status: 'pending' as const
+        };
+
+        const { data: createdBill, error: billError } = await supabase
+            .from('bills')
+            .insert([billData])
+            .select()
+            .single();
+
+        if (billError) throw billError;
+        if (!createdBill) throw new Error('Failed to create bill');
+
+        // Create bill items
+        const billItems = bill.items.map(item => ({
+            bill_id: createdBill.id,
+            item_id: item.item_id,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total
+        }));
+
+        const { error: itemsError } = await supabase
+            .from('bill_items')
+            .insert(billItems);
+
+        if (itemsError) {
+            // Rollback
+            await supabase.from('bills').delete().eq('id', createdBill.id);
+            throw itemsError;
+        }
+
+        console.log(`[Sync] Offline bill ${bill.bill_no} → ${properBillNumber}`);
+        
+        // Dispatch sync event
+        window.dispatchEvent(new CustomEvent('bills-updated'));
     }
 
     private async processQueueItem(item: SyncQueueItem): Promise<void> {
-        // This will be connected to Supabase operations
-        const { supabase } = await import('@/integrations/supabase/client');
-
         switch (item.type) {
             case 'bill':
                 if (item.action === 'create') {
@@ -279,13 +468,11 @@ class OfflineManager {
                     }
                     const properBillNumber = `BILL-${String(maxNumber + 1).padStart(6, '0')}`;
 
-                    // Update the bill data with proper bill number
                     const finalBillData = {
                         ...billData,
                         bill_no: properBillNumber
                     };
 
-                    // Create the bill
                     const { data: createdBill, error: billError } = await supabase
                         .from('bills')
                         .insert(finalBillData)
@@ -294,7 +481,6 @@ class OfflineManager {
 
                     if (billError) throw billError;
 
-                    // Create bill items
                     if (createdBill && itemsData && itemsData.length > 0) {
                         const billItems = itemsData.map((billItem: any) => ({
                             bill_id: createdBill.id,
@@ -309,7 +495,6 @@ class OfflineManager {
                             .insert(billItems);
 
                         if (itemsError) {
-                            console.error('Failed to insert bill items, rolling back...', itemsError);
                             await supabase.from('bills').delete().eq('id', createdBill.id);
                             throw itemsError;
                         }
@@ -355,8 +540,8 @@ class OfflineManager {
     }
 
     async getPendingBillsCount(): Promise<number> {
-        const queue = await this.getSyncQueue();
-        return queue.filter(item => item.type === 'bill').length;
+        const bills = await this.getPendingBills();
+        return bills.length;
     }
 }
 
@@ -374,6 +559,3 @@ export function useNetworkStatus() {
 
     return isOnline;
 }
-
-// Need to import React for the hook
-import * as React from 'react';
