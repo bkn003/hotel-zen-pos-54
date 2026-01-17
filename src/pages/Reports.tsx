@@ -20,7 +20,7 @@ import { cachedFetch, CACHE_KEYS, invalidateRelatedData } from '@/utils/cacheUti
 import { printReceipt } from '@/utils/bluetoothPrinter';
 import { printBrowserReceipt } from '@/utils/browserPrinter';
 import { offlineManager } from '@/utils/offlineManager';
-import { formatQuantityWithUnit, getShortUnit } from '@/utils/timeUtils';
+import { formatQuantityWithUnit, getShortUnit, calculateSmartQtyCount } from '@/utils/timeUtils';
 
 interface Bill {
   id: string;
@@ -695,7 +695,8 @@ const Reports: React.FC = () => {
           name: item.items?.name || 'Unknown Item',
           quantity: item.quantity,
           price: item.price,
-          total: item.total
+          total: item.total,
+          unit: item.items?.unit
         })) || [],
         subtotal: bill.bill_items?.reduce((sum, item) => sum + item.total, 0) || 0,
         paymentDetails: bill.payment_details as Record<string, number> | undefined,
@@ -713,7 +714,9 @@ const Reports: React.FC = () => {
         logoUrl: settings?.logoUrl,
         facebook: settings?.showFacebook !== false ? settings?.facebook : undefined,
         instagram: settings?.showInstagram !== false ? settings?.instagram : undefined,
-        whatsapp: settings?.showWhatsapp !== false ? settings?.whatsapp : undefined
+        whatsapp: settings?.showWhatsapp !== false ? settings?.whatsapp : undefined,
+        totalItemsCount: bill.bill_items?.length || 0,
+        smartQtyCount: calculateSmartQtyCount(bill.bill_items?.map(item => ({ quantity: item.quantity, unit: item.items?.unit })) || [])
       };
 
       toast({
@@ -747,7 +750,8 @@ const Reports: React.FC = () => {
           name: item.items?.name || 'Unknown Item',
           quantity: item.quantity,
           price: item.price,
-          total: item.total
+          total: item.total,
+          unit: item.items?.unit
         })) || [],
         subtotal: bill.bill_items?.reduce((sum, item) => sum + item.total, 0) || 0,
         paymentDetails: bill.payment_details as Record<string, number> | undefined,
@@ -758,7 +762,9 @@ const Reports: React.FC = () => {
         discount: bill.discount,
         total: bill.total_amount,
         paymentMethod: bill.payment_mode.toUpperCase(),
-        hotelName: profile?.hotel_name || 'ZEN POS'
+        hotelName: profile?.hotel_name || 'ZEN POS',
+        totalItemsCount: bill.bill_items?.length || 0,
+        smartQtyCount: calculateSmartQtyCount(bill.bill_items?.map(item => ({ quantity: item.quantity, unit: item.items?.unit })) || [])
       };
 
       printBrowserReceipt(printData);
@@ -1486,29 +1492,49 @@ const Reports: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="font-medium mb-3 text-sm">Items ({selectedBill.bill_items?.length || 0})</h4>
-                <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-2 mb-2 px-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="col-span-6">Item Name</div>
+                  <div className="col-span-2 text-center">Qty/Kg</div>
+                  <div className="col-span-2 text-right">Rate</div>
+                  <div className="col-span-2 text-right">Value</div>
+                </div>
+                <div className="space-y-1.5">
                   {selectedBill.bill_items?.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm">{item.items?.name}</p>
+                    <div key={index} className="grid grid-cols-12 gap-2 p-2 bg-muted/30 rounded-md items-center">
+                      <div className="col-span-6">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="font-bold text-xs truncate">{item.items?.name}</p>
                           {item.items?.is_active === false && (
-                            <Badge variant="destructive" className="text-xs">
-                              Deleted Item
-                            </Badge>
+                            <Badge variant="destructive" className="h-4 text-[8px] px-1 translate-y-[1px]">Deleted</Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {item.items?.category} • ₹{item.price}/{(item.items as any)?.unit || 'pc'}
-                        </p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-sm">Qty: {formatQuantityWithUnit(item.quantity, item.items?.unit)}</p>
-                        <p className="text-xs">₹{item.total.toFixed(2)}</p>
+                      <div className="col-span-2 text-center font-bold text-primary text-xs">
+                        {formatQuantityWithUnit(item.quantity, item.items?.unit)}
+                      </div>
+                      <div className="col-span-2 text-right text-[10px] text-muted-foreground">
+                        ₹{item.price.toFixed(0)}
+                      </div>
+                      <div className="col-span-2 text-right font-bold text-xs">
+                        ₹{item.total.toFixed(0)}
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="flex items-center justify-between mt-4 px-2 py-3 bg-primary/5 rounded-xl border border-primary/10 shadow-inner">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Qty Count</span>
+                    <span className="text-lg font-black text-primary leading-none mt-1">
+                      {calculateSmartQtyCount(selectedBill.bill_items.map(bi => ({ quantity: bi.quantity, unit: bi.items?.unit })))}
+                    </span>
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Items Count</span>
+                    <span className="text-lg font-black text-foreground leading-none mt-1">
+                      {selectedBill.bill_items?.length || 0}
+                    </span>
+                  </div>
                 </div>
               </div>
 

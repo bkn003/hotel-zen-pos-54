@@ -2,43 +2,15 @@ import { PrintData } from './bluetoothPrinter';
 import { formatQuantityWithUnit } from './timeUtils';
 
 export const printBrowserReceipt = (data: PrintData) => {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'absolute';
-  iframe.style.width = '0px';
-  iframe.style.height = '0px';
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
+  const width = data.printerWidth || '58mm';
+  const widthValue = width === '80mm' ? '3.125in' : '2.125in';
 
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    console.error('Could not access iframe document');
-    return;
-  }
-
-  // COMPACT receipt styles - tea shop style
-  const styles = `
-    @page { size: 58mm auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: monospace; font-size: 10px; line-height: 1.2; }
-    .r { width: 54mm; margin: 0 auto; padding: 2mm; }
-    .c { text-align: center; }
-    .b { font-weight: bold; }
-    .s { border-top: 1px dashed #000; margin: 2px 0; }
-    .row { display: flex; justify-content: space-between; }
-    .item { margin: 1px 0; }
-    .name { max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .shop { font-size: 12px; font-weight: bold; text-transform: uppercase; }
-    .total { font-size: 11px; font-weight: bold; }
-    .thx { font-size: 9px; margin-top: 3px; }
-    .time { font-size: 8px; }
-    .qty { font-size: 9px; font-weight: bold; }
-  `;
-
-  // Use the bill's time, not current time
-  const timeStr = data.time || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-  
-  // Calculate total items count
-  const totalItems = data.items.length;
+  // Debug logging - can be removed later
+  console.log('🖨️ Print Data:', {
+    items: data.items.map(i => ({ name: i.name, qty: i.quantity, unit: i.unit })),
+    totalItemsCount: data.totalItemsCount,
+    smartQtyCount: data.smartQtyCount
+  });
 
   // Compact item rows with qty (with unit) and total
   let itemsHtml = data.items.map(item => {
@@ -46,37 +18,99 @@ export const printBrowserReceipt = (data: PrintData) => {
     return `<div class="row item"><span class="name">${qtyWithUnit} × ${item.name}</span><span>₹${item.total.toFixed(0)}</span></div>`;
   }).join('');
 
-  // Additional charges compact
-  let chargesHtml = (data.additionalCharges || []).map(c => 
-    `<div class="row"><span>${c.name.substring(0, 10)}</span><span>+${c.amount.toFixed(0)}</span></div>`
-  ).join('');
+  const totalItems = data.totalItemsCount || data.items.length;
+  const smartQty = data.smartQtyCount || 0;
 
-  const hasExtras = (data.additionalCharges && data.additionalCharges.length > 0) || data.discount > 0;
 
-  doc.open();
-  doc.write(`<!DOCTYPE html><html><head><style>${styles}</style></head><body>
-    <div class="r">
-      <div class="c shop">${data.shopName || data.hotelName || 'SHOP'}</div>
-      <div class="c" style="font-size:9px">${[data.address, data.contactNumber].filter(Boolean).join(' | ')}</div>
-      <div class="s"></div>
-      <div class="row"><span>#${data.billNo}</span><span>${data.date}</span></div>
-      <div class="c time">${timeStr}</div>
-      <div class="s"></div>
-      ${itemsHtml}
-      <div class="s"></div>
-      <div class="row"><span>Items: ${totalItems}</span><span>Sub: ${data.subtotal.toFixed(0)}</span></div>
-      ${chargesHtml}
-      ${data.discount > 0 ? `<div class="row"><span>Disc</span><span>-${data.discount.toFixed(0)}</span></div>` : ''}
-      <div class="row total"><span>TOTAL</span><span>Rs.${data.total.toFixed(0)}</span></div>
-      <div class="row"><span>Paid</span><span>${data.paymentMethod.toUpperCase()}</span></div>
-      <div class="c thx">Thank you!</div>
-    </div>
-  </body></html>`);
-  doc.close();
+  const html = `
+    <html>
+      <head>
+        <style>
+          @page { margin: 0; }
+          body { 
+            font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+            width: ${widthValue};
+            margin: 0;
+            padding: 10px;
+            font-size: 11px;
+            line-height: 1.2;
+            color: black;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .header { margin-bottom: 10px; }
+          .shop-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+          .divider { border-top: 1px dashed black; margin: 5px 0; }
+          .row { display: flex; justify-content: space-between; margin: 1px 0; }
+          .item { font-size: 11px; }
+          .item .name { 
+            flex: 1; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 5px;
+          }
+          .total-row { font-size: 13px; font-weight: bold; margin-top: 5px; }
+          .footer { margin-top: 10px; font-size: 10px; }
+          .qty-row { font-weight: bold; margin: 4px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="header center">
+          <div class="shop-name">${(data.shopName || data.hotelName).toUpperCase()}</div>
+          ${data.address ? `<div>${data.address}</div>` : ''}
+          ${data.contactNumber ? `<div>Ph: ${data.contactNumber}</div>` : ''}
+        </div>
 
-  setTimeout(() => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    setTimeout(() => document.body.removeChild(iframe), 60000);
-  }, 500);
+        <div class="divider"></div>
+        <div class="row"><span>#${data.billNo}</span><span>${data.date}</span></div>
+        <div class="row"><span>Time:</span><span>${data.time}</span></div>
+        <div class="divider"></div>
+
+        <div class="items">
+          ${itemsHtml}
+        </div>
+
+        <div class="divider"></div>
+        <div class="row qty-row">
+          <span>Items: ${totalItems}</span>
+          <span>Qty: ${smartQty}</span>
+        </div>
+        <div class="divider"></div>
+
+        <div class="row"><span>Subtotal:</span><span>₹${data.subtotal.toFixed(0)}</span></div>
+        ${data.additionalCharges?.map(c => `<div class="row"><span>${c.name}:</span><span>₹${c.amount.toFixed(0)}</span></div>`).join('') || ''}
+        ${data.discount ? (data.discount > 0 ? `<div class="row"><span>Discount:</span><span>-₹${data.discount.toFixed(0)}</span></div>` : '') : ''}
+        
+        <div class="row total-row">
+          <span>TOTAL:</span>
+          <span>₹${data.total.toFixed(0)}</span>
+        </div>
+
+        <div class="row" style="margin-top: 5px;">
+          <span>Paid via:</span>
+          <span>${data.paymentMethod.toUpperCase()}</span>
+        </div>
+
+        <div class="footer center">
+          <div>Thank you!</div>
+          ${data.facebook || data.instagram || data.whatsapp ? '<div class="divider"></div>' : ''}
+          ${data.facebook ? `<div>FB: ${data.facebook}</div>` : ''}
+          ${data.instagram ? `<div>IG: ${data.instagram}</div>` : ''}
+          ${data.whatsapp ? `<div>WA: ${data.whatsapp}</div>` : ''}
+        </div>
+      </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
 };

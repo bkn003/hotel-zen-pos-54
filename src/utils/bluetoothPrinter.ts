@@ -243,8 +243,8 @@ interface PrintData {
   time: string;
   items: BillItem[];
   subtotal: number;
-  additionalCharges?: { name: string; amount: number }[];
-  discount: number;
+  additionalCharges?: Array<{ name: string; amount: number }>;
+  discount?: number;
   total: number;
   paymentMethod: string;
   hotelName?: string;
@@ -257,6 +257,8 @@ interface PrintData {
   whatsapp?: string;
   printerWidth?: '58mm' | '80mm';
   logoUrl?: string;
+  totalItemsCount?: number;
+  smartQtyCount?: number;
 }
 
 const textToBytes = (text: string): Uint8Array => {
@@ -282,12 +284,15 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   const IMAGE_WIDTH = data.printerWidth === '80mm' ? 576 : 384;
   const SEP = '-'.repeat(LINE_WIDTH);
 
+  const { formatQuantityWithUnit } = await import('./timeUtils');
+
   // Compact format helper - fits more on line
   const fmtLine = (left: string, right: string) => formatLine(left, right, LINE_WIDTH);
-  
+
   // Compact item line - name x qty = total
-  const fmtItem = (name: string, qty: number, total: number) => {
-    const right = `x${qty} = ${total.toFixed(0)}`;
+  const fmtItem = (name: string, qty: number, total: number, unit?: string) => {
+    const qtyWithUnit = formatQuantityWithUnit(qty, unit);
+    const right = `x${qtyWithUnit} = ${total.toFixed(0)}`;
     const maxName = LINE_WIDTH - right.length - 1;
     const shortName = name.length > maxName ? name.substring(0, maxName) : name;
     return padRight(shortName, maxName) + ' ' + right;
@@ -324,21 +329,22 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   commands.push(FEED_LINE);
   commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
-  
-  // Calculate total qty
-  const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Items - name x qty = total
+  // ITEMS
   data.items.forEach(item => {
-    commands.push(textToBytes(fmtItem(item.name, item.quantity, item.total)));
+    commands.push(textToBytes(fmtItem(item.name, item.quantity, item.total, item.unit)));
     commands.push(FEED_LINE);
   });
 
   commands.push(textToBytes(SEP));
   commands.push(FEED_LINE);
 
-  // Qty and subtotal line
-  commands.push(textToBytes(fmtLine(`Qty: ${totalQty}`, `Sub: ${data.subtotal.toFixed(0)}`)));
+
+  // Totals Area
+  const totalItems = data.totalItemsCount || data.items.length;
+  const smartQty = data.smartQtyCount || 0;
+
+  commands.push(textToBytes(fmtLine(`Items: ${totalItems}`, `Qty: ${smartQty}`)));
   commands.push(FEED_LINE);
 
   // Additional charges - compact
@@ -371,10 +377,10 @@ const generateReceiptBytes = async (data: PrintData): Promise<Uint8Array> => {
   commands.push(ALIGN_CENTER);
   commands.push(textToBytes('Thank you!'));
   commands.push(FEED_LINE);
-  
+
   // Minimal feed before cut - just enough to clear the cutter
   commands.push(FEED_LINES(2));
-  
+
   // Send multiple cut commands for maximum compatibility
   // Different printers respond to different commands
   commands.push(CUT_FEED_FULL);    // GS V A 3 - most common

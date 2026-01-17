@@ -108,11 +108,14 @@ export const getShortUnit = (unit?: string): string => {
   const unitLower = unit.toLowerCase().trim();
 
   // Check for common unit patterns and return short form
-  if (unitLower.includes('kilogram') || unitLower === 'kg') return 'kg';
-  if (unitLower.includes('gram') || unitLower === 'g') return 'g';
-  if (unitLower.includes('liter') || unitLower === 'l') return 'L';
-  if (unitLower.includes('milliliter') || unitLower === 'ml') return 'ml';
-  if (unitLower.includes('piece') || unitLower === 'pc') return 'pc';
+  // IMPORTANT: Check more specific units first (kilogram before gram, milliliter before liter)
+  // because "milliliter" contains "liter" and "kilogram" contains "gram"
+  if (unitLower.includes('kilogram') || unitLower === 'kg' || unitLower.includes('(kg)')) return 'kg';
+  if (unitLower.includes('milliliter') || unitLower === 'ml' || unitLower.includes('(ml)')) return 'ml';
+  if (unitLower.includes('gram') || unitLower === 'g' || unitLower.includes('(g)')) return 'g';
+  if (unitLower.includes('liter') || unitLower === 'l' || unitLower.includes('(l)')) return 'L';
+  if (unitLower.includes('piece') || unitLower === 'pc' || unitLower.includes('(pc)')) return 'pc';
+
 
   // If unit contains parentheses with short form, extract it
   const match = unit.match(/\(([^)]+)\)/);
@@ -151,12 +154,29 @@ export const formatQuantityWithUnit = (quantity: number, unit?: string): string 
 };
 
 /**
- * Check if a unit represents a weight or volume measurement
- * @param unit - The unit string
- * @returns Boolean indicating if it's weight/volume
+ * Checks if a unit represents a weight or volume measurement.
  */
 export const isWeightOrVolumeUnit = (unit?: string): boolean => {
-  if (!unit) return false;
-  const shortUnit = getShortUnit(unit).toLowerCase();
-  return ['kg', 'g', 'l', 'ml'].includes(shortUnit);
+  const shortUnit = getShortUnit(unit);
+  return ['kg', 'g', 'L', 'ml'].includes(shortUnit);
+};
+
+/**
+ * Calculates a "Smart Qty Count" based on the logic:
+ * - Weight/Volume items (kg, g, L, ml) count as 1
+ * - Piece items (pc) count as their actual quantity
+ */
+export const calculateSmartQtyCount = (items: { quantity: number; unit?: string }[]): number => {
+  if (!items || items.length === 0) return 0;
+
+  return items.reduce((acc, item) => {
+    // Ensure quantity is a number
+    const qty = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
+    if (isNaN(qty)) return acc;
+
+    if (isWeightOrVolumeUnit(item.unit)) {
+      return acc + 1;
+    }
+    return acc + qty;
+  }, 0);
 };
