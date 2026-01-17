@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChefHat, Clock, Bell, Volume2, VolumeX } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getTimeElapsed, formatTimeAMPM, formatQuantityWithUnit } from '@/utils/timeUtils';
@@ -384,24 +383,34 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                 </div>
             </div>
 
-            {/* Items List */}
-            <ScrollArea className="h-24 mb-4">
-                <div className="space-y-1">
-                    {bill.bill_items.map((item) => (
-                        <div
-                            key={item.id}
-                            className="flex items-center justify-between text-sm"
-                        >
-                            <span className="font-medium">
-                                {item.items?.name || 'Unknown'}
-                            </span>
-                            <Badge variant="outline" className="font-bold">
-                                {formatQuantityWithUnit(item.quantity, item.items?.unit)}
-                            </Badge>
-                        </div>
-                    ))}
-                </div>
-            </ScrollArea>
+            {/* Items List - no scroll, show all */}
+            <div className="space-y-1 mb-3">
+                {bill.bill_items.map((item) => (
+                    <div
+                        key={item.id}
+                        className="flex items-center justify-between text-sm"
+                    >
+                        <span className="font-medium">
+                            {item.items?.name || 'Unknown'}
+                        </span>
+                        <Badge variant="outline" className="font-bold">
+                            {formatQuantityWithUnit(item.quantity, item.items?.unit)}
+                        </Badge>
+                    </div>
+                ))}
+            </div>
+
+            {/* Items/Qty Count Footer */}
+            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground border-t pt-2 mb-3">
+                <span>Items: {bill.bill_items.length}</span>
+                <span>Qty: {bill.bill_items.reduce((acc, item) => {
+                    const unit = item.items?.unit?.toLowerCase() || '';
+                    const isWeightVolume = unit.includes('gram') || unit.includes('kg') ||
+                        unit.includes('liter') || unit.includes('ml') ||
+                        unit === 'g' || unit === 'l';
+                    return acc + (isWeightVolume ? 1 : item.quantity);
+                }, 0)}</span>
+            </div>
 
             {/* Action Button */}
             <Button
@@ -411,6 +420,7 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
             >
                 {actionLabel}
             </Button>
+
         </Card>
     );
 };

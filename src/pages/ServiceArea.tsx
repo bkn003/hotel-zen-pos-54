@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, X, Undo2, ChefHat, Clock, Wifi, WifiOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTimeAMPM, getTimeElapsed, isWithinUndoWindow, formatQuantityWithUnit } from '@/utils/timeUtils';
@@ -15,9 +14,9 @@ import { cn } from '@/lib/utils';
 // 2. Supabase Broadcast - <100ms cross-device via WebSocket
 // 3. postgres_changes - ~2-5s fallback
 
-const localBroadcast = typeof BroadcastChannel !== 'undefined' 
-  ? new BroadcastChannel('pos-instant-sync') 
-  : null;
+const localBroadcast = typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('pos-instant-sync')
+    : null;
 
 // Types
 interface BillItem {
@@ -153,17 +152,17 @@ const ServiceArea = () => {
     // === LAYER 2: Local BroadcastChannel (Same browser, 0ms) ===
     useEffect(() => {
         // Listen to both local broadcast channels
-        const billingChannel = typeof BroadcastChannel !== 'undefined' 
+        const billingChannel = typeof BroadcastChannel !== 'undefined'
             ? new BroadcastChannel('bills-updates') : null;
-        
+
         const handleLocal = (event: MessageEvent) => {
             console.log('[ServiceArea] Local broadcast received:', event.data);
             debouncedFetch(true);
         };
-        
+
         localBroadcast?.addEventListener('message', handleLocal);
         billingChannel?.addEventListener('message', handleLocal);
-        
+
         return () => {
             localBroadcast?.removeEventListener('message', handleLocal);
             billingChannel?.removeEventListener('message', handleLocal);
@@ -254,13 +253,13 @@ const ServiceArea = () => {
             // === INSTANT 4-LAYER SYNC for Undo ===
             // Layer 1: Local BroadcastChannel (0ms same browser)
             localBroadcast?.postMessage({ type: 'bills', action: 'status-update', billId });
-            
+
             // Also broadcast to billing channel
-            const billingChannel = typeof BroadcastChannel !== 'undefined' 
+            const billingChannel = typeof BroadcastChannel !== 'undefined'
                 ? new BroadcastChannel('bills-updates') : null;
             billingChannel?.postMessage({ type: 'bills', action: 'undo', billId });
             billingChannel?.close();
-            
+
             // Layer 2: Supabase Broadcast (<100ms cross-device)
             broadcastChannelRef.current?.send({
                 type: 'broadcast',
@@ -324,8 +323,8 @@ const ServiceArea = () => {
                         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Service Area</h1>
                         <div className={cn(
                             "flex items-center gap-1.5 px-2 py-0.5 rounded-full border",
-                            isConnected 
-                                ? "bg-green-500/10 border-green-500/20" 
+                            isConnected
+                                ? "bg-green-500/10 border-green-500/20"
                                 : "bg-red-500/10 border-red-500/20"
                         )}>
                             {isConnected ? (
@@ -379,19 +378,30 @@ const ServiceArea = () => {
                                 {getStatusBadge(bill)}
                             </div>
 
-                            <ScrollArea className="flex-1 max-h-[120px] mb-3 pr-2">
-                                <div className="space-y-1">
-                                    {bill.bill_items.map((item) => (
-                                        <div key={item.id} className="flex items-center text-sm">
-                                            <span className="font-bold text-primary mr-2">
-                                                {formatQuantityWithUnit(item.quantity, item.items?.unit)}
-                                            </span>
-                                            <span className="text-muted-foreground text-xs mr-1">×</span>
-                                            <span className="font-medium truncate">{item.items?.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
+                            {/* Items - no scroll, show all */}
+                            <div className="flex-1 mb-3 space-y-1">
+                                {bill.bill_items.map((item) => (
+                                    <div key={item.id} className="flex items-center text-sm">
+                                        <span className="font-bold text-primary mr-2">
+                                            {formatQuantityWithUnit(item.quantity, item.items?.unit)}
+                                        </span>
+                                        <span className="text-muted-foreground text-xs mr-1">×</span>
+                                        <span className="font-medium truncate">{item.items?.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Items/Qty Count Footer */}
+                            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground border-t pt-2 mb-3">
+                                <span>Items: {bill.bill_items.length}</span>
+                                <span>Qty: {bill.bill_items.reduce((acc, item) => {
+                                    const unit = item.items?.unit?.toLowerCase() || '';
+                                    const isWeightVolume = unit.includes('gram') || unit.includes('kg') ||
+                                        unit.includes('liter') || unit.includes('ml') ||
+                                        unit === 'g' || unit === 'l';
+                                    return acc + (isWeightVolume ? 1 : item.quantity);
+                                }, 0)}</span>
+                            </div>
 
                             <div className="flex gap-2 mt-auto">
                                 <Button
@@ -412,6 +422,7 @@ const ServiceArea = () => {
                                     Reject
                                 </Button>
                             </div>
+
                         </Card>
                     ))}
                 </div>
