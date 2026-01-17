@@ -262,7 +262,7 @@ const Billing = () => {
         });
 
         setItems(sortedData);
-        
+
         // Cache items for offline use
         const { offlineManager } = await import('@/utils/offlineManager');
         await offlineManager.cacheItems(sortedData);
@@ -790,10 +790,10 @@ const Billing = () => {
     // === INSTANT 4-LAYER SYNC ===
     // Layer 3: Window custom events - same tab (0ms)
     window.dispatchEvent(new CustomEvent('bills-updated'));
-    
+
     // Layer 1: BroadcastChannel - same browser tabs (0ms)
     billsChannel?.postMessage({ type: 'bills', timestamp: Date.now() });
-    
+
     // Layer 2: Supabase Broadcast - cross-device (<100ms)
     syncChannelRef.current?.send({
       type: 'broadcast',
@@ -990,9 +990,9 @@ const Billing = () => {
       // OFFLINE MODE - Use new PendingBill system
       if (isOffline) {
         const { offlineManager } = await import('@/utils/offlineManager');
-        
+
         const pendingBillId = `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Save to pending bills queue (new system)
         await offlineManager.savePendingBill({
           id: pendingBillId,
@@ -1182,9 +1182,13 @@ const Billing = () => {
       />
 
       {/* Items Grid - Scrollable */}
-      <div className="overflow-y-auto" style={{
-        height: 'calc(100vh - 200px)'
-      }}>
+      <div
+        className="overflow-y-auto pb-40 md:pb-4 scroll-smooth"
+        style={{
+          height: 'calc(100vh - 200px)',
+          WebkitOverflowScrolling: 'touch'  // Smooth scroll on iOS
+        }}
+      >
         {viewMode === 'grid' ? <div className={`grid gap-2 ${displaySettings.items_per_row === 1 ? 'grid-cols-1' : displaySettings.items_per_row === 2 ? 'grid-cols-2' : displaySettings.items_per_row === 3 ? 'grid-cols-3' : displaySettings.items_per_row === 4 ? 'grid-cols-4' : displaySettings.items_per_row === 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
           {filteredItems.map(item => {
             const cartItem = cart.find(c => c.id === item.id);
