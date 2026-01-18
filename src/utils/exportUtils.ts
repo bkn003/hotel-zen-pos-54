@@ -220,7 +220,7 @@ export const exportAllReportsToPDF = (data: {
   const expenses = data.profitLoss.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0);
   const profit = revenue - expenses;
 
-  // Generate HTML with proper Unicode support
+  // Simple HTML like browserPrinter.ts - works on mobile
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -229,154 +229,71 @@ export const exportAllReportsToPDF = (data: {
   <title>Reports - ${data.dateRange}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
-      font-size: 12px; 
-      color: #333;
-      padding: 20px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    h1 { font-size: 24px; color: #2980b9; margin-bottom: 10px; }
-    h2 { font-size: 18px; color: #2980b9; margin: 20px 0 10px; border-bottom: 2px solid #2980b9; padding-bottom: 5px; }
-    .meta { color: #666; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th { background: #2980b9; color: white; padding: 8px; text-align: left; font-weight: bold; }
-    td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .total-row { font-weight: bold; background: #e8f4fc !important; }
-    .amount { text-align: right; }
-    .center { text-align: center; }
-    .profit { color: #27ae60; font-weight: bold; }
-    .loss { color: #e74c3c; font-weight: bold; }
-    .page-break { page-break-before: always; }
-    @media print {
-      body { padding: 10px; }
-      .page-break { page-break-before: always; }
-    }
+    body { font-family: Arial, sans-serif; font-size: 11px; padding: 10px; background: white; color: black; }
+    h1 { font-size: 18px; margin-bottom: 5px; }
+    h2 { font-size: 14px; margin: 15px 0 5px; background: #2980b9; color: white; padding: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    th { background: #3498db; color: white; padding: 4px; text-align: left; font-size: 10px; }
+    td { padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 10px; }
+    .r { text-align: right; }
+    .b { font-weight: bold; background: #ecf0f1; }
   </style>
 </head>
 <body>
-  <h1>📊 Business Reports</h1>
-  <div class="meta">
-    <div><strong>Period:</strong> ${data.dateRange}</div>
-    <div><strong>Generated:</strong> ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
-  </div>
+  <h1>Business Reports</h1>
+  <p>Period: ${data.dateRange} | Generated: ${new Date().toLocaleDateString()}</p>
 
-  ${data.bills.length > 0 ? `
-  <h2>📋 Bills Report</h2>
-  <div class="meta">Total: ${data.bills.length} bills | ₹${billsTotal.toFixed(2)}</div>
+${data.items.length > 0 ? `
+  <h2>Items Sales Report</h2>
   <table>
-    <tr><th>#</th><th>Bill No</th><th>Date</th><th>Time</th><th class="amount">Amount</th><th class="amount">Discount</th><th>Payment</th><th class="center">Items</th></tr>
-    ${data.bills.map((bill, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${bill.bill_no}</td>
-        <td>${bill.date}</td>
-        <td>${bill.time}</td>
-        <td class="amount">₹${bill.total_amount.toFixed(2)}</td>
-        <td class="amount">₹${bill.discount.toFixed(2)}</td>
-        <td>${bill.payment_mode}</td>
-        <td class="center">${bill.items_count}</td>
-      </tr>
-    `).join('')}
-    <tr class="total-row">
-      <td></td><td>TOTAL</td><td></td><td></td>
-      <td class="amount">₹${billsTotal.toFixed(2)}</td>
-      <td class="amount">₹${data.bills.reduce((s, b) => s + b.discount, 0).toFixed(2)}</td>
-      <td></td>
-      <td class="center">${data.bills.reduce((s, b) => s + b.items_count, 0)}</td>
-    </tr>
+    <tr><th>#</th><th>Item Name</th><th>Category</th><th class="r">Qty</th><th class="r">Revenue</th></tr>
+    ${data.items.map((item, i) => `<tr><td>${i + 1}</td><td>${item.item_name}</td><td>${item.category}</td><td class="r">${item.total_quantity}</td><td class="r">${item.total_revenue.toFixed(0)}</td></tr>`).join('')}
+    <tr class="b"><td></td><td>TOTAL</td><td></td><td class="r">${itemsQtyTotal}</td><td class="r">${itemsTotal.toFixed(0)}</td></tr>
   </table>
-  ` : ''}
+` : ''}
 
-  ${data.items.length > 0 ? `
-  <div class="page-break"></div>
-  <h2>🍽️ Items Sales Report</h2>
-  <div class="meta">Total: ${data.items.length} items | Qty: ${itemsQtyTotal} | Revenue: ₹${itemsTotal.toFixed(2)}</div>
+${data.bills.length > 0 ? `
+  <h2>Bills Report</h2>
   <table>
-    <tr><th>#</th><th>Item Name</th><th>Category</th><th class="center">Quantity</th><th class="amount">Revenue</th></tr>
-    ${data.items.map((item, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${item.item_name}</td>
-        <td>${item.category}</td>
-        <td class="center">${item.total_quantity}</td>
-        <td class="amount">₹${item.total_revenue.toFixed(2)}</td>
-      </tr>
-    `).join('')}
-    <tr class="total-row">
-      <td></td><td>TOTAL</td><td></td>
-      <td class="center">${itemsQtyTotal}</td>
-      <td class="amount">₹${itemsTotal.toFixed(2)}</td>
-    </tr>
+    <tr><th>#</th><th>Bill No</th><th>Date</th><th class="r">Amount</th><th>Payment</th></tr>
+    ${data.bills.map((bill, i) => `<tr><td>${i + 1}</td><td>${bill.bill_no}</td><td>${bill.date}</td><td class="r">${bill.total_amount.toFixed(0)}</td><td>${bill.payment_mode}</td></tr>`).join('')}
+    <tr class="b"><td></td><td>TOTAL</td><td></td><td class="r">${billsTotal.toFixed(0)}</td><td></td></tr>
   </table>
-  ` : ''}
+` : ''}
 
-  ${data.payments.length > 0 ? `
-  <h2>💳 Payment Methods</h2>
+${data.payments.length > 0 ? `
+  <h2>Payments</h2>
   <table>
-    <tr><th>#</th><th>Payment Method</th><th class="amount">Amount</th><th class="center">Transactions</th><th class="center">%</th></tr>
-    ${data.payments.map((p, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${p.payment_method}</td>
-        <td class="amount">₹${p.total_amount.toFixed(2)}</td>
-        <td class="center">${p.transaction_count}</td>
-        <td class="center">${p.percentage.toFixed(1)}%</td>
-      </tr>
-    `).join('')}
-    <tr class="total-row">
-      <td></td><td>TOTAL</td>
-      <td class="amount">₹${paymentsTotal.toFixed(2)}</td>
-      <td class="center">${data.payments.reduce((s, p) => s + p.transaction_count, 0)}</td>
-      <td class="center">100%</td>
-    </tr>
+    <tr><th>Method</th><th class="r">Amount</th><th class="r">Count</th><th class="r">%</th></tr>
+    ${data.payments.map(p => `<tr><td>${p.payment_method}</td><td class="r">${p.total_amount.toFixed(0)}</td><td class="r">${p.transaction_count}</td><td class="r">${p.percentage.toFixed(0)}%</td></tr>`).join('')}
+    <tr class="b"><td>TOTAL</td><td class="r">${paymentsTotal.toFixed(0)}</td><td class="r">${data.payments.reduce((s, p) => s + p.transaction_count, 0)}</td><td class="r">100%</td></tr>
   </table>
-  ` : ''}
+` : ''}
 
-  ${data.profitLoss.length > 0 ? `
-  <h2>📈 Profit & Loss</h2>
+${data.profitLoss.length > 0 ? `
+  <h2>Profit & Loss</h2>
   <table>
-    <tr><th>#</th><th>Description</th><th>Type</th><th class="amount">Amount</th></tr>
-    ${data.profitLoss.map((item, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${item.description}</td>
-        <td>${item.type.toUpperCase()}</td>
-        <td class="amount">₹${item.amount.toFixed(2)}</td>
-      </tr>
-    `).join('')}
-    <tr class="total-row">
-      <td></td><td>TOTAL REVENUE</td><td>REVENUE</td>
-      <td class="amount profit">₹${revenue.toFixed(2)}</td>
-    </tr>
-    <tr class="total-row">
-      <td></td><td>TOTAL EXPENSES</td><td>EXPENSE</td>
-      <td class="amount loss">₹${expenses.toFixed(2)}</td>
-    </tr>
-    <tr class="total-row">
-      <td></td><td><strong>NET ${profit >= 0 ? 'PROFIT' : 'LOSS'}</strong></td>
-      <td>${profit >= 0 ? 'PROFIT' : 'LOSS'}</td>
-      <td class="amount ${profit >= 0 ? 'profit' : 'loss'}">₹${Math.abs(profit).toFixed(2)}</td>
-    </tr>
+    <tr><th>Description</th><th>Type</th><th class="r">Amount</th></tr>
+    ${data.profitLoss.map(item => `<tr><td>${item.description}</td><td>${item.type.toUpperCase()}</td><td class="r">${item.amount.toFixed(0)}</td></tr>`).join('')}
+    <tr class="b"><td>NET ${profit >= 0 ? 'PROFIT' : 'LOSS'}</td><td></td><td class="r" style="color:${profit >= 0 ? 'green' : 'red'}">${profit.toFixed(0)}</td></tr>
   </table>
-  ` : ''}
+` : ''}
 
 </body>
 </html>`;
 
-  // Open in new window and trigger print (allows Save as PDF)
+  // Open new window and print - EXACT same method as browserPrinter.ts
   const printWindow = window.open('', '_blank');
+
   if (!printWindow) {
-    alert('Please allow popups to export PDF');
+    alert('Please allow popups to print reports');
     return;
   }
 
   printWindow.document.write(html);
   printWindow.document.close();
 
-  // Wait for content to load then print
+  // Wait for document to fully load before printing
   printWindow.onload = () => {
     setTimeout(() => {
       printWindow.focus();
@@ -384,7 +301,7 @@ export const exportAllReportsToPDF = (data: {
     }, 300);
   };
 
-  // Fallback
+  // Fallback if onload doesn't fire
   setTimeout(() => {
     if (printWindow && !printWindow.closed) {
       printWindow.focus();
