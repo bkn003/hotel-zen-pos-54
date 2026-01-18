@@ -203,7 +203,7 @@ export const exportAllReportsToExcel = (data: {
   XLSX.writeFile(wb, filename, { bookType: 'xlsx' });
 };
 
-// Export all reports to PDF with separate pages
+// Export all reports to PDF using HTML (supports Tamil and all Unicode)
 export const exportAllReportsToPDF = (data: {
   bills: BillForExport[];
   items: ItemForExport[];
@@ -211,175 +211,186 @@ export const exportAllReportsToPDF = (data: {
   profitLoss: ProfitLossForExport[];
   dateRange: string;
 }) => {
-  const doc = new jsPDF();
+  // Calculate totals
+  const billsTotal = data.bills.reduce((sum, bill) => sum + bill.total_amount, 0);
+  const itemsTotal = data.items.reduce((sum, item) => sum + item.total_revenue, 0);
+  const itemsQtyTotal = data.items.reduce((sum, item) => sum + item.total_quantity, 0);
+  const paymentsTotal = data.payments.reduce((sum, payment) => sum + payment.total_amount, 0);
+  const revenue = data.profitLoss.filter(item => item.type === 'revenue').reduce((sum, item) => sum + item.amount, 0);
+  const expenses = data.profitLoss.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0);
+  const profit = revenue - expenses;
 
-  // Title page
-  doc.setFontSize(24);
-  doc.setTextColor(40);
-  doc.text('Business Reports', 20, 30);
+  // Generate HTML with proper Unicode support
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports - ${data.dateRange}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+      font-size: 12px; 
+      color: #333;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 24px; color: #2980b9; margin-bottom: 10px; }
+    h2 { font-size: 18px; color: #2980b9; margin: 20px 0 10px; border-bottom: 2px solid #2980b9; padding-bottom: 5px; }
+    .meta { color: #666; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #2980b9; color: white; padding: 8px; text-align: left; font-weight: bold; }
+    td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .total-row { font-weight: bold; background: #e8f4fc !important; }
+    .amount { text-align: right; }
+    .center { text-align: center; }
+    .profit { color: #27ae60; font-weight: bold; }
+    .loss { color: #e74c3c; font-weight: bold; }
+    .page-break { page-break-before: always; }
+    @media print {
+      body { padding: 10px; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Business Reports</h1>
+  <div class="meta">
+    <div><strong>Period:</strong> ${data.dateRange}</div>
+    <div><strong>Generated:</strong> ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+  </div>
 
-  doc.setFontSize(14);
-  doc.setTextColor(100);
-  doc.text(`Period: ${data.dateRange}`, 20, 45);
-  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 55);
+  ${data.bills.length > 0 ? `
+  <h2>📋 Bills Report</h2>
+  <div class="meta">Total: ${data.bills.length} bills | ₹${billsTotal.toFixed(2)}</div>
+  <table>
+    <tr><th>#</th><th>Bill No</th><th>Date</th><th>Time</th><th class="amount">Amount</th><th class="amount">Discount</th><th>Payment</th><th class="center">Items</th></tr>
+    ${data.bills.map((bill, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${bill.bill_no}</td>
+        <td>${bill.date}</td>
+        <td>${bill.time}</td>
+        <td class="amount">₹${bill.total_amount.toFixed(2)}</td>
+        <td class="amount">₹${bill.discount.toFixed(2)}</td>
+        <td>${bill.payment_mode}</td>
+        <td class="center">${bill.items_count}</td>
+      </tr>
+    `).join('')}
+    <tr class="total-row">
+      <td></td><td>TOTAL</td><td></td><td></td>
+      <td class="amount">₹${billsTotal.toFixed(2)}</td>
+      <td class="amount">₹${data.bills.reduce((s, b) => s + b.discount, 0).toFixed(2)}</td>
+      <td></td>
+      <td class="center">${data.bills.reduce((s, b) => s + b.items_count, 0)}</td>
+    </tr>
+  </table>
+  ` : ''}
 
-  const startY = 80;
+  ${data.items.length > 0 ? `
+  <div class="page-break"></div>
+  <h2>🍽️ Items Sales Report</h2>
+  <div class="meta">Total: ${data.items.length} items | Qty: ${itemsQtyTotal} | Revenue: ₹${itemsTotal.toFixed(2)}</div>
+  <table>
+    <tr><th>#</th><th>Item Name</th><th>Category</th><th class="center">Quantity</th><th class="amount">Revenue</th></tr>
+    ${data.items.map((item, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${item.item_name}</td>
+        <td>${item.category}</td>
+        <td class="center">${item.total_quantity}</td>
+        <td class="amount">₹${item.total_revenue.toFixed(2)}</td>
+      </tr>
+    `).join('')}
+    <tr class="total-row">
+      <td></td><td>TOTAL</td><td></td>
+      <td class="center">${itemsQtyTotal}</td>
+      <td class="amount">₹${itemsTotal.toFixed(2)}</td>
+    </tr>
+  </table>
+  ` : ''}
 
-  // Bills Report
-  if (data.bills.length > 0) {
-    doc.addPage();
-    doc.setFontSize(18);
-    doc.setTextColor(40);
-    doc.text('Bills Report', 20, 20);
+  ${data.payments.length > 0 ? `
+  <h2>💳 Payment Methods</h2>
+  <table>
+    <tr><th>#</th><th>Payment Method</th><th class="amount">Amount</th><th class="center">Transactions</th><th class="center">%</th></tr>
+    ${data.payments.map((p, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${p.payment_method}</td>
+        <td class="amount">₹${p.total_amount.toFixed(2)}</td>
+        <td class="center">${p.transaction_count}</td>
+        <td class="center">${p.percentage.toFixed(1)}%</td>
+      </tr>
+    `).join('')}
+    <tr class="total-row">
+      <td></td><td>TOTAL</td>
+      <td class="amount">₹${paymentsTotal.toFixed(2)}</td>
+      <td class="center">${data.payments.reduce((s, p) => s + p.transaction_count, 0)}</td>
+      <td class="center">100%</td>
+    </tr>
+  </table>
+  ` : ''}
 
-    const billsTotal = data.bills.reduce((sum, bill) => sum + bill.total_amount, 0);
-    doc.setFontSize(12);
-    doc.text(`Total Bills: ${data.bills.length}`, 20, 35);
-    doc.text(`Total Amount: ${billsTotal.toFixed(2)}`, 20, 45);
+  ${data.profitLoss.length > 0 ? `
+  <h2>📈 Profit & Loss</h2>
+  <table>
+    <tr><th>#</th><th>Description</th><th>Type</th><th class="amount">Amount</th></tr>
+    ${data.profitLoss.map((item, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${item.description}</td>
+        <td>${item.type.toUpperCase()}</td>
+        <td class="amount">₹${item.amount.toFixed(2)}</td>
+      </tr>
+    `).join('')}
+    <tr class="total-row">
+      <td></td><td>TOTAL REVENUE</td><td>REVENUE</td>
+      <td class="amount profit">₹${revenue.toFixed(2)}</td>
+    </tr>
+    <tr class="total-row">
+      <td></td><td>TOTAL EXPENSES</td><td>EXPENSE</td>
+      <td class="amount loss">₹${expenses.toFixed(2)}</td>
+    </tr>
+    <tr class="total-row">
+      <td></td><td><strong>NET ${profit >= 0 ? 'PROFIT' : 'LOSS'}</strong></td>
+      <td>${profit >= 0 ? 'PROFIT' : 'LOSS'}</td>
+      <td class="amount ${profit >= 0 ? 'profit' : 'loss'}">₹${Math.abs(profit).toFixed(2)}</td>
+    </tr>
+  </table>
+  ` : ''}
 
-    const billsTableData = data.bills.map((bill, index) => [
-      (index + 1).toString(),
-      bill.bill_no,
-      bill.date,
-      bill.time,
-      bill.total_amount.toFixed(2),
-      bill.discount.toFixed(2),
-      bill.payment_mode,
-      bill.items_count.toString()
-    ]);
+</body>
+</html>`;
 
-    billsTableData.push([
-      '',
-      'TOTAL',
-      '',
-      '',
-      billsTotal.toFixed(2),
-      data.bills.reduce((sum, bill) => sum + bill.discount, 0).toFixed(2),
-      '',
-      data.bills.reduce((sum, bill) => sum + bill.items_count, 0).toString()
-    ]);
-
-    autoTable(doc, {
-      head: [['#', 'Bill No', 'Date', 'Time', 'Amount', 'Discount', 'Payment', 'Items']],
-      body: billsTableData,
-      startY: 55,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-    });
+  // Open in new window and trigger print (allows Save as PDF)
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow popups to export PDF');
+    return;
   }
 
-  // Items Report
-  if (data.items.length > 0) {
-    doc.addPage();
-    doc.setFontSize(18);
-    doc.setTextColor(40);
-    doc.text('Items Sales Report', 20, 20);
+  printWindow.document.write(html);
+  printWindow.document.close();
 
-    const itemsTotal = data.items.reduce((sum, item) => sum + item.total_revenue, 0);
-    doc.setFontSize(12);
-    doc.text(`Total Items: ${data.items.length}`, 20, 35);
-    doc.text(`Total Revenue: ${itemsTotal.toFixed(2)}`, 20, 45);
+  // Wait for content to load then print
+  printWindow.onload = () => {
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 300);
+  };
 
-    const itemsTableData = data.items.map((item, index) => [
-      (index + 1).toString(),
-      item.item_name,
-      item.category,
-      item.total_quantity.toString(),
-      item.total_revenue.toFixed(2)
-    ]);
-
-    itemsTableData.push([
-      '',
-      'TOTAL',
-      '',
-      data.items.reduce((sum, item) => sum + item.total_quantity, 0).toString(),
-      itemsTotal.toFixed(2)
-    ]);
-
-    autoTable(doc, {
-      head: [['#', 'Item Name', 'Category', 'Quantity', 'Revenue']],
-      body: itemsTableData,
-      startY: 55,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-    });
-  }
-
-  // Payments Report
-  if (data.payments.length > 0) {
-    doc.addPage();
-    doc.setFontSize(18);
-    doc.setTextColor(40);
-    doc.text('Payment Methods Report', 20, 20);
-
-    const paymentsTotal = data.payments.reduce((sum, payment) => sum + payment.total_amount, 0);
-    doc.setFontSize(12);
-    doc.text(`Total Amount: ${paymentsTotal.toFixed(2)}`, 20, 35);
-
-    const paymentsTableData = data.payments.map((payment, index) => [
-      (index + 1).toString(),
-      payment.payment_method,
-      payment.total_amount.toFixed(2),
-      payment.transaction_count.toString(),
-      payment.percentage.toFixed(1) + '%'
-    ]);
-
-    paymentsTableData.push([
-      '',
-      'TOTAL',
-      paymentsTotal.toFixed(2),
-      data.payments.reduce((sum, payment) => sum + payment.transaction_count, 0).toString(),
-      '100.0%'
-    ]);
-
-    autoTable(doc, {
-      head: [['#', 'Payment Method', 'Amount', 'Transactions', 'Percentage']],
-      body: paymentsTableData,
-      startY: 45,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-    });
-  }
-
-  // P&L Report
-  if (data.profitLoss.length > 0) {
-    doc.addPage();
-    doc.setFontSize(18);
-    doc.setTextColor(40);
-    doc.text('Profit & Loss Statement', 20, 20);
-
-    const revenue = data.profitLoss.filter(item => item.type === 'revenue').reduce((sum, item) => sum + item.amount, 0);
-    const expenses = data.profitLoss.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.amount, 0);
-    const profit = revenue - expenses;
-
-    const plTableData = data.profitLoss.map((item, index) => [
-      (index + 1).toString(),
-      item.description,
-      item.type.toUpperCase(),
-      item.amount.toFixed(2)
-    ]);
-
-    plTableData.push(
-      ['', 'TOTAL REVENUE', 'REVENUE', revenue.toFixed(2)],
-      ['', 'TOTAL EXPENSES', 'EXPENSE', expenses.toFixed(2)],
-      ['', 'NET PROFIT/LOSS', profit >= 0 ? 'PROFIT' : 'LOSS', profit.toFixed(2)]
-    );
-
-    autoTable(doc, {
-      head: [['#', 'Description', 'Type', 'Amount']],
-      body: plTableData,
-      startY: 35,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-    });
-  }
-
-  // Generate clean filename with current date
-  const today = new Date().toISOString().split('T')[0];
-  const cleanDateRange = data.dateRange.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-  const filename = `reports-${cleanDateRange}-${today}.pdf`;
-
-  doc.save(filename);
+  // Fallback
+  setTimeout(() => {
+    if (printWindow && !printWindow.closed) {
+      printWindow.focus();
+      printWindow.print();
+    }
+  }, 1000);
 };
 
 // Keep the old functions for backward compatibility
