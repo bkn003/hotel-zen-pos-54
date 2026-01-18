@@ -35,7 +35,27 @@ interface ItemForExport {
   category: string;
   total_quantity: number;
   total_revenue: number;
+  unit?: string;
 }
+
+// Format quantity with unit and smart conversion (g→kg, ml→L)
+const formatQtyWithUnit = (qty: number, unit?: string): string => {
+  if (!unit) return qty.toString();
+
+  const unitLower = unit.toLowerCase();
+
+  // Convert g to kg if >= 1000
+  if (unitLower === 'g' && qty >= 1000) {
+    return `${(qty / 1000).toFixed(2)} kg`;
+  }
+
+  // Convert ml to L if >= 1000
+  if (unitLower === 'ml' && qty >= 1000) {
+    return `${(qty / 1000).toFixed(2)} L`;
+  }
+
+  return `${qty} ${unit}`;
+};
 
 interface PaymentForExport {
   payment_method: string;
@@ -113,7 +133,7 @@ export const exportAllReportsToExcel = (data: {
       '#': index + 1,
       'Item Name': item.item_name,
       'Category': item.category,
-      'Quantity Sold': item.total_quantity,
+      'Quantity': formatQtyWithUnit(item.total_quantity, item.unit),
       'Revenue': item.total_revenue
     }));
 
@@ -247,8 +267,8 @@ ${data.items.length > 0 ? `
   <h2>Items Sales Report</h2>
   <table>
     <tr><th>#</th><th>Item Name</th><th>Category</th><th class="r">Qty</th><th class="r">Revenue</th></tr>
-    ${data.items.map((item, i) => `<tr><td>${i + 1}</td><td>${item.item_name}</td><td>${item.category}</td><td class="r">${item.total_quantity}</td><td class="r">${item.total_revenue.toFixed(0)}</td></tr>`).join('')}
-    <tr class="b"><td></td><td>TOTAL</td><td></td><td class="r">${itemsQtyTotal}</td><td class="r">${itemsTotal.toFixed(0)}</td></tr>
+    ${data.items.map((item, i) => `<tr><td>${i + 1}</td><td>${item.item_name}</td><td>${item.category}</td><td class="r">${formatQtyWithUnit(item.total_quantity, item.unit)}</td><td class="r">${item.total_revenue.toFixed(0)}</td></tr>`).join('')}
+    <tr class="b"><td></td><td>TOTAL</td><td></td><td class="r">-</td><td class="r">${itemsTotal.toFixed(0)}</td></tr>
   </table>
 ` : ''}
 

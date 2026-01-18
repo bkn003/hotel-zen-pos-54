@@ -315,7 +315,8 @@ const Reports: React.FC = () => {
                     item_name: item.items?.name || item.name || 'Unknown',
                     category: item.items?.category || item.category || 'Unknown',
                     total_quantity: item.quantity,
-                    total_revenue: item.total
+                    total_revenue: item.total,
+                    unit: item.items?.unit || item.unit
                   });
                 }
               });
@@ -793,7 +794,8 @@ const Reports: React.FC = () => {
         item_name: item.item_name,
         category: item.category,
         total_quantity: item.total_quantity,
-        total_revenue: item.total_revenue
+        total_revenue: item.total_revenue,
+        unit: item.unit
       }));
 
       // Prepare payments data
@@ -863,7 +865,8 @@ const Reports: React.FC = () => {
         item_name: item.item_name,
         category: item.category,
         total_quantity: item.total_quantity,
-        total_revenue: item.total_revenue
+        total_revenue: item.total_revenue,
+        unit: item.unit
       }));
 
       // Prepare payments data
