@@ -1253,7 +1253,7 @@ const Reports: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-lg">
                 <span className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4" />
+                  <Package className="w-4 h-4" />
                   Item-wise Sales Report
                 </span>
                 <div className="flex gap-1">
