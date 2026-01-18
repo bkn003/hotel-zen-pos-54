@@ -79,6 +79,7 @@ const Reports: React.FC = () => {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [billFilter, setBillFilter] = useState('processed');
   const [searchQuery, setSearchQuery] = useState('');
+  const [itemSortBy, setItemSortBy] = useState<'amount' | 'quantity'>('amount');
   const [billSettings, setBillSettings] = useState<{
     shopName: string;
     address: string;
@@ -1249,10 +1250,30 @@ const Reports: React.FC = () => {
 
         <TabsContent value="items" className="mt-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                <Package className="w-4 h-4" />
-                Item-wise Sales Report
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-lg">
+                <span className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Item-wise Sales Report
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant={itemSortBy === 'amount' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setItemSortBy('amount')}
+                    className="text-xs h-7 px-2"
+                  >
+                    By Amount
+                  </Button>
+                  <Button
+                    variant={itemSortBy === 'quantity' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setItemSortBy('quantity')}
+                    className="text-xs h-7 px-2"
+                  >
+                    By Qty
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -1269,10 +1290,16 @@ const Reports: React.FC = () => {
                         item.category.toLowerCase().includes(query)
                       );
                     })
+                    .sort((a, b) => {
+                      if (itemSortBy === 'amount') {
+                        return b.total_revenue - a.total_revenue;
+                      }
+                      return b.total_quantity - a.total_quantity;
+                    })
                     .map((item, index) => (
                       <div key={index} className="flex items-center justify-between p-3 sm:p-4 bg-muted/50 rounded-lg">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base truncate">{item.item_name}</h3>
+                          <h3 className="font-semibold text-base truncate">{index + 1}.{item.item_name}</h3>
                           <p className="text-sm text-muted-foreground">{item.category}</p>
                         </div>
                         <div className="text-right">
