@@ -95,20 +95,31 @@ const KitchenDisplay = () => {
         }
     }, []);
 
+    // Track known bill IDs to detect new orders
+    const knownBillIds = useRef<Set<string>>(new Set());
+
     // Setup Global Sync Channel for Cross-Device updates
     useEffect(() => {
         const channel = supabase.channel('pos-global-sync', {
             config: { broadcast: { self: true } }
         })
-            .on('broadcast', { event: 'bills-updated' }, () => {
-                console.log('Kitchen: Cross-device broadcast received!');
+            .on('broadcast', { event: 'bills-updated' }, (payload: any) => {
+                console.log('Kitchen: Cross-device broadcast received!', payload);
+                fetchBills(true);
+            })
+            .on('broadcast', { event: 'new-bill' }, (payload: any) => {
+                // INSTANT voice announcement via Supabase Broadcast
+                console.log('Kitchen: New bill broadcast received!', payload);
+                if (voiceEnabled && payload?.payload?.bill_no) {
+                    announce(`New order received, Bill number ${payload.payload.bill_no}`);
+                }
                 fetchBills(true);
             })
             .subscribe();
 
         syncChannelRef.current = channel;
         return () => { supabase.removeChannel(channel); };
-    }, [fetchBills]);
+    }, [fetchBills, voiceEnabled, announce]);
 
     // Initial fetch
     useEffect(() => {
@@ -117,28 +128,52 @@ const KitchenDisplay = () => {
         return () => clearInterval(pollInterval);
     }, [fetchBills]);
 
-    // Realtime subscription
+    // Realtime subscription (backup - slower but reliable)
     useEffect(() => {
         const channel = supabase
             .channel('kitchen-sync')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, (payload) => {
-                fetchBills(true);
-                if (payload.eventType === 'INSERT' && voiceEnabled) {
-                    announce(`New order received, Bill number ${payload.new?.bill_no}`);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bills' }, (payload) => {
+                // Only announce if we haven't already (prevents duplicate announcements)
+                const billNo = payload.new?.bill_no;
+                const billId = payload.new?.id;
+                if (billId && !knownBillIds.current.has(billId)) {
+                    knownBillIds.current.add(billId);
+                    if (voiceEnabled && billNo) {
+                        announce(`New order received, Bill number ${billNo}`);
+                    }
                 }
+                fetchBills(true);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bills' }, () => {
+                fetchBills(true);
             })
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
     }, [fetchBills, voiceEnabled, announce]);
 
-    // Listen for BroadcastChannel updates (0ms cross-tab sync)
+    // Listen for BroadcastChannel updates (0ms same-device sync)
     useEffect(() => {
         if (!billsChannel) return;
-        const handleMessage = () => fetchBills(true);
+
+        const handleMessage = (event: MessageEvent) => {
+            const data = event.data;
+
+            // INSTANT voice for new bills on same device
+            if (data?.type === 'new-bill' && voiceEnabled && data?.bill_no) {
+                // Only announce if we haven't seen this bill
+                if (data?.bill_id && !knownBillIds.current.has(data.bill_id)) {
+                    knownBillIds.current.add(data.bill_id);
+                    announce(`New order received, Bill number ${data.bill_no}`);
+                }
+            }
+
+            fetchBills(true);
+        };
+
         billsChannel.addEventListener('message', handleMessage);
         return () => billsChannel.removeEventListener('message', handleMessage);
-    }, [fetchBills]);
+    }, [fetchBills, voiceEnabled, announce]);
 
     /**
      * OPTIMISTIC UPDATE: Instant (0ms) response

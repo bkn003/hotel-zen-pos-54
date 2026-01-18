@@ -791,14 +791,24 @@ const Billing = () => {
     // Layer 3: Window custom events - same tab (0ms)
     window.dispatchEvent(new CustomEvent('bills-updated'));
 
-    // Layer 1: BroadcastChannel - same browser tabs (0ms)
-    billsChannel?.postMessage({ type: 'bills', timestamp: Date.now() });
+    // Layer 1: BroadcastChannel - same browser tabs (0ms) - INSTANT VOICE
+    billsChannel?.postMessage({
+      type: 'new-bill',
+      bill_no: billNumber,
+      bill_id: billData.id,
+      timestamp: Date.now()
+    });
 
-    // Layer 2: Supabase Broadcast - cross-device (<100ms)
+    // Layer 2: Supabase Broadcast - cross-device (<100ms) - INSTANT VOICE
     syncChannelRef.current?.send({
       type: 'broadcast',
-      event: 'bills-sync',
-      payload: { bill_id: billData.id, action: 'create', timestamp: Date.now() }
+      event: 'new-bill',
+      payload: {
+        bill_id: billData.id,
+        bill_no: billNumber,
+        action: 'create',
+        timestamp: Date.now()
+      }
     });
 
     return billData;
