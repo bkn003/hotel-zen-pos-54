@@ -32,6 +32,8 @@ interface PeriodStat {
   bills: number;
   topItems: TopItem[];
   label: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 type Period = 'today' | 'yesterday' | 'daily' | 'weekly' | 'monthly';
@@ -52,12 +54,22 @@ const DashboardAnalytics = () => {
 
   // Comparison State
   const [compMode, setCompMode] = useState<ComparisonMode>('day');
-  const [baseDate, setBaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [compareDate, setCompareDate] = useState<string>(() => {
+
+  // Day mode: Custom date range selection (4 date pickers)
+  const today = new Date().toISOString().split('T')[0];
+  const lastWeekSameDay = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
     return d.toISOString().split('T')[0];
-  });
+  })();
+
+  // Current period date range
+  const [currentFromDate, setCurrentFromDate] = useState<string>(today);
+  const [currentToDate, setCurrentToDate] = useState<string>(today);
+
+  // Compare period date range
+  const [compareFromDate, setCompareFromDate] = useState<string>(lastWeekSameDay);
+  const [compareToDate, setCompareToDate] = useState<string>(lastWeekSameDay);
 
   const [compData, setCompData] = useState<{
     current: PeriodStat;
@@ -71,7 +83,7 @@ const DashboardAnalytics = () => {
 
   useEffect(() => {
     fetchComparisonData();
-  }, [compMode, baseDate, compareDate]);
+  }, [compMode, currentFromDate, currentToDate, compareFromDate, compareToDate]);
 
   // Real-time subscription
   useEffect(() => {
@@ -80,7 +92,7 @@ const DashboardAnalytics = () => {
       supabase.channel('analytics-expenses').on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => { fetchAnalyticsData(); fetchComparisonData(); }).subscribe()
     ];
     return () => { channels.forEach(c => supabase.removeChannel(c)); };
-  }, [period, compMode, baseDate, compareDate]);
+  }, [period, compMode, currentFromDate, currentToDate, compareFromDate, compareToDate]);
 
 
   const fetchAnalyticsData = async () => {
@@ -111,10 +123,11 @@ const DashboardAnalytics = () => {
     let end = new Date(date);
 
     if (mode === 'day') {
-      // Start and End are same
+      // Start and End are same day
     } else if (mode === 'week') {
+      // Get the Monday of the week containing the date
       const day = start.getDay();
-      const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
       start.setDate(diff);
       end = new Date(start);
       end.setDate(start.getDate() + 6);
@@ -130,21 +143,74 @@ const DashboardAnalytics = () => {
     return { start, end };
   };
 
+  // Get current and previous period ranges for comparison
+  const getComparisonRanges = (mode: ComparisonMode) => {
+    const todayDate = new Date();
+    let currentStart: Date, currentEnd: Date, prevStart: Date, prevEnd: Date;
+
+    if (mode === 'day') {
+      // Day mode uses custom date ranges from 4 date pickers
+      return {
+        current: { start: new Date(currentFromDate), end: new Date(currentToDate) },
+        prev: { start: new Date(compareFromDate), end: new Date(compareToDate) }
+      };
+    } else if (mode === 'week') {
+      // Current week: This week's Monday to today
+      const dayOfWeek = todayDate.getDay();
+      const mondayDiff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      currentStart = new Date(todayDate);
+      currentStart.setDate(todayDate.getDate() + mondayDiff);
+      currentEnd = new Date(todayDate);
+
+      // Previous week: Last week's Monday to Sunday
+      prevEnd = new Date(currentStart);
+      prevEnd.setDate(currentStart.getDate() - 1); // Sunday of last week
+      prevStart = new Date(prevEnd);
+      prevStart.setDate(prevEnd.getDate() - 6); // Monday of last week
+
+    } else if (mode === 'month') {
+      // Current month: 1st of this month to today
+      currentStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+      currentEnd = new Date(todayDate);
+
+      // Previous month: 1st to last day of previous month
+      prevStart = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1);
+      prevEnd = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0); // Last day of prev month
+
+    } else { // year
+      // Current year: Jan 1 to today
+      currentStart = new Date(todayDate.getFullYear(), 0, 1);
+      currentEnd = new Date(todayDate);
+
+      // Previous year: Jan 1 to Dec 31 of last year
+      prevStart = new Date(todayDate.getFullYear() - 1, 0, 1);
+      prevEnd = new Date(todayDate.getFullYear() - 1, 11, 31);
+    }
+
+    return {
+      current: { start: currentStart, end: currentEnd },
+      prev: { start: prevStart, end: prevEnd }
+    };
+  };
+
   const fetchComparisonData = async () => {
     try {
       setCompLoading(true);
-      // Validate Compare Date < Base Date
-      if (new Date(compareDate) >= new Date(baseDate)) {
-        // Auto correct if invalid, or just let user see weird data? 
-        // Better to enforce. But for now let's just fetch.
-      }
 
-      const currentRange = getRange(compMode, baseDate);
-      const pastRange = getRange(compMode, compareDate);
+      // Get appropriate ranges based on mode
+      const ranges = getComparisonRanges(compMode);
+
+      // Helper to format date as YYYY-MM-DD in local timezone
+      const toLocalDateString = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
 
       const fetchRangeData = async (start: Date, end: Date, label: string): Promise<PeriodStat> => {
-        const startStr = start.toISOString().split('T')[0];
-        const endStr = end.toISOString().split('T')[0];
+        const startStr = toLocalDateString(start);
+        const endStr = toLocalDateString(end);
 
         const { data: bills } = await supabase.from('bills').select('total_amount, is_deleted').gte('date', startStr).lte('date', endStr).or('is_deleted.is.null,is_deleted.eq.false');
         const { data: expenses } = await supabase.from('expenses').select('amount').gte('date', startStr).lte('date', endStr);
@@ -164,12 +230,12 @@ const DashboardAnalytics = () => {
 
         const topItems = Array.from(itemsMap.entries()).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
 
-        return { revenue, expenses: totalExpenses, profit: revenue - totalExpenses, bills: bills?.length || 0, topItems, label };
+        return { revenue, expenses: totalExpenses, profit: revenue - totalExpenses, bills: bills?.length || 0, topItems, label, startDate: startStr, endDate: endStr };
       };
 
       const [currentData, pastData] = await Promise.all([
-        fetchRangeData(currentRange.start, currentRange.end, 'Current'),
-        fetchRangeData(pastRange.start, pastRange.end, 'Previous')
+        fetchRangeData(ranges.current.start, ranges.current.end, 'Current'),
+        fetchRangeData(ranges.prev.start, ranges.prev.end, 'Previous')
       ]);
 
       setCompData({ current: currentData, past: pastData });
@@ -421,11 +487,14 @@ const DashboardAnalytics = () => {
             <Card>
               <CardHeader><CardTitle className="text-base sm:text-lg">🏆 Top Items</CardTitle></CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {topItems.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="truncate flex-1">{i + 1}. {item.name}</span>
-                      <span className="font-bold">{formatCurrency(item.revenue)}</span>
+                    <div key={i} className="flex items-center justify-between text-sm gap-2 p-2 hover:bg-muted/30 rounded-lg transition-colors">
+                      <span className="truncate flex-1 font-medium">{i + 1}. {item.name}</span>
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full whitespace-nowrap">
+                        {formatQuantityWithUnit(item.quantity, item.unit)}
+                      </span>
+                      <span className="font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(item.revenue)}</span>
                     </div>
                   ))}
                 </div>
@@ -461,18 +530,66 @@ const DashboardAnalytics = () => {
                 </Select>
               </div>
 
-              <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block"></div>
+              {/* Date Selection - Only visible for Day mode: 4 date pickers for custom ranges */}
+              {compMode === 'day' && (
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+                  {/* Compare Period */}
+                  <div className="flex flex-col gap-1 p-2 bg-muted/50 rounded-lg">
+                    <Label className="text-[10px] sm:text-xs uppercase font-bold text-muted-foreground">Compare Period</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        value={compareFromDate}
+                        max={compareToDate}
+                        onChange={(e) => setCompareFromDate(e.target.value)}
+                        className="h-8 sm:h-9 w-[110px] sm:w-[130px] text-[10px] sm:text-xs font-medium"
+                      />
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <Input
+                        type="date"
+                        value={compareToDate}
+                        min={compareFromDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setCompareToDate(e.target.value)}
+                        className="h-8 sm:h-9 w-[110px] sm:w-[130px] text-[10px] sm:text-xs font-medium"
+                      />
+                    </div>
+                  </div>
 
-              {/* Date Selection - Compare First, then Current */}
-              <div className="flex items-center gap-2">
-                <Label className="text-xs sm:text-sm uppercase font-bold text-muted-foreground whitespace-nowrap">Compare:</Label>
-                <Input type="date" value={compareDate} max={new Date().toISOString().split('T')[0]} onChange={(e) => setCompareDate(e.target.value)} className="h-9 sm:h-10 w-[120px] sm:w-[140px] text-xs sm:text-sm font-medium" />
-              </div>
+                  {/* Current Period */}
+                  <div className="flex flex-col gap-1 p-2 bg-primary/10 rounded-lg border border-primary/20">
+                    <Label className="text-[10px] sm:text-xs uppercase font-bold text-primary">Current Period</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        value={currentFromDate}
+                        max={currentToDate}
+                        onChange={(e) => setCurrentFromDate(e.target.value)}
+                        className="h-8 sm:h-9 w-[110px] sm:w-[130px] text-[10px] sm:text-xs font-medium"
+                      />
+                      <span className="text-xs text-primary">→</span>
+                      <Input
+                        type="date"
+                        value={currentToDate}
+                        min={currentFromDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setCurrentToDate(e.target.value)}
+                        className="h-8 sm:h-9 w-[110px] sm:w-[130px] text-[10px] sm:text-xs font-medium border-primary/30"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div className="flex items-center gap-2">
-                <Label className="text-xs sm:text-sm uppercase font-bold text-primary whitespace-nowrap">Current:</Label>
-                <Input type="date" value={baseDate} max={new Date().toISOString().split('T')[0]} onChange={(e) => setBaseDate(e.target.value)} className="h-9 sm:h-10 w-[120px] sm:w-[140px] text-xs sm:text-sm font-medium border-primary/30" />
-              </div>
+              {/* Mode description for Week/Month/Year */}
+              {compMode !== 'day' && (
+                <div className="text-xs sm:text-sm text-muted-foreground ml-2">
+                  <span className="font-medium">Auto: </span>
+                  {compMode === 'week' && 'This Week vs Last Week'}
+                  {compMode === 'month' && 'This Month vs Last Month'}
+                  {compMode === 'year' && 'This Year vs Last Year'}
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -482,16 +599,32 @@ const DashboardAnalytics = () => {
             <div className="p-20 text-center text-muted-foreground animate-pulse text-lg">Loading comparison data...</div>
           ) : compData ? (
             <div className="p-3 sm:p-5">
-              {/* Header Row with Date Labels */}
+              {/* Header Row with Date Labels - Show actual date ranges */}
               <div className="grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 mb-5 text-center">
                 <div className="bg-muted/60 rounded-2xl p-4 sm:p-5 shadow-sm">
-                  <p className="text-sm sm:text-base font-bold uppercase text-muted-foreground tracking-wide">Compare</p>
-                  <p className="text-base sm:text-lg font-mono text-foreground/70 mt-1">{new Date(getRange(compMode, compareDate).start).toLocaleDateString()}</p>
+                  <p className="text-sm sm:text-base font-bold uppercase text-muted-foreground tracking-wide">
+                    {compMode === 'day' ? 'Compare' : `Last ${compMode.charAt(0).toUpperCase() + compMode.slice(1)}`}
+                  </p>
+                  <p className="text-xs sm:text-sm font-mono text-foreground/70 mt-1">
+                    {compData.past.startDate && compData.past.endDate
+                      ? (compData.past.startDate === compData.past.endDate
+                        ? new Date(compData.past.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
+                        : `${new Date(compData.past.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${new Date(compData.past.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}`)
+                      : 'Loading...'}
+                  </p>
                 </div>
                 <div className="w-1.5 sm:w-2 bg-gradient-to-b from-primary via-primary/50 to-primary self-stretch rounded-full shadow-lg"></div>
                 <div className="bg-primary/15 rounded-2xl p-4 sm:p-5 shadow-sm border border-primary/20">
-                  <p className="text-sm sm:text-base font-bold uppercase text-primary tracking-wide">Current</p>
-                  <p className="text-base sm:text-lg font-mono text-foreground mt-1">{new Date(getRange(compMode, baseDate).start).toLocaleDateString()}</p>
+                  <p className="text-sm sm:text-base font-bold uppercase text-primary tracking-wide">
+                    {compMode === 'day' ? 'Current' : `This ${compMode.charAt(0).toUpperCase() + compMode.slice(1)}`}
+                  </p>
+                  <p className="text-xs sm:text-sm font-mono text-foreground mt-1">
+                    {compData.current.startDate && compData.current.endDate
+                      ? (compData.current.startDate === compData.current.endDate
+                        ? new Date(compData.current.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
+                        : `${new Date(compData.current.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${new Date(compData.current.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}`)
+                      : 'Loading...'}
+                  </p>
                 </div>
               </div>
 
