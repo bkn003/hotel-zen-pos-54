@@ -226,6 +226,39 @@ const DashboardAnalytics = () => {
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount);
   const calculateChange = (current: number, past: number) => (past === 0 ? (current > 0 ? 100 : 0) : ((current - past) / past) * 100);
 
+  // Helper to get period label and date range for clarity
+  const getPeriodInfo = (p: Period) => {
+    const today = new Date();
+    const formatDate = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+    switch (p) {
+      case 'today':
+        return { label: 'Today', shortLabel: 'Today', dateRange: formatDate(today), icon: '📅' };
+      case 'yesterday': {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        return { label: 'Yesterday', shortLabel: 'Yesterday', dateRange: formatDate(yesterday), icon: '📅' };
+      }
+      case 'daily': {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 6);
+        return { label: 'Last 7 Days', shortLabel: '7 Days', dateRange: `${formatDate(start)} - ${formatDate(today)}`, icon: '📊' };
+      }
+      case 'weekly': {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 27);
+        return { label: 'Last 4 Weeks', shortLabel: '4 Weeks', dateRange: `${formatDate(start)} - ${formatDate(today)}`, icon: '📈' };
+      }
+      case 'monthly':
+      default: {
+        const start = new Date(today);
+        start.setMonth(today.getMonth() - 6);
+        return { label: 'Last 6 Months', shortLabel: '6 Months', dateRange: `${formatDate(start)} - ${formatDate(today)}`, icon: '📆' };
+      }
+    }
+  };
+
+
   const renderMetricRow = (label: string, curVal: number, pastVal: number, isCurrency = false, inverse = false) => {
     const change = calculateChange(curVal, pastVal);
     const isIncrease = curVal > pastVal;
@@ -322,25 +355,62 @@ const DashboardAnalytics = () => {
         </div>
       </div>
 
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Reusing existing cards logic for main stats... simplified for brevity in this tool call, keeping original design */}
-        <StatsCard title="Total Revenue" value={stats.totalRevenue} icon={TrendingUp} color="emerald" sub="For selected period" />
-        <StatsCard title="Total Expenses" value={stats.totalExpenses} icon={DollarSign} color="rose" sub="For selected period" />
-        <StatsCard title="Net Profit" value={stats.totalProfit} icon={ShoppingBag} color={stats.totalProfit >= 0 ? 'blue' : 'rose'} sub={`${((stats.totalProfit / stats.totalRevenue) * 100 || 0).toFixed(1)}% margin`} />
-        <StatsCard title="Total Bills" value={stats.totalBills} icon={Package} color="violet" sub={`Avg: ${formatCurrency(stats.totalRevenue / stats.totalBills || 0)}`} />
-      </div>
-
+      {/* Period Tabs with Clear Labels */}
       <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-        <TabsList className="mb-4 w-full flex overflow-x-auto">
-          {['today', 'yesterday', 'daily', 'weekly', 'monthly'].map(p => (
-            <TabsTrigger key={p} value={p} className="capitalize text-xs sm:text-sm flex-1 min-w-fit">{p}</TabsTrigger>
-          ))}
+        <TabsList className="mb-2 w-full flex overflow-x-auto bg-muted/50 p-1 rounded-xl">
+          {(['today', 'yesterday', 'daily', 'weekly', 'monthly'] as Period[]).map(p => {
+            const info = getPeriodInfo(p);
+            return (
+              <TabsTrigger
+                key={p}
+                value={p}
+                className="flex-1 min-w-fit text-xs sm:text-sm py-2 px-2 sm:px-4 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md transition-all"
+              >
+                <span className="hidden sm:inline">{info.icon} </span>
+                <span className="sm:hidden">{info.shortLabel}</span>
+                <span className="hidden sm:inline">{info.label}</span>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
+
+        {/* Current Period Indicator */}
+        <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-primary/10 to-muted/30 rounded-xl border border-primary/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <p className="text-sm sm:text-base font-bold text-foreground">
+                {getPeriodInfo(period).icon} {getPeriodInfo(period).label}
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground font-mono">
+                📆 {getPeriodInfo(period).dateRange}
+              </p>
+            </div>
+            <div className="flex gap-3 sm:gap-4 text-right">
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase">Revenue</p>
+                <p className="text-sm sm:text-lg font-bold text-emerald-600">{formatCurrency(stats.totalRevenue)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase">Bills</p>
+                <p className="text-sm sm:text-lg font-bold text-foreground">{stats.totalBills}</p>
+              </div>
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase">Profit</p>
+                <p className={`text-sm sm:text-lg font-bold ${stats.totalProfit >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>{formatCurrency(stats.totalProfit)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <TabsContent value={period}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <Card className="lg:col-span-2">
-              <CardHeader className="p-3 sm:p-6"><CardTitle className="text-base sm:text-lg">Sales Trend</CardTitle></CardHeader>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  📊 Sales Trend
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground">({getPeriodInfo(period).dateRange})</span>
+                </CardTitle>
+              </CardHeader>
               <CardContent className="h-[200px] sm:h-[300px] p-2 sm:p-6">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={salesData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: '12px' }} />
@@ -349,7 +419,7 @@ const DashboardAnalytics = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Top Items</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base sm:text-lg">🏆 Top Items</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {topItems.map((item, i) => (
