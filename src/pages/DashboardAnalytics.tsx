@@ -268,6 +268,48 @@ const DashboardAnalytics = () => {
     );
   };
 
+  // Side-by-side metric row for true comparison view (LEFT = past/compare, RIGHT = current)
+  const renderSideBySideMetric = (label: string, leftVal: number, rightVal: number, isCurrency = false, inverse = false) => {
+    // rightVal is Current, leftVal is Compare/Past
+    const change = calculateChange(rightVal, leftVal);
+    const isIncrease = rightVal > leftVal;
+    const colorClass = inverse
+      ? (isIncrease ? 'text-rose-500' : 'text-emerald-500')
+      : (isIncrease ? 'text-emerald-500' : 'text-rose-500');
+    const bgClass = inverse
+      ? (isIncrease ? 'bg-rose-500/15' : 'bg-emerald-500/15')
+      : (isIncrease ? 'bg-emerald-500/15' : 'bg-rose-500/15');
+    const Icon = rightVal === leftVal ? Minus : (isIncrease ? ArrowUpRight : ArrowDownRight);
+
+    return (
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 p-4 sm:p-5 border-b border-border/30 last:border-0 hover:bg-muted/40 transition-all duration-200">
+        {/* Left Value (Compare/Past) */}
+        <div className="text-right pr-3 sm:pr-5">
+          <p className={`font-bold text-lg sm:text-2xl ${leftVal !== 0 ? 'text-muted-foreground' : 'text-muted-foreground/40'}`}>
+            {isCurrency ? formatCurrency(leftVal) : leftVal}
+          </p>
+        </div>
+
+        {/* Center: Label + Indicator */}
+        <div className="flex flex-col items-center justify-center min-w-[90px] sm:min-w-[120px] px-3 sm:px-4 border-x-2 border-dashed border-border/40">
+          <span className="text-xs sm:text-sm font-bold uppercase text-muted-foreground tracking-wide">{label}</span>
+          {rightVal !== leftVal && (
+            <span className={`flex items-center text-xs sm:text-sm font-bold px-2 sm:px-3 py-1 rounded-full mt-1.5 ${colorClass} ${bgClass}`}>
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5 mr-1" />
+              {Math.abs(change).toFixed(0)}%
+            </span>
+          )}
+        </div>
+
+        {/* Right Value (Current) */}
+        <div className="text-left pl-3 sm:pl-5">
+          <p className={`font-bold text-lg sm:text-2xl ${rightVal !== 0 ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+            {isCurrency ? formatCurrency(rightVal) : rightVal}
+          </p>
+        </div>
+      </div>
+    );
+  };
   if (profile?.role !== 'admin') return <Navigate to="/billing" replace />;
   if (loading && !compData) return <div className="p-12 text-center">Loading Analytics...</div>;
 
@@ -323,23 +365,23 @@ const DashboardAnalytics = () => {
         </TabsContent>
       </Tabs>
 
-      <Card className="border-2 border-primary/10 shadow-xl overflow-hidden">
-        <CardHeader className="bg-muted/30 border-b border-border/50 p-3 sm:pb-4 sm:p-6">
-          <div className="flex flex-col gap-3">
+      <Card className="border-2 border-primary/20 shadow-2xl overflow-hidden bg-gradient-to-br from-background to-muted/20">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-muted/30 border-b border-border/50 p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
             <div>
-              <CardTitle className="text-base sm:text-xl flex items-center gap-2">
-                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              <CardTitle className="text-lg sm:text-2xl flex items-center gap-2 font-bold">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 Performance Comparison
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Compare metrics across time periods</CardDescription>
+              <CardDescription className="text-sm sm:text-base mt-1">Compare metrics across different time periods</CardDescription>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-background p-2 sm:p-3 rounded-xl border border-border shadow-sm">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 bg-background/80 backdrop-blur p-3 sm:p-4 rounded-2xl border border-border/60 shadow-lg">
               {/* Mode Selection */}
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Label className="text-[10px] sm:text-xs uppercase font-bold text-muted-foreground">Mode:</Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs sm:text-sm uppercase font-bold text-primary">Mode:</Label>
                 <Select value={compMode} onValueChange={(v: any) => setCompMode(v)}>
-                  <SelectTrigger className="w-[80px] sm:w-[100px] h-7 sm:h-8 text-[10px] sm:text-xs bg-muted/50"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[90px] sm:w-[110px] h-9 sm:h-10 text-xs sm:text-sm bg-muted/50 font-medium"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="day">Day</SelectItem>
                     <SelectItem value="week">Week</SelectItem>
@@ -349,17 +391,17 @@ const DashboardAnalytics = () => {
                 </Select>
               </div>
 
-              <div className="h-4 w-px bg-border mx-1 hidden sm:block"></div>
+              <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block"></div>
 
-              {/* Date Selection */}
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Label className="text-[10px] sm:text-xs uppercase font-bold text-muted-foreground whitespace-nowrap">Current:</Label>
-                <Input type="date" value={baseDate} max={new Date().toISOString().split('T')[0]} onChange={(e) => setBaseDate(e.target.value)} className="h-7 sm:h-8 w-[110px] sm:w-[130px] text-[10px] sm:text-xs" />
+              {/* Date Selection - Compare First, then Current */}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs sm:text-sm uppercase font-bold text-muted-foreground whitespace-nowrap">Compare:</Label>
+                <Input type="date" value={compareDate} max={new Date().toISOString().split('T')[0]} onChange={(e) => setCompareDate(e.target.value)} className="h-9 sm:h-10 w-[120px] sm:w-[140px] text-xs sm:text-sm font-medium" />
               </div>
 
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Label className="text-[10px] sm:text-xs uppercase font-bold text-muted-foreground whitespace-nowrap">Compare:</Label>
-                <Input type="date" value={compareDate} max={new Date().toISOString().split('T')[0]} onChange={(e) => setCompareDate(e.target.value)} className="h-7 sm:h-8 w-[110px] sm:w-[130px] text-[10px] sm:text-xs" />
+              <div className="flex items-center gap-2">
+                <Label className="text-xs sm:text-sm uppercase font-bold text-primary whitespace-nowrap">Current:</Label>
+                <Input type="date" value={baseDate} max={new Date().toISOString().split('T')[0]} onChange={(e) => setBaseDate(e.target.value)} className="h-9 sm:h-10 w-[120px] sm:w-[140px] text-xs sm:text-sm font-medium border-primary/30" />
               </div>
             </div>
           </div>
@@ -367,88 +409,124 @@ const DashboardAnalytics = () => {
 
         <CardContent className="p-0">
           {compLoading ? (
-            <div className="p-20 text-center text-muted-foreground animate-pulse">Loading comparison data...</div>
+            <div className="p-20 text-center text-muted-foreground animate-pulse text-lg">Loading comparison data...</div>
           ) : compData ? (
-            <div className="flex flex-col lg:flex-row">
-              {/* Left Column: Current Period & Main Metrics */}
-              <div className="flex-1 p-3 sm:p-6 space-y-4 sm:space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <h3 className="font-bold text-sm sm:text-lg text-primary">Current {compMode === 'day' ? 'Day' : compMode === 'year' ? 'Year' : compMode.charAt(0).toUpperCase() + compMode.slice(1)}</h3>
-                  <span className="text-[10px] sm:text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded w-fit">{new Date(getRange(compMode, baseDate).start).toLocaleDateString()} - {new Date(getRange(compMode, baseDate).end).toLocaleDateString()}</span>
+            <div className="p-3 sm:p-5">
+              {/* Header Row with Date Labels */}
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 mb-5 text-center">
+                <div className="bg-muted/60 rounded-2xl p-4 sm:p-5 shadow-sm">
+                  <p className="text-sm sm:text-base font-bold uppercase text-muted-foreground tracking-wide">Compare</p>
+                  <p className="text-base sm:text-lg font-mono text-foreground/70 mt-1">{new Date(getRange(compMode, compareDate).start).toLocaleDateString()}</p>
                 </div>
-
-                {/* Metric Comparison Rows (With Center Line Visuals integrated via flex layout) */}
-                <div className="bg-card rounded-xl border border-border/60 shadow-sm p-1">
-                  {renderMetricRow('Revenue', compData.current.revenue, compData.past.revenue, true)}
-                  {renderMetricRow('Total Bills', compData.current.bills, compData.past.bills)}
-                  {renderMetricRow('Expenses', compData.current.expenses, compData.past.expenses, true, true)}
-                  {renderMetricRow('Net Profit', compData.current.profit, compData.past.profit, true)}
-                </div>
-
-                {/* Current Top Items */}
-                <div className="bg-muted/10 rounded-xl p-4 border border-border/50">
-                  <h4 className="text-xs font-bold uppercase text-muted-foreground mb-3">Top Performers (Current)</h4>
-                  <div className="space-y-2">
-                    {compData.current.topItems.map((item, i) => (
-                      <div key={i} className="flex justify-between items-center text-sm py-2 border-b border-dashed border-border/50 last:border-0">
-                        <div className="flex flex-col min-w-0 pr-2">
-                          <span className="font-medium truncate">{i + 1}. {item.name}</span>
-                          <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded w-fit mt-0.5 border border-border/30">
-                            {formatQuantityWithUnit(item.quantity, item.unit)} sold
-                          </span>
-                        </div>
-                        <span className="font-bold whitespace-nowrap">{formatCurrency(item.revenue)}</span>
-                      </div>
-                    ))}
-                    {compData.current.topItems.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No sales data</p>}
-                  </div>
+                <div className="w-1.5 sm:w-2 bg-gradient-to-b from-primary via-primary/50 to-primary self-stretch rounded-full shadow-lg"></div>
+                <div className="bg-primary/15 rounded-2xl p-4 sm:p-5 shadow-sm border border-primary/20">
+                  <p className="text-sm sm:text-base font-bold uppercase text-primary tracking-wide">Current</p>
+                  <p className="text-base sm:text-lg font-mono text-foreground mt-1">{new Date(getRange(compMode, baseDate).start).toLocaleDateString()}</p>
                 </div>
               </div>
 
-              {/* Center Divider */}
-              <div className="hidden lg:block w-px bg-border/50 my-6"></div>
-              <div className="block lg:hidden h-px bg-border/50 mx-6"></div>
+              {/* Main Metrics Comparison - Side by Side with Center Line */}
+              <div className="bg-card rounded-2xl border border-border/60 shadow-lg mb-5 overflow-hidden">
+                {/* Revenue */}
+                {renderSideBySideMetric('Revenue', compData.past.revenue, compData.current.revenue, true)}
+                {/* Bills */}
+                {renderSideBySideMetric('Total Bills', compData.past.bills, compData.current.bills, false)}
+                {/* Expenses */}
+                {renderSideBySideMetric('Expenses', compData.past.expenses, compData.current.expenses, true, true)}
+                {/* Profit */}
+                {renderSideBySideMetric('Net Profit', compData.past.profit, compData.current.profit, true)}
+              </div>
 
-              {/* Right Column: Past Period */}
-              <div className="flex-1 p-3 sm:p-6 space-y-4 sm:space-y-6 bg-muted/5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <h3 className="font-bold text-sm sm:text-lg text-muted-foreground">Previous {compMode === 'day' ? 'Day' : compMode === 'year' ? 'Year' : compMode.charAt(0).toUpperCase() + compMode.slice(1)}</h3>
-                  <span className="text-[10px] sm:text-xs font-mono text-muted-foreground bg-background border px-2 py-1 rounded w-fit">{new Date(getRange(compMode, compareDate).start).toLocaleDateString()} - {new Date(getRange(compMode, compareDate).end).toLocaleDateString()}</span>
+              {/* Items Comparison - Merged Side by Side */}
+              <div className="bg-card rounded-2xl border border-border/60 shadow-lg overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-border/50 bg-gradient-to-r from-muted/40 to-muted/20">
+                  <h4 className="text-base sm:text-lg font-bold text-center">📊 Item-wise Sales Comparison</h4>
                 </div>
+                <div className="divide-y divide-border/30">
+                  {(() => {
+                    // Merge items from both periods
+                    const allItems = new Map<string, { current: TopItem | null; past: TopItem | null }>();
 
-                {/* Summary for Context */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                  <div className="bg-background p-2 sm:p-4 rounded-xl border border-border/50">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase">Past Revenue</p>
-                    <p className="text-base sm:text-xl font-bold text-foreground opacity-80">{formatCurrency(compData.past.revenue)}</p>
-                  </div>
-                  <div className="bg-background p-2 sm:p-4 rounded-xl border border-border/50">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase">Past Bills</p>
-                    <p className="text-base sm:text-xl font-bold text-foreground opacity-80">{compData.past.bills}</p>
-                  </div>
-                </div>
+                    compData.current.topItems.forEach(item => {
+                      allItems.set(item.name, { current: item, past: null });
+                    });
 
-                {/* Past Top Items */}
-                <div className="bg-background rounded-xl p-4 border border-border/50">
-                  <h4 className="text-xs font-bold uppercase text-muted-foreground mb-3">Top Performers (Previous)</h4>
-                  <div className="space-y-2">
-                    {compData.past.topItems.map((item, i) => (
-                      <div key={i} className="flex justify-between items-center text-sm py-2 border-b border-dashed border-border/50 last:border-0">
-                        <div className="flex flex-col min-w-0 pr-2">
-                          <span className="font-medium truncate text-muted-foreground">{i + 1}. {item.name}</span>
-                          <span className="text-[10px] text-muted-foreground/70 bg-background/50 px-1.5 py-0.5 rounded w-fit mt-0.5 border border-border/30">
-                            {formatQuantityWithUnit(item.quantity, item.unit)} sold
-                          </span>
+                    compData.past.topItems.forEach(item => {
+                      const existing = allItems.get(item.name);
+                      if (existing) {
+                        existing.past = item;
+                      } else {
+                        allItems.set(item.name, { current: null, past: item });
+                      }
+                    });
+
+                    const mergedItems = Array.from(allItems.entries())
+                      .map(([name, data]) => ({ name, ...data }))
+                      .sort((a, b) => {
+                        const aRev = (a.current?.revenue || 0) + (a.past?.revenue || 0);
+                        const bRev = (b.current?.revenue || 0) + (b.past?.revenue || 0);
+                        return bRev - aRev;
+                      });
+
+                    if (mergedItems.length === 0) {
+                      return <p className="text-xs text-muted-foreground text-center py-6">No sales data for either period</p>;
+                    }
+
+                    return mergedItems.map((item, i) => {
+                      const curRev = item.current?.revenue || 0;
+                      const pastRev = item.past?.revenue || 0;
+                      const curQty = item.current?.quantity || 0;
+                      const pastQty = item.past?.quantity || 0;
+                      const unit = item.current?.unit || item.past?.unit || 'pcs';
+
+                      const change = pastRev === 0 ? (curRev > 0 ? 100 : 0) : ((curRev - pastRev) / pastRev) * 100;
+                      const isIncrease = curRev > pastRev;
+                      const Icon = curRev === pastRev ? Minus : (isIncrease ? ArrowUpRight : ArrowDownRight);
+                      const colorClass = curRev === pastRev ? 'text-muted-foreground' : (isIncrease ? 'text-emerald-500' : 'text-rose-500');
+                      const bgClass = curRev === pastRev ? 'bg-muted/50' : (isIncrease ? 'bg-emerald-500/10' : 'bg-rose-500/10');
+
+                      return (
+                        <div key={item.name} className="grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 p-4 sm:p-5 hover:bg-muted/40 transition-all duration-200">
+                          {/* Past Value (LEFT) */}
+                          <div className="text-right pr-3 sm:pr-5">
+                            <p className={`font-bold text-base sm:text-xl ${pastRev > 0 ? 'text-muted-foreground' : 'text-muted-foreground/40'}`}>
+                              {formatCurrency(pastRev)}
+                            </p>
+                            <p className="text-xs sm:text-sm text-muted-foreground/70">
+                              {formatQuantityWithUnit(pastQty, unit)}
+                            </p>
+                          </div>
+
+                          {/* Center: Item Name + Indicator */}
+                          <div className="flex flex-col items-center justify-center min-w-[100px] sm:min-w-[140px] px-3 sm:px-4 border-x-2 border-dashed border-border/40">
+                            <span className="text-sm sm:text-base font-semibold text-center leading-tight">
+                              {item.name}
+                            </span>
+                            {curRev !== pastRev && (
+                              <span className={`flex items-center text-xs sm:text-sm font-bold px-2 sm:px-3 py-1 rounded-full mt-1.5 ${colorClass} ${bgClass}`}>
+                                <Icon className="w-4 h-4 sm:w-5 sm:h-5 mr-1" />
+                                {Math.abs(change).toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Current Value (RIGHT) */}
+                          <div className="text-left pl-3 sm:pl-5">
+                            <p className={`font-bold text-base sm:text-xl ${curRev > 0 ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                              {formatCurrency(curRev)}
+                            </p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              {formatQuantityWithUnit(curQty, unit)}
+                            </p>
+                          </div>
                         </div>
-                        <span className="font-bold text-muted-foreground whitespace-nowrap">{formatCurrency(item.revenue)}</span>
-                      </div>
-                    ))}
-                    {compData.past.topItems.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No sales data</p>}
-                  </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </div>
-          ) : (<div>Select dates to compare</div>)}
+          ) : (<div className="p-6 text-center text-muted-foreground">Select dates to compare</div>)}
         </CardContent>
       </Card>
 
