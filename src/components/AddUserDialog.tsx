@@ -12,9 +12,10 @@ import { isStrongPassword, isValidEmail } from '@/utils/securityUtils';
 
 interface AddUserDialogProps {
   onUserAdded: () => void;
+  adminId?: string; // For linking sub-users to their admin
 }
 
-export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded }) => {
+export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded, adminId }) => {
   const { signUp } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -63,7 +64,8 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded }) => 
         formData.password,
         formData.name,
         formData.role,
-        formData.hotelName
+        formData.hotelName,
+        formData.role === 'user' ? adminId : undefined // Link sub-users to their admin
       );
 
       if (error) {

@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, UserStatus } from '@/types/user';
+import { Profile, UserStatus, UserRole } from '@/types/user';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role?: string, hotelName?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, name: string, role?: string, hotelName?: string, adminId?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -34,9 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: user.id,
       user_id: user.id,
       name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-      role: (user.user_metadata?.role || 'user') as 'admin' | 'user',
+      role: (user.user_metadata?.role || 'user') as UserRole,
       hotel_name: user.user_metadata?.hotel_name,
-      status: 'active' as UserStatus
+      status: 'active' as UserStatus,
+      admin_id: user.user_metadata?.admin_id
     };
   };
 
@@ -98,9 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: existingProfile.id,
           user_id: existingProfile.user_id,
           name: existingProfile.name || 'User',
-          role: existingProfile.role as 'admin' | 'user',
+          role: existingProfile.role as UserRole,
           hotel_name: existingProfile.hotel_name || undefined,
-          status: existingProfile.status as UserStatus
+          status: existingProfile.status as UserStatus,
+          admin_id: existingProfile.admin_id || undefined
         };
         // Update cache
         localStorage.setItem(`profile_${user.id}`, JSON.stringify(profile));
@@ -114,9 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profileData = {
           user_id: user.id,
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-          role: (user.user_metadata?.role || 'user') as 'admin' | 'user',
+          role: (user.user_metadata?.role || 'user') as UserRole,
           hotel_name: user.user_metadata?.hotel_name || null,
-          status: 'active' as UserStatus
+          status: 'active' as UserStatus,
+          admin_id: user.user_metadata?.admin_id || null
         };
 
         const createPromise = supabase
@@ -140,9 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: data.id,
             user_id: data.user_id,
             name: data.name,
-            role: data.role as 'admin' | 'user',
+            role: data.role as UserRole,
             hotel_name: data.hotel_name,
-            status: data.status as UserStatus
+            status: data.status as UserStatus,
+            admin_id: data.admin_id || undefined
           };
           localStorage.setItem(`profile_${user.id}`, JSON.stringify(newProfile));
           return newProfile;
@@ -284,11 +288,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, name: string, role: string = 'user', hotelName?: string) => {
+  const signUp = async (email: string, password: string, name: string, role: string = 'user', hotelName?: string, adminId?: string) => {
     console.log('Sign up attempt for:', email, 'with role:', role);
 
     const userData: any = { name, role };
     if (hotelName && role === 'admin') userData.hotel_name = hotelName;
+    if (adminId) userData.admin_id = adminId;
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -307,9 +312,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profileData = {
           user_id: data.user.id,
           name: name,
-          role: role as 'admin' | 'user',
+          role: role as UserRole,
           hotel_name: role === 'admin' ? hotelName : null,
-          status: 'active' as UserStatus
+          status: 'active' as UserStatus,
+          admin_id: adminId || null
         };
 
         const { error: profileError } = await supabase
@@ -347,10 +353,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    console.log('Sign in result:', error ? 'Error' : 'Success');
-    return { error };
+    if (error) {
+      console.log('Sign in error:', error.message);
+      return { error };
+    }
+
+    // Check if user/admin is paused using the database function
+    if (data?.user) {
+      try {
+        const { data: loginCheck, error: checkError } = await supabase
+          .rpc('is_user_allowed_to_login', { p_user_id: data.user.id });
+
+        if (checkError) {
+          console.error('Error checking login status:', checkError);
+          // Allow login if check fails to avoid blocking users
+        } else if (loginCheck && loginCheck.length > 0) {
+          const result = loginCheck[0];
+          if (!result.allowed) {
+            // User is not allowed to login - sign them out
+            await supabase.auth.signOut();
+            return { error: { message: result.reason || 'Account paused' } };
+          }
+        }
+      } catch (e) {
+        console.error('Error in login check:', e);
+        // Allow login if check fails
+      }
+    }
+
+    console.log('Sign in result: Success');
+    return { error: null };
   };
 
   const signOut = async () => {

@@ -105,8 +105,8 @@ export const useUserPermissions = () => {
       return;
     }
 
-    // Admins have all permissions by default
-    if (profile.role === 'admin') {
+    // Admins and Super Admins have all permissions by default
+    if (profile.role === 'admin' || profile.role === 'super_admin') {
       setPermissions(ADMIN_PERMISSIONS);
       setLoading(false);
       return;
@@ -168,8 +168,8 @@ export const useUserPermissions = () => {
   }, [fetchPermissions]);
 
   const hasAccess = useCallback((page: keyof UserPermissions): boolean => {
-    // Admins always have access
-    if (profile?.role === 'admin') return true;
+    // Super Admins and Admins always have access
+    if (profile?.role === 'admin' || profile?.role === 'super_admin') return true;
     return permissions[page];
   }, [profile?.role, permissions]);
 
