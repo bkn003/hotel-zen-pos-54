@@ -258,15 +258,15 @@ const DashboardAnalytics = () => {
     // Process Sales Chart
     const salesMap = new Map<string, { sales: number; expenses: number }>();
     billsData?.forEach(b => {
-      const d = b.date; const c = salesMap.get(d) || { sales: 0, exp: 0 }; salesMap.set(d, { ...c, sales: (c.sales || 0) + Number(b.total_amount) });
+      const d = b.date; const c = salesMap.get(d) || { sales: 0, expenses: 0 }; salesMap.set(d, { ...c, sales: (c.sales || 0) + Number(b.total_amount) });
     });
     expensesData?.forEach(e => {
-      const d = e.date; const c = salesMap.get(d) || { sales: 0, exp: 0 }; salesMap.set(d, { ...c, exp: (c.exp || 0) + Number(e.amount) });
+      const d = e.date; const c = salesMap.get(d) || { sales: 0, expenses: 0 }; salesMap.set(d, { ...c, expenses: (c.expenses || 0) + Number(e.amount) });
     });
 
     const chartData = Array.from(salesMap.entries()).map(([d, v]) => ({
       date: new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      sales: v.sales || 0, expenses: v.exp || 0, profit: (v.sales || 0) - (v.exp || 0)
+      sales: v.sales || 0, expenses: v.expenses || 0, profit: (v.sales || 0) - (v.expenses || 0)
     })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     setSales(chartData);
 
