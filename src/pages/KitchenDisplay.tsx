@@ -3,10 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChefHat, Clock, Bell, Volume2, VolumeX } from 'lucide-react';
+import { ChefHat, Clock, Bell, Volume2, VolumeX, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getTimeElapsed, formatTimeAMPM, formatQuantityWithUnit } from '@/utils/timeUtils';
 import { cn } from '@/lib/utils';
+import { kitchenOfflineManager } from '@/utils/kitchenOfflineManager';
 
 // BroadcastChannel for instant cross-tab sync
 const billsChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('bills-updates') : null;
@@ -38,12 +39,35 @@ const KitchenDisplay = () => {
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
     const [voiceEnabled, setVoiceEnabled] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
+    const [syncing, setSyncing] = useState(false);
     const syncChannelRef = useRef<any>(null);
 
     // Update current time every minute
     useEffect(() => {
         const interval = setInterval(() => setCurrentTime(new Date()), 60000);
         return () => clearInterval(interval);
+    }, []);
+
+    // Monitor online status and pending updates
+    useEffect(() => {
+        const unsubOnline = kitchenOfflineManager.onOnlineStatusChange((online) => {
+            setIsOnline(online);
+        });
+
+        const checkPending = async () => {
+            const pending = await kitchenOfflineManager.getPendingUpdates();
+            setPendingUpdatesCount(pending.length);
+        };
+
+        checkPending();
+        const interval = setInterval(checkPending, 5000);
+
+        return () => {
+            unsubOnline();
+            clearInterval(interval);
+        };
     }, []);
 
     // Voice announcement function
@@ -57,49 +81,76 @@ const KitchenDisplay = () => {
         window.speechSynthesis.speak(utterance);
     }, [voiceEnabled]);
 
-    // Fetch kitchen orders
+    // Fetch kitchen orders (online or offline)
     const fetchBills = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
+        
         try {
-            const now = new Date();
-            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            if (isOnline) {
+                // Online: fetch from server
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            const query = (supabase as any)
-                .from('bills')
-                .select(`
-                    id, bill_no, created_at, kitchen_status, service_status,
-                    bill_items (
-                        id, quantity, items (id, name, unit, base_value)
-                    )
-                `)
-                .eq('date', today)
-                .or('is_deleted.is.null,is_deleted.eq.false')
-                .in('kitchen_status', ['pending', 'preparing', 'ready'])
-                .neq('service_status', 'completed')
-                .neq('service_status', 'rejected')
-                .order('created_at', { ascending: true });
+                const query = (supabase as any)
+                    .from('bills')
+                    .select(`
+                        id, bill_no, created_at, kitchen_status, service_status,
+                        bill_items (
+                            id, quantity, items (id, name, unit, base_value)
+                        )
+                    `)
+                    .eq('date', today)
+                    .or('is_deleted.is.null,is_deleted.eq.false')
+                    .in('kitchen_status', ['pending', 'preparing', 'ready'])
+                    .neq('service_status', 'completed')
+                    .neq('service_status', 'rejected')
+                    .order('created_at', { ascending: true });
 
-            const result = await query;
-            if (result.error) throw result.error;
-            setBills(result.data || []);
+                const result = await query;
+                if (result.error) throw result.error;
+                
+                const serverBills = result.data || [];
+                setBills(serverBills);
+                
+                // Cache for offline use
+                await kitchenOfflineManager.cacheBills(serverBills);
+            } else {
+                // Offline: get from cache
+                const cachedBills = await kitchenOfflineManager.getCachedBills();
+                setBills(cachedBills);
+                
+                if (!silent) {
+                    toast({
+                        title: '📴 Offline Mode',
+                        description: `Showing ${cachedBills.length} cached orders`,
+                    });
+                }
+            }
         } catch (error) {
             console.error('Error fetching kitchen bills:', error);
+            
+            // Fallback to cache on error
+            const cachedBills = await kitchenOfflineManager.getCachedBills();
+            setBills(cachedBills);
+            
             if (!silent) {
                 toast({
-                    title: 'Syncing...',
-                    description: 'Connection slow, retrying in background',
+                    title: 'Using Cached Data',
+                    description: 'Connection slow, showing cached orders',
                 });
             }
         } finally {
             if (!silent) setLoading(false);
         }
-    }, []);
+    }, [isOnline]);
 
     // Track known bill IDs to detect new orders
     const knownBillIds = useRef<Set<string>>(new Set());
 
     // Setup Global Sync Channel for Cross-Device updates
     useEffect(() => {
+        if (!isOnline) return;
+
         const channel = supabase.channel('pos-global-sync', {
             config: { broadcast: { self: true } }
         })
@@ -108,7 +159,6 @@ const KitchenDisplay = () => {
                 fetchBills(true);
             })
             .on('broadcast', { event: 'new-bill' }, (payload: any) => {
-                // INSTANT voice announcement via Supabase Broadcast
                 console.log('Kitchen: New bill broadcast received!', payload);
                 if (voiceEnabled && payload?.payload?.bill_no) {
                     announce(`New order received, Bill number ${payload.payload.bill_no}`);
@@ -119,7 +169,7 @@ const KitchenDisplay = () => {
 
         syncChannelRef.current = channel;
         return () => { supabase.removeChannel(channel); };
-    }, [fetchBills, voiceEnabled, announce]);
+    }, [fetchBills, voiceEnabled, announce, isOnline]);
 
     // Initial fetch
     useEffect(() => {
@@ -130,10 +180,11 @@ const KitchenDisplay = () => {
 
     // Realtime subscription (backup - slower but reliable)
     useEffect(() => {
+        if (!isOnline) return;
+
         const channel = supabase
             .channel('kitchen-sync')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bills' }, (payload) => {
-                // Only announce if we haven't already (prevents duplicate announcements)
                 const billNo = payload.new?.bill_no;
                 const billId = payload.new?.id;
                 if (billId && !knownBillIds.current.has(billId)) {
@@ -150,7 +201,7 @@ const KitchenDisplay = () => {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [fetchBills, voiceEnabled, announce]);
+    }, [fetchBills, voiceEnabled, announce, isOnline]);
 
     // Listen for BroadcastChannel updates (0ms same-device sync)
     useEffect(() => {
@@ -159,9 +210,7 @@ const KitchenDisplay = () => {
         const handleMessage = (event: MessageEvent) => {
             const data = event.data;
 
-            // INSTANT voice for new bills on same device
             if (data?.type === 'new-bill' && voiceEnabled && data?.bill_no) {
-                // Only announce if we haven't seen this bill
                 if (data?.bill_id && !knownBillIds.current.has(data.bill_id)) {
                     knownBillIds.current.add(data.bill_id);
                     announce(`New order received, Bill number ${data.bill_no}`);
@@ -175,8 +224,16 @@ const KitchenDisplay = () => {
         return () => billsChannel.removeEventListener('message', handleMessage);
     }, [fetchBills, voiceEnabled, announce]);
 
+    // Listen for offline bills updates
+    useEffect(() => {
+        const unsubBills = kitchenOfflineManager.onBillsChange((updatedBills) => {
+            setBills(updatedBills);
+        });
+        return unsubBills;
+    }, []);
+
     /**
-     * OPTIMISTIC UPDATE: Instant (0ms) response
+     * OPTIMISTIC UPDATE with OFFLINE SUPPORT
      */
     const updateKitchenStatus = async (
         billId: string,
@@ -192,18 +249,37 @@ const KitchenDisplay = () => {
                 : bill
         ));
 
-        // 2. Perform background update
         try {
-            const updateData: any = { kitchen_status: status };
-            if (status === 'ready') updateData.service_status = 'ready';
+            if (isOnline) {
+                // 2a. Online: Update server directly
+                const updateData: any = { kitchen_status: status };
+                if (status === 'ready') updateData.service_status = 'ready';
 
-            const { error } = await supabase
-                .from('bills')
-                .update(updateData)
-                .eq('id', billId);
+                const { error } = await supabase
+                    .from('bills')
+                    .update(updateData)
+                    .eq('id', billId);
 
-            if (error) throw error;
+                if (error) throw error;
 
+                // Sync others
+                billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
+                syncChannelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'bills-updated',
+                    payload: { bill_id: billId, status }
+                });
+            } else {
+                // 2b. Offline: Save to IndexedDB for later sync
+                await kitchenOfflineManager.saveOfflineUpdate(billId, status);
+                
+                toast({
+                    title: '📴 Saved Offline',
+                    description: `Will sync when online`,
+                });
+            }
+
+            // Voice feedback
             if (status === 'ready') {
                 announce(`Bill number ${billNo} is ready`);
                 toast({ title: '🔔 Order Ready!', description: `Bill #${billNo} is ready` });
@@ -211,16 +287,9 @@ const KitchenDisplay = () => {
                 toast({ title: '👨‍🍳 Preparing', description: `Started #${billNo}` });
             }
 
-            // Sync others (Same-device 0ms, Cross-device <200ms)
-            billsChannel?.postMessage({ type: 'update', timestamp: Date.now() });
-            syncChannelRef.current?.send({
-                type: 'broadcast',
-                event: 'bills-updated',
-                payload: { bill_id: billId, status }
-            });
         } catch (error) {
             console.error('Update failed:', error);
-            // 3. Rollback on failure
+            // Rollback on failure
             setBills(prevBills);
             toast({
                 title: 'Update Failed',
@@ -230,13 +299,24 @@ const KitchenDisplay = () => {
         }
     };
 
-    // Get status color
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'pending': return 'bg-yellow-500';
-            case 'preparing': return 'bg-orange-500';
-            case 'ready': return 'bg-green-500';
-            default: return 'bg-gray-500';
+    // Manual sync
+    const handleManualSync = async () => {
+        if (!isOnline || syncing) return;
+        
+        setSyncing(true);
+        try {
+            const result = await kitchenOfflineManager.syncPendingUpdates();
+            if (result.synced > 0) {
+                toast({
+                    title: '✅ Synced',
+                    description: `${result.synced} updates synced successfully`,
+                });
+            }
+            await fetchBills(true);
+            const pending = await kitchenOfflineManager.getPendingUpdates();
+            setPendingUpdatesCount(pending.length);
+        } finally {
+            setSyncing(false);
         }
     };
 
@@ -274,11 +354,43 @@ const KitchenDisplay = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                    <div className="flex items-center gap-2">
+                        {/* Online/Offline Status */}
+                        <div className={cn(
+                            "flex items-center gap-1.5 px-2 py-1 rounded-full border",
+                            isOnline 
+                                ? "bg-green-500/10 border-green-500/20" 
+                                : "bg-orange-500/10 border-orange-500/20"
+                        )}>
+                            {isOnline ? (
+                                <>
+                                    <Wifi className="w-3.5 h-3.5 text-green-500" />
+                                    <span className="text-[10px] uppercase tracking-wider font-bold text-green-600">Live</span>
+                                </>
+                            ) : (
+                                <>
+                                    <WifiOff className="w-3.5 h-3.5 text-orange-500" />
+                                    <span className="text-[10px] uppercase tracking-wider font-bold text-orange-600">Offline</span>
+                                </>
+                            )}
                         </div>
+
+                        {/* Pending Sync Badge */}
+                        {pendingUpdatesCount > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleManualSync}
+                                disabled={!isOnline || syncing}
+                                className="gap-1"
+                            >
+                                <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} />
+                                <Badge variant="secondary" className="text-[10px] px-1.5">
+                                    {pendingUpdatesCount}
+                                </Badge>
+                            </Button>
+                        )}
+
                         <Button
                             variant="outline"
                             size="icon"
@@ -293,6 +405,15 @@ const KitchenDisplay = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Offline Banner */}
+            {!isOnline && (
+                <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2 text-center">
+                    <span className="text-sm text-orange-700 dark:text-orange-400">
+                        📴 You're offline. Changes will sync when connection restores.
+                    </span>
+                </div>
+            )}
 
             {/* Main Content */}
             <div className="p-4">
@@ -418,7 +539,7 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                 </div>
             </div>
 
-            {/* Items List - no scroll, show all */}
+            {/* Items List */}
             <div className="space-y-1 mb-3">
                 {bill.bill_items.map((item) => (
                     <div
@@ -429,33 +550,20 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                             {item.items?.name || 'Unknown'}
                         </span>
                         <Badge variant="outline" className="font-bold">
-                            {formatQuantityWithUnit(item.quantity, item.items?.unit)}
+                            x{item.quantity}
                         </Badge>
                     </div>
                 ))}
             </div>
 
-            {/* Items/Qty Count Footer */}
-            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground border-t pt-2 mb-3">
-                <span>Items: {bill.bill_items.length}</span>
-                <span>Qty: {bill.bill_items.reduce((acc, item) => {
-                    const unit = item.items?.unit?.toLowerCase() || '';
-                    const isWeightVolume = unit.includes('gram') || unit.includes('kg') ||
-                        unit.includes('liter') || unit.includes('ml') ||
-                        unit === 'g' || unit === 'l';
-                    return acc + (isWeightVolume ? 1 : item.quantity);
-                }, 0)}</span>
-            </div>
-
             {/* Action Button */}
             <Button
-                className={cn("w-full text-white", actionColor)}
                 onClick={onAction}
                 disabled={processing}
+                className={cn("w-full text-white", actionColor)}
             >
-                {actionLabel}
+                {processing ? 'Processing...' : actionLabel}
             </Button>
-
         </Card>
     );
 };
