@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { CreditCard, Plus, Edit } from 'lucide-react';
 
 interface PaymentType {
@@ -20,6 +20,7 @@ interface PaymentType {
 }
 
 export const PaymentTypesManagement: React.FC = () => {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [newPaymentType, setNewPaymentType] = useState('');
@@ -63,12 +64,16 @@ export const PaymentTypesManagement: React.FC = () => {
 
     setLoading(true);
     try {
+      // Get admin_id for data isolation
+      const adminId = profile?.role === 'admin' ? profile?.id : profile?.admin_id;
+
       const { error } = await supabase
         .from('payments')
         .insert({
           payment_type: newPaymentType.trim(),
           is_disabled: false,
-          is_default: false
+          is_default: false,
+          admin_id: adminId || null
         });
 
       if (error) throw error;

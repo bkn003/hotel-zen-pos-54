@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Settings, Plus, Edit, Trash2 } from 'lucide-react';
-
 interface ItemCategory {
   id: string;
   name: string;
@@ -22,6 +22,7 @@ interface ItemCategoryManagementProps {
 }
 
 export const ItemCategoryManagement: React.FC<ItemCategoryManagementProps> = ({ onCategoriesUpdated }) => {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -74,9 +75,12 @@ export const ItemCategoryManagement: React.FC<ItemCategoryManagementProps> = ({ 
 
     setLoading(true);
     try {
+      // Get admin_id for data isolation
+      const adminId = profile?.role === 'admin' ? profile?.id : profile?.admin_id;
+
       const { error } = await supabase
         .from('item_categories')
-        .insert([{ name: newCategoryName.trim() }]);
+        .insert([{ name: newCategoryName.trim(), admin_id: adminId || null }]);
 
       if (error) throw error;
 
