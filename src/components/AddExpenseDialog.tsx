@@ -73,13 +73,17 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({ onExpenseAdd
 
     setLoading(true);
     try {
+      // Get admin_id for data isolation
+      const adminId = profile?.role === 'admin' ? profile?.id : profile?.admin_id;
+
       const { error } = await supabase.from('expenses').insert({
         expense_name: formData.expense_name.trim() || null,
         amount: parseFloat(formData.amount),
         category: formData.category,
         note: formData.note.trim() || null,
         date: formData.date,
-        created_by: profile?.user_id
+        created_by: profile?.user_id,
+        admin_id: adminId || null
       });
 
       if (error) throw error;

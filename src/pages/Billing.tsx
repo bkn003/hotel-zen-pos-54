@@ -982,6 +982,9 @@ const Billing = () => {
       const paymentMode = mapPaymentMode(paymentData.paymentMethod);
       const additionalChargesArray = paymentData.additionalCharges.map(c => ({ name: c.name, amount: c.amount }));
 
+      // Get admin_id for data isolation (admin's own id if admin, or parent admin_id if sub-user)
+      const adminId = profile?.role === 'admin' ? profile?.id : profile?.admin_id;
+
       const billPayload = {
         bill_no: billNumber,
         total_amount: totalAmount,
@@ -990,6 +993,7 @@ const Billing = () => {
         payment_details: paymentData.paymentAmounts,
         additional_charges: additionalChargesArray,
         created_by: profile?.user_id,
+        admin_id: adminId || null,
         date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
         // Service Area & Kitchen Display status - enables realtime updates
         service_status: 'pending',

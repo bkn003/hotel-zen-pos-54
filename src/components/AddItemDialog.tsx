@@ -106,6 +106,24 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
 
     setLoading(true);
     try {
+      // Get admin_id from the session for data isolation
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      // Fetch user's profile to get admin_id
+      let adminId = null;
+      if (userId) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, role, admin_id')
+          .eq('user_id', userId)
+          .single();
+        
+        if (profileData) {
+          adminId = profileData.role === 'admin' ? profileData.id : profileData.admin_id;
+        }
+      }
+
       const { error } = await supabase.from('items').insert({
         name: formData.name.trim(),
         description: formData.description.trim() || null,
@@ -119,7 +137,8 @@ export const AddItemDialog: React.FC<AddItemDialogProps> = ({ onItemAdded, exist
         category: formData.category === 'none' ? null : formData.category.trim(),
         image_url: formData.image_url.trim() || null,
         is_active: formData.is_active,
-        unlimited_stock: formData.unlimited_stock
+        unlimited_stock: formData.unlimited_stock,
+        admin_id: adminId
       } as any);
 
       if (error) throw error;

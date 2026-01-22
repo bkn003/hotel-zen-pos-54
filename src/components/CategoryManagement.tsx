@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Edit, Trash2, FolderPlus } from 'lucide-react';
 import { cachedFetch, CACHE_KEYS, dataCache } from '@/utils/cacheUtils';
 
@@ -22,6 +23,7 @@ interface CategoryManagementProps {
 }
 
 export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onCategoriesUpdated }) => {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -85,11 +87,15 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({ onCatego
 
     setLoading(true);
     try {
+      // Get admin_id for data isolation
+      const adminId = profile?.role === 'admin' ? profile?.id : profile?.admin_id;
+
       const { error } = await supabase
         .from('expense_categories')
         .insert({ 
           name: newCategoryName.trim(),
-          is_deleted: false
+          is_deleted: false,
+          admin_id: adminId || null
         });
 
       if (error) throw error;

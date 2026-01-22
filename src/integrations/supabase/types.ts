@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       additional_charges: {
         Row: {
+          admin_id: string | null
           amount: number
           charge_type: string
           created_at: string
@@ -28,6 +29,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_id?: string | null
           amount?: number
           charge_type: string
           created_at?: string
@@ -40,6 +42,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_id?: string | null
           amount?: number
           charge_type?: string
           created_at?: string
@@ -51,7 +54,15 @@ export type Database = {
           unit?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "additional_charges_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bill_items: {
         Row: {
@@ -101,6 +112,7 @@ export type Database = {
       bills: {
         Row: {
           additional_charges: Json | null
+          admin_id: string | null
           bill_no: string
           created_at: string
           created_by: string
@@ -118,6 +130,7 @@ export type Database = {
         }
         Insert: {
           additional_charges?: Json | null
+          admin_id?: string | null
           bill_no: string
           created_at?: string
           created_by: string
@@ -135,6 +148,7 @@ export type Database = {
         }
         Update: {
           additional_charges?: Json | null
+          admin_id?: string | null
           bill_no?: string
           created_at?: string
           created_by?: string
@@ -150,7 +164,15 @@ export type Database = {
           status_updated_at?: string | null
           total_amount?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bills_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bluetooth_settings: {
         Row: {
@@ -211,6 +233,7 @@ export type Database = {
       }
       expense_categories: {
         Row: {
+          admin_id: string | null
           created_at: string
           id: string
           is_deleted: boolean | null
@@ -218,6 +241,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_id?: string | null
           created_at?: string
           id?: string
           is_deleted?: boolean | null
@@ -225,13 +249,22 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_id?: string | null
           created_at?: string
           id?: string
           is_deleted?: boolean | null
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expense_categories_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -274,6 +307,7 @@ export type Database = {
       }
       item_categories: {
         Row: {
+          admin_id: string | null
           created_at: string
           id: string
           is_deleted: boolean | null
@@ -281,6 +315,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_id?: string | null
           created_at?: string
           id?: string
           is_deleted?: boolean | null
@@ -288,13 +323,22 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_id?: string | null
           created_at?: string
           id?: string
           is_deleted?: boolean | null
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "item_categories_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       items: {
         Row: {
@@ -364,6 +408,7 @@ export type Database = {
       }
       payments: {
         Row: {
+          admin_id: string | null
           created_at: string
           id: string
           is_default: boolean | null
@@ -373,6 +418,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_id?: string | null
           created_at?: string
           id?: string
           is_default?: boolean | null
@@ -382,6 +428,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_id?: string | null
           created_at?: string
           id?: string
           is_default?: boolean | null
@@ -390,7 +437,15 @@ export type Database = {
           payment_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payments_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -553,10 +608,13 @@ export type Database = {
           page_name: string
         }[]
       }
+      get_user_admin_id: { Args: never; Returns: string }
       has_page_permission: {
         Args: { _page_name: string; _user_id: string }
         Returns: boolean
       }
+      is_admin_or_super: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
       is_user_allowed_to_login: {
         Args: { p_user_id: string }
         Returns: {

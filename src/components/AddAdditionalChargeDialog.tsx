@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AddAdditionalChargeDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export const AddAdditionalChargeDialog: React.FC<AddAdditionalChargeDialogProps>
   onOpenChange,
   onSuccess
 }) => {
+  const { profile } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     charge_type: 'fixed',
@@ -58,11 +60,15 @@ export const AddAdditionalChargeDialog: React.FC<AddAdditionalChargeDialogProps>
     try {
       setIsSubmitting(true);
       
+      // Get admin_id for data isolation
+      const adminId = profile?.role === 'admin' ? profile?.id : profile?.admin_id;
+      
       const { error } = await supabase
         .from('additional_charges')
         .insert([{
           ...formData,
-          unit: formData.charge_type === 'per_unit' ? formData.unit : null
+          unit: formData.charge_type === 'per_unit' ? formData.unit : null,
+          admin_id: adminId || null
         }]);
 
       if (error) throw error;
