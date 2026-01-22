@@ -546,6 +546,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_permissions: {
+        Args: never
+        Returns: {
+          has_access: boolean
+          page_name: string
+        }[]
+      }
       has_page_permission: {
         Args: { _page_name: string; _user_id: string }
         Returns: boolean
