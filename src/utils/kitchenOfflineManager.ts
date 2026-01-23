@@ -28,7 +28,7 @@ interface OfflineStatusUpdate {
   billId: string;
   status: 'preparing' | 'ready';
   timestamp: number;
-  synced: boolean;
+  synced: number; // 0 = not synced, 1 = synced (IndexedDB doesn't support boolean keys)
 }
 
 const DB_NAME = 'kitchen_display_db';
@@ -176,9 +176,9 @@ class KitchenOfflineManager {
    */
   private async applyPendingUpdates(bills: KitchenBill[]): Promise<KitchenBill[]> {
     const pendingUpdates = await this.getPendingUpdates();
-    
+
     return bills.map(bill => {
-      const update = pendingUpdates.find(u => u.billId === bill.id && !u.synced);
+      const update = pendingUpdates.find(u => u.billId === bill.id && u.synced === 0);
       if (update) {
         return {
           ...bill,
@@ -202,7 +202,7 @@ class KitchenOfflineManager {
       billId,
       status,
       timestamp: Date.now(),
-      synced: false
+      synced: 0 // 0 = not synced
     };
 
     return new Promise((resolve, reject) => {
@@ -245,7 +245,7 @@ class KitchenOfflineManager {
       const transaction = this.db!.transaction(UPDATES_STORE, 'readonly');
       const store = transaction.objectStore(UPDATES_STORE);
       const index = store.index('synced');
-      const request = index.getAll(IDBKeyRange.only(false));
+      const request = index.getAll(IDBKeyRange.only(0)); // 0 = not synced
 
       request.onsuccess = () => resolve(request.result as OfflineStatusUpdate[]);
       request.onerror = () => reject(request.error);
@@ -267,7 +267,7 @@ class KitchenOfflineManager {
       request.onsuccess = () => {
         const update = request.result as OfflineStatusUpdate;
         if (update) {
-          update.synced = true;
+          update.synced = 1; // 1 = synced
           store.put(update);
         }
       };
@@ -287,7 +287,7 @@ class KitchenOfflineManager {
 
     this.syncInProgress = true;
     const pending = await this.getPendingUpdates();
-    
+
     if (pending.length === 0) {
       this.syncInProgress = false;
       return { synced: 0, failed: 0 };
@@ -323,7 +323,7 @@ class KitchenOfflineManager {
 
     this.syncInProgress = false;
     console.log('[KitchenOffline] Sync complete:', synced, 'synced,', failed, 'failed');
-    
+
     return { synced, failed };
   }
 
@@ -338,7 +338,7 @@ class KitchenOfflineManager {
       const transaction = this.db!.transaction(UPDATES_STORE, 'readwrite');
       const store = transaction.objectStore(UPDATES_STORE);
       const index = store.index('synced');
-      const request = index.openCursor(IDBKeyRange.only(true));
+      const request = index.openCursor(IDBKeyRange.only(1)); // 1 = synced
 
       request.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest).result;

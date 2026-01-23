@@ -50,11 +50,13 @@ const ServiceArea = () => {
     const [bills, setBills] = useState<ServiceBill[]>([]);
     const [recentBills, setRecentBills] = useState<ServiceBill[]>([]);
     const [loading, setLoading] = useState(true);
+    const [initialLoadDone, setInitialLoadDone] = useState(false);
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
-    const [isConnected, setIsConnected] = useState(true);
+    const [isConnected, setIsConnected] = useState(true); // Start optimistic
     const broadcastChannelRef = useRef<any>(null);
     const lastFetchRef = useRef<number>(0);
     const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Debounced fetch to prevent multiple rapid calls
     const debouncedFetch = useCallback((silent = true) => {
@@ -82,6 +84,11 @@ const ServiceArea = () => {
             const today = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`;
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                fetchTimeoutRef.current = setTimeout(() => reject(new Error('Timeout')), 8000);
+            });
+
             // 1. Fetch Active Bills
             const activeQuery = (supabase as any)
                 .from('bills')
@@ -108,7 +115,12 @@ const ServiceArea = () => {
                 .order('status_updated_at', { ascending: false })
                 .limit(10);
 
-            const [activeResult, recentResult] = await Promise.all([activeQuery, recentQuery]);
+            const [activeResult, recentResult] = await Promise.race([
+                Promise.all([activeQuery, recentQuery]),
+                timeoutPromise
+            ]) as any;
+
+            if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
 
             if (activeResult.error) throw activeResult.error;
             if (recentResult.error) throw recentResult.error;
@@ -117,8 +129,9 @@ const ServiceArea = () => {
             setRecentBills(recentResult.data || []);
             setIsConnected(true);
         } catch (error) {
-            console.error('Error fetching service bills:', error);
+            console.warn('Error fetching service bills:', error);
             setIsConnected(false);
+            // Don't show toast on every silent refresh failure
             if (!silent) {
                 toast({
                     title: 'Connection Issue',
@@ -128,6 +141,7 @@ const ServiceArea = () => {
             }
         } finally {
             if (!silent) setLoading(false);
+            setInitialLoadDone(true);
         }
     }, []);
 
@@ -142,11 +156,31 @@ const ServiceArea = () => {
             })
             .subscribe((status) => {
                 console.log('[ServiceArea] Broadcast channel status:', status);
-                setIsConnected(status === 'SUBSCRIBED');
+                // Don't set connection status based on channel - use fetch success instead
             });
 
         broadcastChannelRef.current = channel;
         return () => { supabase.removeChannel(channel); };
+    }, [debouncedFetch]);
+
+    // Monitor native online/offline status
+    useEffect(() => {
+        const handleOnline = () => {
+            console.log('[ServiceArea] Browser online');
+            debouncedFetch(true);
+        };
+        const handleOffline = () => {
+            console.log('[ServiceArea] Browser offline');
+            setIsConnected(false);
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
     }, [debouncedFetch]);
 
     // === LAYER 2: Local BroadcastChannel (Same browser, 0ms) ===
@@ -200,6 +234,7 @@ const ServiceArea = () => {
         return () => {
             clearInterval(pollInterval);
             if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
+            if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
         };
     }, [fetchBills]);
 
@@ -302,7 +337,8 @@ const ServiceArea = () => {
         return <Badge variant="secondary">PENDING</Badge>;
     };
 
-    if (loading && bills.length === 0) {
+    // Only show loading on initial load
+    if (loading && !initialLoadDone) {
         return (
             <div className="p-4 space-y-4">
                 <h1 className="text-2xl font-bold">Service Area</h1>

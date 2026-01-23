@@ -36,13 +36,15 @@ interface KitchenBill {
 const KitchenDisplay = () => {
     const [bills, setBills] = useState<KitchenBill[]>([]);
     const [loading, setLoading] = useState(true);
+    const [initialLoadDone, setInitialLoadDone] = useState(false);
     const [processingBillId, setProcessingBillId] = useState<string | null>(null);
     const [voiceEnabled, setVoiceEnabled] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [isOnline, setIsOnline] = useState(true); // Start optimistic
     const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
     const [syncing, setSyncing] = useState(false);
     const syncChannelRef = useRef<any>(null);
+    const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Update current time every minute
     useEffect(() => {
@@ -50,22 +52,29 @@ const KitchenDisplay = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Monitor online status and pending updates
+    // Monitor online status using native browser API (more reliable)
     useEffect(() => {
-        const unsubOnline = kitchenOfflineManager.onOnlineStatusChange((online) => {
-            setIsOnline(online);
-        });
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
 
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        // Also check with offline manager but don't block on it
         const checkPending = async () => {
-            const pending = await kitchenOfflineManager.getPendingUpdates();
-            setPendingUpdatesCount(pending.length);
+            try {
+                const pending = await kitchenOfflineManager.getPendingUpdates();
+                setPendingUpdatesCount(pending.length);
+            } catch (e) {
+                console.warn('[Kitchen] Offline manager error:', e);
+            }
         };
-
         checkPending();
-        const interval = setInterval(checkPending, 5000);
+        const interval = setInterval(checkPending, 10000); // Less frequent
 
         return () => {
-            unsubOnline();
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
             clearInterval(interval);
         };
     }, []);
@@ -81,68 +90,71 @@ const KitchenDisplay = () => {
         window.speechSynthesis.speak(utterance);
     }, [voiceEnabled]);
 
-    // Fetch kitchen orders (online or offline)
+    // Fetch kitchen orders - always try online first, with timeout
     const fetchBills = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
-        
+
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
         try {
-            if (isOnline) {
-                // Online: fetch from server
-                const now = new Date();
-                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            // Always try to fetch from server first with a timeout
+            const query = (supabase as any)
+                .from('bills')
+                .select(`
+                    id, bill_no, created_at, kitchen_status, service_status,
+                    bill_items (
+                        id, quantity, items (id, name, unit, base_value)
+                    )
+                `)
+                .eq('date', today)
+                .or('is_deleted.is.null,is_deleted.eq.false')
+                .in('kitchen_status', ['pending', 'preparing', 'ready'])
+                .neq('service_status', 'completed')
+                .neq('service_status', 'rejected')
+                .order('created_at', { ascending: true });
 
-                const query = (supabase as any)
-                    .from('bills')
-                    .select(`
-                        id, bill_no, created_at, kitchen_status, service_status,
-                        bill_items (
-                            id, quantity, items (id, name, unit, base_value)
-                        )
-                    `)
-                    .eq('date', today)
-                    .or('is_deleted.is.null,is_deleted.eq.false')
-                    .in('kitchen_status', ['pending', 'preparing', 'ready'])
-                    .neq('service_status', 'completed')
-                    .neq('service_status', 'rejected')
-                    .order('created_at', { ascending: true });
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                fetchTimeoutRef.current = setTimeout(() => reject(new Error('Timeout')), 8000);
+            });
 
-                const result = await query;
-                if (result.error) throw result.error;
-                
-                const serverBills = result.data || [];
-                setBills(serverBills);
-                
-                // Cache for offline use
-                await kitchenOfflineManager.cacheBills(serverBills);
-            } else {
-                // Offline: get from cache
+            const result = await Promise.race([query, timeoutPromise]) as any;
+            if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+
+            if (result.error) throw result.error;
+
+            const serverBills = result.data || [];
+            setBills(serverBills);
+            setIsOnline(true);
+
+            // Cache for offline use (non-blocking)
+            kitchenOfflineManager.cacheBills(serverBills).catch(console.warn);
+
+        } catch (error) {
+            console.warn('Error fetching kitchen bills:', error);
+            setIsOnline(false);
+
+            // Fallback to cache on error
+            try {
                 const cachedBills = await kitchenOfflineManager.getCachedBills();
                 setBills(cachedBills);
-                
-                if (!silent) {
+                if (!silent && cachedBills.length > 0) {
                     toast({
-                        title: '📴 Offline Mode',
+                        title: '📴 Using Cached Data',
                         description: `Showing ${cachedBills.length} cached orders`,
                     });
                 }
-            }
-        } catch (error) {
-            console.error('Error fetching kitchen bills:', error);
-            
-            // Fallback to cache on error
-            const cachedBills = await kitchenOfflineManager.getCachedBills();
-            setBills(cachedBills);
-            
-            if (!silent) {
-                toast({
-                    title: 'Using Cached Data',
-                    description: 'Connection slow, showing cached orders',
-                });
+            } catch (cacheError) {
+                console.warn('Cache error:', cacheError);
+                // Just show empty if cache also fails
+                setBills([]);
             }
         } finally {
             if (!silent) setLoading(false);
+            setInitialLoadDone(true);
         }
-    }, [isOnline]);
+    }, []);
 
     // Track known bill IDs to detect new orders
     const knownBillIds = useRef<Set<string>>(new Set());
@@ -171,11 +183,14 @@ const KitchenDisplay = () => {
         return () => { supabase.removeChannel(channel); };
     }, [fetchBills, voiceEnabled, announce, isOnline]);
 
-    // Initial fetch
+    // Initial fetch with cleanup
     useEffect(() => {
         fetchBills();
         const pollInterval = setInterval(() => fetchBills(true), 30000);
-        return () => clearInterval(pollInterval);
+        return () => {
+            clearInterval(pollInterval);
+            if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+        };
     }, [fetchBills]);
 
     // Realtime subscription (backup - slower but reliable)
@@ -272,7 +287,7 @@ const KitchenDisplay = () => {
             } else {
                 // 2b. Offline: Save to IndexedDB for later sync
                 await kitchenOfflineManager.saveOfflineUpdate(billId, status);
-                
+
                 toast({
                     title: '📴 Saved Offline',
                     description: `Will sync when online`,
@@ -302,7 +317,7 @@ const KitchenDisplay = () => {
     // Manual sync
     const handleManualSync = async () => {
         if (!isOnline || syncing) return;
-        
+
         setSyncing(true);
         try {
             const result = await kitchenOfflineManager.syncPendingUpdates();
@@ -329,11 +344,13 @@ const KitchenDisplay = () => {
         fetchBills();
     };
 
-    if (loading) {
+    // Only show loading on initial load, not on refreshes
+    if (loading && !initialLoadDone) {
         return (
             <div className="min-h-screen bg-background p-4">
-                <div className="flex items-center justify-center h-64">
+                <div className="flex flex-col items-center justify-center h-64 gap-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+                    <p className="text-sm text-muted-foreground">Loading kitchen orders...</p>
                 </div>
             </div>
         );
@@ -358,8 +375,8 @@ const KitchenDisplay = () => {
                         {/* Online/Offline Status */}
                         <div className={cn(
                             "flex items-center gap-1.5 px-2 py-1 rounded-full border",
-                            isOnline 
-                                ? "bg-green-500/10 border-green-500/20" 
+                            isOnline
+                                ? "bg-green-500/10 border-green-500/20"
                                 : "bg-orange-500/10 border-orange-500/20"
                         )}>
                             {isOnline ? (
