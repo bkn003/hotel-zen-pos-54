@@ -37,23 +37,35 @@ const Users: React.FC = () => {
     if (!searchTerm.trim()) {
       setFilteredUsers(users);
     } else {
-      const filtered = users.filter(user => {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesUser = (
+      const searchLower = searchTerm.toLowerCase();
+
+      const filtered = users.map(user => {
+        // Check if Admin matches
+        const adminMatches = (
           user.name.toLowerCase().includes(searchLower) ||
           user.role.toLowerCase().includes(searchLower) ||
           user.hotel_name?.toLowerCase().includes(searchLower) ||
           user.status.toLowerCase().includes(searchLower)
         );
-        
-        // Also search in sub-users
-        const matchesSubUser = user.subUsers?.some(sub => 
+
+        // Check sub-users matches
+        const matchingSubUsers = (user.subUsers || []).filter(sub =>
           sub.name.toLowerCase().includes(searchLower) ||
           sub.role.toLowerCase().includes(searchLower)
         );
-        
-        return matchesUser || matchesSubUser;
-      });
+        const hasMatchingSubUsers = matchingSubUsers.length > 0;
+
+        if (adminMatches || hasMatchingSubUsers) {
+          // If Admin matches, show Admin and ALL sub-users (context is important)
+          // If Admin doesn't match but has matching sub-users, show Admin and ONLY matching sub-users
+          if (adminMatches) {
+            return user;
+          }
+          return { ...user, subUsers: matchingSubUsers };
+        }
+        return null;
+      }).filter((u): u is ExtendedUserProfile => u !== null);
+
       setFilteredUsers(filtered);
     }
   }, [searchTerm, users]);
@@ -66,7 +78,7 @@ const Users: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       const allUsers = (data || []).map(user => ({
         id: user.id,
         user_id: user.user_id,
@@ -78,23 +90,23 @@ const Users: React.FC = () => {
         updated_at: user.updated_at,
         admin_id: user.admin_id
       })) as ExtendedUserProfile[];
-      
+
       if (isSuperAdmin) {
         // Super Admin: Show only admins with their sub-users nested
         const admins = allUsers.filter(u => u.role === 'admin');
         const subUsers = allUsers.filter(u => u.role === 'user' && u.admin_id);
-        
+
         // Attach sub-users to their admins
         admins.forEach(admin => {
           admin.subUsers = subUsers.filter(sub => sub.admin_id === admin.id);
         });
-        
+
         setUsers(admins);
         setFilteredUsers(admins);
       } else if (isAdmin) {
         // Admin: Show only their sub-users (and themselves)
-        const relevantUsers = allUsers.filter(u => 
-          u.role !== 'super_admin' && 
+        const relevantUsers = allUsers.filter(u =>
+          u.role !== 'super_admin' &&
           (u.user_id === profile?.user_id || u.admin_id === profile?.id)
         );
         setUsers(relevantUsers);
@@ -127,8 +139,8 @@ const Users: React.FC = () => {
 
       toast({
         title: "Success",
-        description: isAdminPause && newStatus === 'paused' 
-          ? "Admin and all sub-users have been paused" 
+        description: isAdminPause && newStatus === 'paused'
+          ? "Admin and all sub-users have been paused"
           : "User status updated successfully",
       });
 
@@ -188,10 +200,10 @@ const Users: React.FC = () => {
     );
   }
 
-  // Get flat list of all users for permissions (excluding super_admin for regular admin view)
-  const usersForPermissions = isSuperAdmin 
-    ? users.flatMap(admin => [admin, ...(admin.subUsers || [])])
-    : users.filter(u => u.user_id !== profile?.user_id);
+  // Get filtered users for permissions view to sync with search
+  const usersForPermissions = isSuperAdmin
+    ? filteredUsers.flatMap(admin => [admin, ...(admin.subUsers || [])])
+    : filteredUsers.filter(u => u.user_id !== profile?.user_id);
 
   return (
     <div className="container mx-auto py-4 px-4 max-w-full">
@@ -211,19 +223,7 @@ const Users: React.FC = () => {
         )}
       </div>
 
-      {/* Payment Types Management - Only for Admin */}
-      {isAdmin && (
-        <PaymentTypesManagement />
-      )}
-
-      {/* User Permissions - For both Super Admin and Admin */}
-      {(isAdmin || isSuperAdmin) && usersForPermissions.length > 0 && (
-        <div className="mb-6">
-          <UserPermissions users={usersForPermissions} />
-        </div>
-      )}
-
-      {/* Search Bar */}
+      {/* Search Bar - Moved to Top */}
       <Card className="mb-6">
         <CardHeader className="py-3">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -240,6 +240,18 @@ const Users: React.FC = () => {
           />
         </CardContent>
       </Card>
+
+      {/* Payment Types Management - Only for Admin */}
+      {isAdmin && (
+        <PaymentTypesManagement />
+      )}
+
+      {/* User Permissions - For both Super Admin and Admin */}
+      {(isAdmin || isSuperAdmin) && usersForPermissions.length > 0 && (
+        <div className="mb-6">
+          <UserPermissions users={usersForPermissions} />
+        </div>
+      )}
 
       {/* Users List */}
       <Card>
@@ -261,8 +273,8 @@ const Users: React.FC = () => {
             // Super Admin View - Hierarchical with collapsible admin sections
             <div className="space-y-4">
               {filteredUsers.map((admin) => (
-                <Collapsible 
-                  key={admin.id} 
+                <Collapsible
+                  key={admin.id}
                   open={expandedAdmins.has(admin.id)}
                   onOpenChange={() => toggleAdminExpand(admin.id)}
                 >
@@ -294,7 +306,7 @@ const Users: React.FC = () => {
                                 {admin.subUsers.length} sub-user{admin.subUsers.length !== 1 ? 's' : ''}
                               </Badge>
                             )}
-                            <Badge 
+                            <Badge
                               variant={admin.status === 'active' ? 'default' : admin.status === 'paused' ? 'secondary' : 'destructive'}
                               className="text-xs"
                             >
@@ -306,7 +318,7 @@ const Users: React.FC = () => {
                             </Badge>
                           </div>
                         </div>
-                        
+
                         {/* Admin Actions */}
                         <div className="flex flex-wrap gap-2 mt-3 ml-8">
                           <Button
@@ -348,7 +360,7 @@ const Users: React.FC = () => {
                                 <div className="flex items-start justify-between">
                                   <div>
                                     <h6 className="font-medium">{subUser.name}</h6>
-                                    <Badge 
+                                    <Badge
                                       variant={subUser.status === 'active' ? 'outline' : subUser.status === 'paused' ? 'secondary' : 'destructive'}
                                       className="text-xs mt-1"
                                     >
@@ -385,7 +397,7 @@ const Users: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1">
                         {getRoleIcon(user.role)}
-                        <Badge 
+                        <Badge
                           variant={getRoleBadgeVariant(user.role)}
                           className="text-xs"
                         >
@@ -393,19 +405,19 @@ const Users: React.FC = () => {
                         </Badge>
                       </div>
                     </div>
-                    
-                    <Badge 
+
+                    <Badge
                       variant={user.status === 'active' ? 'default' : user.status === 'paused' ? 'secondary' : 'destructive'}
                       className="text-xs"
                     >
                       {user.status}
                     </Badge>
-                    
+
                     <div className="text-xs text-muted-foreground">
                       <div>Created: {new Date(user.created_at).toLocaleDateString()}</div>
                       <div>Updated: {new Date(user.updated_at).toLocaleDateString()}</div>
                     </div>
-                    
+
                     {isAdmin && user.user_id !== profile?.user_id && (
                       <div className="flex flex-wrap gap-1 pt-2">
                         <Button
