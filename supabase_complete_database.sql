@@ -646,13 +646,98 @@ INSERT INTO public.item_categories (name) VALUES
 ('Desserts');
 
 -- ============================================================
--- STEP 9: ENABLE REALTIME
+-- STEP 10: SUPER ADMIN FUNCTIONS
 -- ============================================================
--- Run this in Supabase Dashboard > Database > Replication
--- Or via SQL:
 
--- Enable realtime for bills table (for KDS/Service Area sync)
-ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
+-- Function: Check if user is allowed to login (considering pause cascade)
+CREATE OR REPLACE FUNCTION public.is_user_allowed_to_login(p_user_id uuid)
+RETURNS TABLE(allowed boolean, reason text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_status text;
+  v_user_role text;
+  v_admin_id uuid;
+  v_admin_status text;
+BEGIN
+  SELECT status, role, admin_id INTO v_user_status, v_user_role, v_admin_id
+  FROM public.profiles WHERE user_id = p_user_id;
+
+  IF v_user_status IS NULL THEN
+    RETURN QUERY SELECT true, 'new_user'::text;
+    RETURN;
+  END IF;
+
+  IF v_user_status = 'paused' THEN
+    RETURN QUERY SELECT false, 'Account paused'::text;
+    RETURN;
+  END IF;
+
+  IF v_user_status = 'deleted' THEN
+    RETURN QUERY SELECT false, 'Account deleted'::text;
+    RETURN;
+  END IF;
+
+  IF v_user_role = 'user' AND v_admin_id IS NOT NULL THEN
+    SELECT status INTO v_admin_status FROM public.profiles WHERE id = v_admin_id;
+    IF v_admin_status = 'paused' THEN
+      RETURN QUERY SELECT false, 'Account paused by Super Admin'::text;
+      RETURN;
+    END IF;
+    IF v_admin_status = 'deleted' THEN
+      RETURN QUERY SELECT false, 'Parent admin account deleted'::text;
+      RETURN;
+    END IF;
+  END IF;
+
+  RETURN QUERY SELECT true, 'active'::text;
+END;
+$$;
+
+-- Function: Check if current user is super admin
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'super_admin');
+$$;
+
+-- Function: Get current user's role
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text
+LANGUAGE sql
+STABLE  
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role::text FROM public.profiles WHERE user_id = auth.uid()
+$$;
+
+-- Function: Get current user's profile ID
+CREATE OR REPLACE FUNCTION public.get_my_profile_id()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id FROM public.profiles WHERE user_id = auth.uid()
+$$;
+
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION public.is_user_allowed_to_login(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_user_allowed_to_login(uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_profile_id() TO authenticated;
+
+-- Enable realtime for profiles (for force logout on pause)
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
 
 -- ============================================================
 -- SETUP COMPLETE!
@@ -663,6 +748,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
 -- 2. (Optional) Create a Storage bucket called 'images' for item photos
 -- 3. Update your .env file with the new Supabase URL and anon key
 -- 4. The first user to sign up becomes the admin automatically
+-- 5. Promote an admin to 'super_admin' role manually for admin management
 --
 -- ============================================================
 -- SUMMARY OF WHAT'S INCLUDED:
@@ -676,9 +762,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
 --   - user_status (active, paused, deleted)
 --
 -- TABLES (14):
---   - profiles
+--   - profiles (with admin_id for sub-user linking)
 --   - user_permissions
---   - user_preferences
+--   - user_preferences  
 --   - item_categories
 --   - items
 --   - bills
@@ -691,9 +777,13 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
 --   - bluetooth_settings
 --   - display_settings
 --
--- FUNCTIONS (2):
+-- FUNCTIONS (6):
 --   - update_updated_at_column()
 --   - has_page_permission()
+--   - is_user_allowed_to_login() - Pause cascade logic
+--   - is_super_admin() - Check if current user is super admin
+--   - get_my_role() - Get current user's role  
+--   - get_my_profile_id() - Get current user's profile ID
 --
 -- TRIGGERS (4):
 --   - update_additional_charges_updated_at
@@ -704,12 +794,21 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
 -- RLS POLICIES (36+):
 --   - Full row-level security for all tables
 --   - Admin/user role separation
+--   - Super Admin support for admin management
 --   - Page-level permission support
 --
--- INDEXES (3):
+-- INDEXES (4):
 --   - idx_bills_kitchen_status
 --   - idx_bills_service_status
 --   - idx_bills_status_updated_at
 --   - idx_items_display_order
+--
+-- SUPER ADMIN FEATURES:
+--   - Super Admin can only access Users page
+--   - Super Admin can view/pause/activate all admins
+--   - When admin is paused, all sub-users are blocked
+--   - Real-time force logout when paused  
+--   - New admin signups start as 'paused' pending approval
+--   - Sub-users can only be created from inside the app
 --
 -- ============================================================

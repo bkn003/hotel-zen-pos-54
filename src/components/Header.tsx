@@ -40,61 +40,66 @@ export const Header: React.FC = () => {
     await signOut();
   };
 
-  // Filter nav items based on permissions
-  const navItems = permLoading ? [] : allNavItems.filter(item => hasAccess(item.page));
+  // Super Admin doesn't need navigation - they only see Users page
+  const isSuperAdmin = profile.role === 'super_admin';
+
+  // Filter nav items based on permissions (empty for super_admin)
+  const navItems = isSuperAdmin ? [] : (permLoading ? [] : allNavItems.filter(item => hasAccess(item.page)));
 
   return (
     <>
       <header className="bg-card/80 backdrop-blur-lg border-b border-border/50 px-3 sm:px-6 py-2 sticky top-0 z-40">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            {/* Mobile Menu Button */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden h-9 w-9">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0">
-                <SheetHeader className="p-4 border-b bg-gradient-to-br from-primary/10 to-primary/5">
-                  <SheetTitle className="flex items-center gap-2">
-                    <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center">
-                      <Hotel className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-base">{profile.hotel_name || 'ZEN POS'}</div>
-                      <div className="text-[10px] text-muted-foreground font-medium">Navigation Menu</div>
-                    </div>
-                  </SheetTitle>
-                </SheetHeader>
-                <nav className="flex-1 p-3">
-                  <ul className="space-y-1">
-                    {navItems.map(({ to, icon: Icon, label }) => {
-                      const isActive = location.pathname === to ||
-                        (to === '/billing' && location.pathname === '/');
+            {/* Mobile Menu Button - Hidden for Super Admin */}
+            {!isSuperAdmin && (
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden h-9 w-9">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 p-0">
+                  <SheetHeader className="p-4 border-b bg-gradient-to-br from-primary/10 to-primary/5">
+                    <SheetTitle className="flex items-center gap-2">
+                      <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center">
+                        <Hotel className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-base">{profile.hotel_name || 'ZEN POS'}</div>
+                        <div className="text-[10px] text-muted-foreground font-medium">Navigation Menu</div>
+                      </div>
+                    </SheetTitle>
+                  </SheetHeader>
+                  <nav className="flex-1 p-3">
+                    <ul className="space-y-1">
+                      {navItems.map(({ to, icon: Icon, label }) => {
+                        const isActive = location.pathname === to ||
+                          (to === '/billing' && location.pathname === '/');
 
-                      return (
-                        <li key={to}>
-                          <NavLink
-                            to={to}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={cn(
-                              "flex items-center px-4 py-3 rounded-lg transition-all duration-200",
-                              isActive
-                                ? "bg-primary text-primary-foreground shadow-md"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                            )}
-                          >
-                            <Icon className="w-5 h-5 mr-3" />
-                            <span className="font-medium">{label}</span>
-                          </NavLink>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </nav>
-              </SheetContent>
-            </Sheet>
+                        return (
+                          <li key={to}>
+                            <NavLink
+                              to={to}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={cn(
+                                "flex items-center px-4 py-3 rounded-lg transition-all duration-200",
+                                isActive
+                                  ? "bg-primary text-primary-foreground shadow-md"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                              )}
+                            >
+                              <Icon className="w-5 h-5 mr-3" />
+                              <span className="font-medium">{label}</span>
+                            </NavLink>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </nav>
+                </SheetContent>
+              </Sheet>
+            )}
 
             <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <Hotel className="h-5 w-5 text-primary-foreground" />
@@ -110,8 +115,8 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-2">
             <LanguageSwitcher />
 
-            <Badge variant={profile.role === 'admin' ? 'default' : 'outline'} className="hidden md:flex text-xs">
-              {profile.role === 'admin' ? t('users.admin') : t('users.user')}
+            <Badge variant={profile.role === 'admin' || profile.role === 'super_admin' ? 'default' : 'outline'} className="hidden md:flex text-xs">
+              {profile.role === 'super_admin' ? 'Super Admin' : profile.role === 'admin' ? t('users.admin') : t('users.user')}
             </Badge>
 
             <DropdownMenu>
@@ -130,7 +135,7 @@ export const Header: React.FC = () => {
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold">{profile.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {profile.role === 'admin' ? t('users.admin') : t('users.user')}
+                    {profile.role === 'super_admin' ? 'Super Admin' : profile.role === 'admin' ? t('users.admin') : t('users.user')}
                   </p>
                 </div>
 

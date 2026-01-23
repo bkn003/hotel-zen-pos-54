@@ -36,6 +36,9 @@ export const Sidebar: React.FC = () => {
 
   if (!profile || loading) return null;
 
+  // Super Admin doesn't need sidebar navigation - they only see Users page
+  if (profile.role === 'super_admin') return null;
+
   // Filter nav items based on permissions
   const navItems = allNavItems.filter(item => hasAccess(item.page));
 

@@ -19,7 +19,7 @@ const Auth = () => {
     email: '',
     password: '',
     name: '',
-    role: 'user',
+    role: 'admin', // Only admins can signup from login page
     hotelName: ''
   });
 
@@ -260,7 +260,7 @@ const Auth = () => {
               ? 'Enter your email to receive a reset link'
               : (isLogin
                 ? 'Sign in to access your POS system'
-                : 'Register for Hotel ZEN POS Management'
+                : 'Register your hotel for ZEN POS'
               )
             }
           </p>
@@ -284,38 +284,27 @@ const Auth = () => {
                   />
                 </div>
 
-                {/* Account Type */}
+                {/* Hotel Name - Required for admin signup */}
                 <div className="space-y-2">
-                  <Label htmlFor="role" className="text-sm font-medium text-gray-700">Account Type</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
-                  >
-                    <SelectTrigger className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20">
-                      <SelectValue placeholder="Select account type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Staff Member</SelectItem>
-                      <SelectItem value="admin">Hotel Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="hotelName" className="text-sm font-medium text-gray-700">Hotel Name</Label>
+                  <Input
+                    id="hotelName"
+                    type="text"
+                    value={formData.hotelName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, hotelName: e.target.value }))}
+                    required
+                    placeholder="Enter your hotel name"
+                    className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all"
+                  />
                 </div>
 
-                {/* Hotel Name - Only for Admin */}
-                {formData.role === 'admin' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="hotelName" className="text-sm font-medium text-gray-700">Hotel Name</Label>
-                    <Input
-                      id="hotelName"
-                      type="text"
-                      value={formData.hotelName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, hotelName: e.target.value }))}
-                      required
-                      placeholder="Enter your hotel name"
-                      className="h-12 rounded-xl border-gray-200 focus:border-pink-500 focus:ring-pink-500/20 transition-all"
-                    />
-                  </div>
-                )}
+                {/* Info message */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  <p className="text-xs text-blue-700">
+                    <strong>Note:</strong> Your account will be reviewed by our team.
+                    Staff members can be added after your account is activated.
+                  </p>
+                </div>
               </>
             )}
 
@@ -409,9 +398,9 @@ const Auth = () => {
               }
             </button>
           </div>
-        </div>
-      </div>
-    </div>
+        </div >
+      </div >
+    </div >
   );
 };
 

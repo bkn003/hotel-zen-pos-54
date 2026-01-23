@@ -95,12 +95,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!fetchError && existingProfile) {
         console.log('Found existing profile:', existingProfile);
+
+        // For sub-users, fetch parent admin's hotel name if not set
+        let hotelName = existingProfile.hotel_name;
+        if (!hotelName && existingProfile.admin_id && existingProfile.role === 'user') {
+          try {
+            const { data: adminData } = await supabase
+              .from('profiles')
+              .select('hotel_name')
+              .eq('id', existingProfile.admin_id)
+              .single();
+            if (adminData?.hotel_name) {
+              hotelName = adminData.hotel_name;
+              console.log('Inherited hotel name from admin:', hotelName);
+            }
+          } catch (e) {
+            console.warn('Could not fetch admin hotel name:', e);
+          }
+        }
+
         const profile: Profile = {
           id: existingProfile.id,
           user_id: existingProfile.user_id,
           name: existingProfile.name || 'User',
           role: existingProfile.role as UserRole,
-          hotel_name: existingProfile.hotel_name || undefined,
+          hotel_name: hotelName || undefined,
           status: existingProfile.status as UserStatus,
           admin_id: existingProfile.admin_id || undefined
         };
@@ -288,6 +307,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Real-time subscription to detect pause and force logout
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    console.log('Setting up realtime subscription for force logout...');
+
+    // Subscribe to ALL profile changes (we need to check admin_id changes too)
+    const channel = supabase
+      .channel('force-logout-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles'
+        },
+        async (payload) => {
+          const updatedProfile = payload.new as any;
+
+          // Check if this update affects the current user
+          const isCurrentUser = updatedProfile.user_id === user.id;
+          const isCurrentUserAdmin = profile.admin_id && updatedProfile.id === profile.admin_id;
+
+          if (isCurrentUser || isCurrentUserAdmin) {
+            console.log('Profile update detected:', updatedProfile.status, 'isMe:', isCurrentUser, 'isMyAdmin:', isCurrentUserAdmin);
+
+            // If current user was paused/deleted, force logout
+            if (isCurrentUser && (updatedProfile.status === 'paused' || updatedProfile.status === 'deleted')) {
+              console.log('Current user paused/deleted - forcing logout');
+
+              // Clear cached profile
+              localStorage.removeItem(`profile_${user.id}`);
+
+              // Show toast notification
+              const { toast } = await import('@/hooks/use-toast');
+              toast({
+                title: "Account Paused",
+                description: "Your account has been paused by an administrator.",
+                variant: "destructive"
+              });
+
+              // Force sign out
+              await supabase.auth.signOut();
+              setUser(null);
+              setSession(null);
+              setProfile(null);
+              return;
+            }
+
+            // If parent admin was paused/deleted, force logout sub-user
+            if (isCurrentUserAdmin && (updatedProfile.status === 'paused' || updatedProfile.status === 'deleted')) {
+              console.log('Parent admin paused/deleted - forcing sub-user logout');
+
+              // Clear cached profile
+              localStorage.removeItem(`profile_${user.id}`);
+
+              // Show toast notification
+              const { toast } = await import('@/hooks/use-toast');
+              toast({
+                title: "Account Paused",
+                description: "Account paused by Super Admin",
+                variant: "destructive"
+              });
+
+              // Force sign out
+              await supabase.auth.signOut();
+              setUser(null);
+              setSession(null);
+              setProfile(null);
+              return;
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up force-logout realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user, profile]);
+
   const signUp = async (email: string, password: string, name: string, role: string = 'user', hotelName?: string, adminId?: string) => {
     console.log('Sign up attempt for:', email, 'with role:', role);
 
@@ -314,7 +415,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: name,
           role: role as UserRole,
           hotel_name: role === 'admin' ? hotelName : null,
-          status: 'active' as UserStatus,
+          // New admins start as 'paused' - need Super Admin approval
+          // Sub-users created by admins start as 'active'
+          status: (role === 'admin' && !adminId ? 'paused' : 'active') as UserStatus,
           admin_id: adminId || null
         };
 
