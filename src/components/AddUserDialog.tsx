@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -16,15 +15,21 @@ interface AddUserDialogProps {
 }
 
 export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded, adminId }) => {
-  const { signUp } = useAuth();
+  const { signUp, profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const isSuperAdmin = profile?.role === 'super_admin';
+
+  // Super Admin can only add admin users, regular Admin can only add staff (user)
+  const defaultRole = isSuperAdmin ? 'admin' : 'user';
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
-    role: 'user',
+    role: defaultRole,
     hotelName: ''
   });
 
@@ -77,14 +82,16 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded, admin
 
       toast({
         title: "Success!",
-        description: "User account created successfully.",
+        description: isSuperAdmin
+          ? "Admin account created successfully. They can now login."
+          : "User account created successfully.",
       });
 
       setFormData({
         email: '',
         password: '',
         name: '',
-        role: 'user',
+        role: defaultRole,
         hotelName: ''
       });
       setOpen(false);
@@ -106,14 +113,16 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded, admin
       <DialogTrigger asChild>
         <Button>
           <Plus className="w-4 h-4 mr-2" />
-          Add User
+          {isSuperAdmin ? 'Add Admin' : 'Add User'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle>{isSuperAdmin ? 'Add New Admin' : 'Add New User'}</DialogTitle>
           <DialogDescription>
-            Create a new user account for your team member.
+            {isSuperAdmin
+              ? 'Create a new hotel admin account. They will manage their own users.'
+              : 'Create a new user account for your team member.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -165,21 +174,24 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({ onUserAdded, admin
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select 
-              value={formData.role} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Staff Member</SelectItem>
-                <SelectItem value="admin">Hotel Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Role selection - Only show for Super Admin, and only show Admin option */}
+          {isSuperAdmin ? (
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <span className="text-sm font-medium text-primary">Hotel Admin</span>
+                <span className="text-xs text-muted-foreground">(will manage their own hotel and users)</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <div className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg border">
+                <span className="text-sm font-medium">Staff Member</span>
+                <span className="text-xs text-muted-foreground">(limited access based on permissions)</span>
+              </div>
+            </div>
+          )}
 
           {formData.role === 'admin' && (
             <div className="space-y-2">

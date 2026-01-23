@@ -77,6 +77,10 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
   };
 
   const togglePermission = async (userId: string, pageName: string, currentValue: boolean) => {
+    // Find the user we're updating to determine their role
+    const targetUser = users.find(u => u.user_id === userId);
+    const isTargetAdmin = targetUser?.role === 'admin';
+
     try {
       // Update local state immediately for better UX
       setPermissions(prev => ({
@@ -99,18 +103,76 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
         })
         .select();
 
-
-
       if (error) {
         console.error('[Admin Permissions] Upsert failed:', error.message, error.code);
         throw error;
       }
 
+      // === BROADCAST PERMISSION CHANGE FOR INSTANT SYNC ===
+      const channel = supabase.channel('permissions-broadcast');
+      await channel.subscribe();
 
+      // Send the main permission change event
+      channel.send({
+        type: 'broadcast',
+        event: 'permission-changed',
+        payload: {
+          user_id: userId,
+          page_name: pageName,
+          has_access: !currentValue,
+          is_admin: isTargetAdmin,
+          timestamp: Date.now()
+        }
+      });
+
+      // If this is an ADMIN's permission being changed (by Super Admin),
+      // also broadcast to all their child users so they can refetch
+      if (isTargetAdmin && targetUser?.id) {
+        console.log('[UserPermissions] Admin permission changed, notifying child users');
+
+        // Get all child users of this admin
+        const { data: childUsers } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('admin_id', targetUser.id)
+          .eq('role', 'user');
+
+        if (childUsers && childUsers.length > 0) {
+          // Send notification to each child user
+          for (const child of childUsers) {
+            channel.send({
+              type: 'broadcast',
+              event: 'admin-permission-changed',
+              payload: {
+                admin_user_id: userId,
+                child_user_id: child.user_id,
+                page_name: pageName,
+                admin_has_access: !currentValue,
+                timestamp: Date.now()
+              }
+            });
+          }
+          console.log(`[UserPermissions] Notified ${childUsers.length} child users of admin permission change`);
+        }
+      }
+
+      // Clean up channel after sending
+      setTimeout(() => {
+        supabase.removeChannel(channel);
+      }, 1000);
+
+      console.log('[UserPermissions] Broadcasted permission change:', {
+        user_id: userId,
+        page_name: pageName,
+        has_access: !currentValue,
+        is_admin: isTargetAdmin
+      });
 
       toast({
         title: "Permission Updated",
-        description: `${pageName} access ${!currentValue ? 'granted' : 'revoked'}. User should refresh or re-login to apply changes.`,
+        description: isTargetAdmin
+          ? `${pageName} access ${!currentValue ? 'granted' : 'revoked'} for admin and their users.`
+          : `${pageName} access ${!currentValue ? 'granted' : 'revoked'}.`,
       });
     } catch (error) {
       console.error('Error updating permission:', error);
