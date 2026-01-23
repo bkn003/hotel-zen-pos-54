@@ -311,11 +311,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!user || !profile) return;
 
-    console.log('Setting up realtime subscription for force logout...');
+    console.log('[AuthContext] Setting up realtime subscription for force logout...', {
+      userId: user.id,
+      profileId: profile.id,
+      adminId: profile.admin_id
+    });
 
-    // Subscribe to ALL profile changes (we need to check admin_id changes too)
+    // Subscribe to profile changes with a unique channel name
     const channel = supabase
-      .channel('force-logout-channel')
+      .channel(`force-logout-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -325,17 +329,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         async (payload) => {
           const updatedProfile = payload.new as any;
+          const oldProfile = payload.old as any;
+
+          console.log('[AuthContext] Profile update received:', {
+            id: updatedProfile.id,
+            user_id: updatedProfile.user_id,
+            newStatus: updatedProfile.status,
+            oldStatus: oldProfile?.status
+          });
 
           // Check if this update affects the current user
           const isCurrentUser = updatedProfile.user_id === user.id;
           const isCurrentUserAdmin = profile.admin_id && updatedProfile.id === profile.admin_id;
 
           if (isCurrentUser || isCurrentUserAdmin) {
-            console.log('Profile update detected:', updatedProfile.status, 'isMe:', isCurrentUser, 'isMyAdmin:', isCurrentUserAdmin);
+            console.log('[AuthContext] Relevant update detected:', {
+              isCurrentUser,
+              isCurrentUserAdmin,
+              newStatus: updatedProfile.status
+            });
 
             // If current user was paused/deleted, force logout
             if (isCurrentUser && (updatedProfile.status === 'paused' || updatedProfile.status === 'deleted')) {
-              console.log('Current user paused/deleted - forcing logout');
+              console.log('[AuthContext] Current user paused/deleted - forcing logout');
 
               // Clear cached profile
               localStorage.removeItem(`profile_${user.id}`);
@@ -358,7 +374,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // If parent admin was paused/deleted, force logout sub-user
             if (isCurrentUserAdmin && (updatedProfile.status === 'paused' || updatedProfile.status === 'deleted')) {
-              console.log('Parent admin paused/deleted - forcing sub-user logout');
+              console.log('[AuthContext] Parent admin paused/deleted - forcing sub-user logout');
 
               // Clear cached profile
               localStorage.removeItem(`profile_${user.id}`);
@@ -378,16 +394,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setProfile(null);
               return;
             }
+
+            // If user status changed to active (e.g., re-activated), update profile
+            if (isCurrentUser && updatedProfile.status !== profile.status) {
+              console.log('[AuthContext] User status changed, updating local profile');
+              setProfile(prev => prev ? { ...prev, status: updatedProfile.status as UserStatus } : null);
+            }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[AuthContext] Force logout subscription status:', status);
+      });
 
     return () => {
-      console.log('Cleaning up force-logout realtime subscription');
+      console.log('[AuthContext] Cleaning up force-logout realtime subscription');
       supabase.removeChannel(channel);
     };
-  }, [user, profile]);
+  }, [user?.id, profile?.id, profile?.admin_id, profile?.status]);
 
   const signUp = async (email: string, password: string, name: string, role: string = 'user', hotelName?: string, adminId?: string) => {
     console.log('Sign up attempt for:', email, 'with role:', role);

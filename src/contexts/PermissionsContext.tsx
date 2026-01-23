@@ -142,6 +142,99 @@ export const PermissionsProvider: React.FC<{ children: ReactNode }> = ({ childre
         }
     }, [profile?.user_id]);
 
+    // === REALTIME SUBSCRIPTION FOR INSTANT PERMISSION UPDATES ===
+    useEffect(() => {
+        if (!profile?.user_id || profile.role === 'admin' || profile.role === 'super_admin') {
+            return;
+        }
+
+        console.log('[Permissions] Setting up realtime subscription for user:', profile.user_id);
+
+        const channel = supabase
+            .channel(`permissions-${profile.user_id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*', // Listen to INSERT, UPDATE, DELETE
+                    schema: 'public',
+                    table: 'user_permissions',
+                    filter: `user_id=eq.${profile.user_id}`
+                },
+                (payload) => {
+                    console.log('[Permissions] Realtime update received:', payload);
+
+                    const { eventType, new: newRow, old: oldRow } = payload;
+
+                    if (eventType === 'UPDATE' || eventType === 'INSERT') {
+                        const row = newRow as any;
+                        if (row.page_name) {
+                            setPermissions(prev => {
+                                const updated = { ...prev };
+                                if (row.page_name in updated) {
+                                    console.log(`[Permissions] Page ${row.page_name} access changed to:`, row.has_access);
+                                    (updated as any)[row.page_name] = row.has_access === true;
+
+                                    // If access was revoked, check if user is on that page and redirect
+                                    if (row.has_access === false) {
+                                        const pageToRoute: Record<string, string> = {
+                                            dashboard: '/dashboard',
+                                            billing: '/billing',
+                                            items: '/items',
+                                            expenses: '/expenses',
+                                            reports: '/reports',
+                                            analytics: '/analytics',
+                                            settings: '/settings',
+                                            users: '/users',
+                                            serviceArea: '/service-area',
+                                            kitchen: '/kitchen',
+                                            customerDisplay: '/customer-display'
+                                        };
+
+                                        const currentPath = window.location.pathname;
+                                        const blockedPath = pageToRoute[row.page_name];
+
+                                        if (blockedPath && currentPath === blockedPath) {
+                                            console.log('[Permissions] User on blocked page, redirecting...');
+                                            // Find first allowed page to redirect to
+                                            const firstAllowedPage = Object.entries(updated).find(([_, allowed]) => allowed);
+                                            if (firstAllowedPage) {
+                                                const redirectPath = pageToRoute[firstAllowedPage[0]] || '/';
+                                                window.location.href = redirectPath;
+                                            } else {
+                                                // No pages allowed, redirect to auth
+                                                window.location.href = '/auth';
+                                            }
+                                        }
+                                    }
+                                }
+                                return updated;
+                            });
+                        }
+                    } else if (eventType === 'DELETE') {
+                        const row = oldRow as any;
+                        if (row.page_name) {
+                            console.log(`[Permissions] Page ${row.page_name} permission deleted`);
+                            setPermissions(prev => {
+                                const updated = { ...prev };
+                                if (row.page_name in updated) {
+                                    (updated as any)[row.page_name] = false;
+                                }
+                                return updated;
+                            });
+                        }
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log('[Permissions] Subscription status:', status);
+            });
+
+        return () => {
+            console.log('[Permissions] Cleaning up realtime subscription');
+            supabase.removeChannel(channel);
+        };
+    }, [profile?.user_id, profile?.role]);
+
     const hasAccess = useCallback((page: keyof UserPermissions): boolean => {
         if (profile?.role === 'admin' || profile?.role === 'super_admin') {
             return true;
