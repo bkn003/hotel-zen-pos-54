@@ -935,16 +935,7 @@ const Reports: React.FC = () => {
     return acc;
   }, {} as Record<string, number>);
 
-  if (profile?.role !== 'admin') {
-    return (
-      <div className="p-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
-        </div>
-      </div>
-    );
-  }
+  // Permission check is now handled by ProtectedRoute, so we don't need a redundant check here
 
   return (
     <div className="p-3 sm:p-4 space-y-4 max-w-full overflow-x-hidden">

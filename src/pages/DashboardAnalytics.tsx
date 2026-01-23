@@ -409,7 +409,7 @@ const DashboardAnalytics = () => {
       </div>
     );
   };
-  if (profile?.role !== 'admin') return <Navigate to="/billing" replace />;
+  // Permission check is now handled by ProtectedRoute
   if (loading && !compData) return <div className="p-12 text-center">Loading Analytics...</div>;
 
   return (

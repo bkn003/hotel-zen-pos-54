@@ -105,9 +105,7 @@ const Dashboard = () => {
     }).format(amount);
   };
 
-  if (profile?.role !== 'admin') {
-    return <Navigate to="/billing" replace />;
-  }
+  // Permission check is now handled by ProtectedRoute
 
   if (loading) {
     return (

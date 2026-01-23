@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { Layout } from "@/components/Layout";
 import { useWakeLock } from "@/hooks/useWakeLock";
 
@@ -216,22 +217,24 @@ const App = () => {
           <PendingBillsQueue />
           <BrowserRouter>
             <AuthProvider>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<Layout><ProtectedRoute requiredPermission="billing"><Billing /></ProtectedRoute></Layout>} />
-                <Route path="/dashboard" element={<Layout><ProtectedRoute requiredPermission="dashboard"><Dashboard /></ProtectedRoute></Layout>} />
-                <Route path="/analytics" element={<Layout><ProtectedRoute requiredPermission="analytics"><DashboardAnalytics /></ProtectedRoute></Layout>} />
-                <Route path="/billing" element={<Layout><ProtectedRoute requiredPermission="billing"><Billing /></ProtectedRoute></Layout>} />
-                <Route path="/items" element={<Layout><ProtectedRoute requiredPermission="items"><Items /></ProtectedRoute></Layout>} />
-                <Route path="/expenses" element={<Layout><ProtectedRoute requiredPermission="expenses"><Expenses /></ProtectedRoute></Layout>} />
-                <Route path="/reports" element={<Layout><ProtectedRoute requiredPermission="reports"><Reports /></ProtectedRoute></Layout>} />
-                <Route path="/users" element={<Layout><ProtectedRoute requiredPermission="users" adminOnly><Users /></ProtectedRoute></Layout>} />
-                <Route path="/settings" element={<Layout><ProtectedRoute requiredPermission="settings"><Settings /></ProtectedRoute></Layout>} />
-                <Route path="/service-area" element={<Layout><ProtectedRoute requiredPermission="serviceArea"><ServiceArea /></ProtectedRoute></Layout>} />
-                <Route path="/kitchen" element={<Layout><ProtectedRoute requiredPermission="kitchen"><KitchenDisplay /></ProtectedRoute></Layout>} />
-                <Route path="/display" element={<CustomerDisplay />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <PermissionsProvider>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/" element={<Layout><ProtectedRoute requiredPermission="billing"><Billing /></ProtectedRoute></Layout>} />
+                  <Route path="/dashboard" element={<Layout><ProtectedRoute requiredPermission="dashboard"><Dashboard /></ProtectedRoute></Layout>} />
+                  <Route path="/analytics" element={<Layout><ProtectedRoute requiredPermission="analytics"><DashboardAnalytics /></ProtectedRoute></Layout>} />
+                  <Route path="/billing" element={<Layout><ProtectedRoute requiredPermission="billing"><Billing /></ProtectedRoute></Layout>} />
+                  <Route path="/items" element={<Layout><ProtectedRoute requiredPermission="items"><Items /></ProtectedRoute></Layout>} />
+                  <Route path="/expenses" element={<Layout><ProtectedRoute requiredPermission="expenses"><Expenses /></ProtectedRoute></Layout>} />
+                  <Route path="/reports" element={<Layout><ProtectedRoute requiredPermission="reports"><Reports /></ProtectedRoute></Layout>} />
+                  <Route path="/users" element={<Layout><ProtectedRoute requiredPermission="users" adminOnly><Users /></ProtectedRoute></Layout>} />
+                  <Route path="/settings" element={<Layout><ProtectedRoute requiredPermission="settings"><Settings /></ProtectedRoute></Layout>} />
+                  <Route path="/service-area" element={<Layout><ProtectedRoute requiredPermission="serviceArea"><ServiceArea /></ProtectedRoute></Layout>} />
+                  <Route path="/kitchen" element={<Layout><ProtectedRoute requiredPermission="kitchen"><KitchenDisplay /></ProtectedRoute></Layout>} />
+                  <Route path="/display" element={<CustomerDisplay />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </PermissionsProvider>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>

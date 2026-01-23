@@ -88,7 +88,7 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
       }));
 
       // Upsert the permission
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('user_permissions')
         .upsert({
           user_id: userId,
@@ -96,9 +96,17 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
           has_access: !currentValue
         }, {
           onConflict: 'user_id,page_name'
-        });
+        })
+        .select();
 
-      if (error) throw error;
+
+
+      if (error) {
+        console.error('[Admin Permissions] Upsert failed:', error.message, error.code);
+        throw error;
+      }
+
+
 
       toast({
         title: "Permission Updated",

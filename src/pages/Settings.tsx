@@ -162,19 +162,7 @@ const Settings = () => {
     }
   };
 
-  if (profile?.role !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardContent className="p-6 text-center">
-            <SettingsIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">You don't have permission to access settings.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Permission check is now handled by ProtectedRoute, so we don't need a redundant check here
 
   if (loading) {
     return (
