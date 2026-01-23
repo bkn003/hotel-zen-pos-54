@@ -31,9 +31,23 @@ interface UserPermissionsProps {
   users: UserProfile[];
 }
 
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+
 export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
+  const { profile } = useAuth();
+  const { hasAccess } = useUserPermissions();
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({});
   const [loading, setLoading] = useState(true);
+
+  // Filter pages based on the viewer's role
+  // Super Admin sees all pages
+  // Admin only sees pages they have access to (cascaded from Super Admin)
+  const displayablePages = AVAILABLE_PAGES.filter(page => {
+    if (profile?.role === 'super_admin') return true;
+    if (profile?.role === 'admin') return hasAccess(page.name as any);
+    return false;
+  });
 
   useEffect(() => {
     fetchPermissions();
@@ -239,7 +253,7 @@ export const UserPermissions: React.FC<UserPermissionsProps> = ({ users }) => {
 
               {/* Permission Toggles */}
               <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {AVAILABLE_PAGES.map(page => {
+                {displayablePages.map(page => {
                   const hasAccess = permissions[user.user_id]?.[page.name] ?? false;
 
                   return (
