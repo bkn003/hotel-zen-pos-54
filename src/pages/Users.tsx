@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Users as UsersIcon, Search, User, Shield, ChevronDown, ChevronRight, Crown } from 'lucide-react';
 import { AddUserDialog } from '@/components/AddUserDialog';
-import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
+
 import { UserPermissions } from '@/components/UserPermissions';
 import type { UserProfile, UserStatus, UserRole } from '@/types/user';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -241,10 +241,7 @@ const Users: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Payment Types Management - Only for Admin */}
-      {isAdmin && (
-        <PaymentTypesManagement />
-      )}
+
 
       {/* User Permissions - For both Super Admin and Admin */}
       {(isAdmin || isSuperAdmin) && usersForPermissions.length > 0 && (

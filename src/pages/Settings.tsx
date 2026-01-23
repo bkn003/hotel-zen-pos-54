@@ -188,6 +188,9 @@ const Settings = () => {
           {/* Shop Details */}
           <ShopSettingsForm />
 
+          {/* Payment Types Management */}
+          {profile?.role === 'admin' && <PaymentTypesManagement />}
+
           {/* Additional Charges Management */}
           <Card>
             <CardHeader className="p-4 sm:p-6">
@@ -301,8 +304,7 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Payment Types Management */}
-          <PaymentTypesManagement />
+
 
           {/* Bluetooth Printer Settings */}
           <BluetoothPrinterSettings />
