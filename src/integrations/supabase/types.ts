@@ -303,7 +303,15 @@ export type Database = {
           note?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       item_categories: {
         Row: {
@@ -404,7 +412,15 @@ export type Database = {
           unlimited_stock?: boolean | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "items_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -601,6 +617,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_admin_id: { Args: never; Returns: string }
       get_my_permissions: {
         Args: never
         Returns: {
@@ -608,6 +625,8 @@ export type Database = {
           page_name: string
         }[]
       }
+      get_my_profile_id: { Args: never; Returns: string }
+      get_my_role: { Args: never; Returns: string }
       get_user_admin_id: { Args: never; Returns: string }
       has_page_permission: {
         Args: { _page_name: string; _user_id: string }
