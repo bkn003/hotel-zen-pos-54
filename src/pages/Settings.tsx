@@ -15,6 +15,7 @@ import { PaymentTypesManagement } from '@/components/PaymentTypesManagement';
 import { BluetoothPrinterSettings } from '@/components/BluetoothPrinterSettings';
 import { ShopSettingsForm } from '@/components/ShopSettingsForm';
 import { ThemeSettings } from '@/components/ThemeSettings';
+import { BrandingSettings } from '@/components/BrandingSettings';
 
 interface AdditionalCharge {
   id: string;
@@ -187,6 +188,9 @@ const Settings = () => {
         <div className="space-y-4 sm:space-y-6">
           {/* Shop Details */}
           <ShopSettingsForm />
+
+          {/* White-Label Branding - Admin Only */}
+          {profile?.role === 'admin' && <BrandingSettings />}
 
           {/* Payment Types Management */}
           {profile?.role === 'admin' && <PaymentTypesManagement />}
