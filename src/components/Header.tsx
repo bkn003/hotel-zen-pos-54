@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LogOut, User, Hotel, Menu, LayoutDashboard, ShoppingCart, Package, Receipt, BarChart3, TrendingUp, Users, Settings, ClipboardList, ChefHat, X } from 'lucide-react';
+import { LogOut, User, Hotel, Menu, LayoutDashboard, ShoppingCart, Package, Receipt, BarChart3, TrendingUp, Users, Settings, ClipboardList, ChefHat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -32,6 +32,36 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // White-label branding state
+  const [appName, setAppName] = useState(() => {
+    const cached = localStorage.getItem('hotel_pos_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).appName || 'ZEN POS';
+      } catch { return 'ZEN POS'; }
+    }
+    return 'ZEN POS';
+  });
+  const [tagline, setTagline] = useState(() => {
+    const cached = localStorage.getItem('hotel_pos_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).tagline || 'Management System';
+      } catch { return 'Management System'; }
+    }
+    return 'Management System';
+  });
+
+  // Listen for branding changes
+  React.useEffect(() => {
+    const handleBrandingChange = (e: CustomEvent) => {
+      setAppName(e.detail.appName || 'ZEN POS');
+      setTagline(e.detail.tagline || 'Management System');
+    };
+    window.addEventListener('branding-changed', handleBrandingChange as EventListener);
+    return () => window.removeEventListener('branding-changed', handleBrandingChange as EventListener);
+  }, []);
 
   if (!profile) return null;
 
@@ -66,7 +96,7 @@ export const Header: React.FC = () => {
                         <Hotel className="h-5 w-5 text-primary-foreground" />
                       </div>
                       <div>
-                        <div className="font-bold text-base">{profile.hotel_name || 'ZEN POS'}</div>
+                        <div className="font-bold text-base">{profile.hotel_name || appName}</div>
                         <div className="text-[10px] text-muted-foreground font-medium">Navigation Menu</div>
                       </div>
                     </SheetTitle>
@@ -106,9 +136,9 @@ export const Header: React.FC = () => {
             </div>
             <div>
               <h1 className="font-bold text-base tracking-tight text-foreground">
-                ZEN POS
+                {appName}
               </h1>
-              <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">Management System</p>
+              <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">{tagline}</p>
             </div>
           </div>
 

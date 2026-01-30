@@ -510,51 +510,69 @@ export type Database = {
       shop_settings: {
         Row: {
           address: string | null
+          app_name: string | null
+          brand_primary_color: string | null
+          brand_secondary_color: string | null
           contact_number: string | null
           created_at: string | null
           facebook: string | null
+          hide_powered_by: boolean | null
           id: string
           instagram: string | null
           logo_url: string | null
+          powered_by_text: string | null
           printer_width: string | null
           shop_name: string | null
           show_facebook: boolean | null
           show_instagram: boolean | null
           show_whatsapp: boolean | null
+          tagline: string | null
           updated_at: string | null
           user_id: string
           whatsapp: string | null
         }
         Insert: {
           address?: string | null
+          app_name?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
           contact_number?: string | null
           created_at?: string | null
           facebook?: string | null
+          hide_powered_by?: boolean | null
           id?: string
           instagram?: string | null
           logo_url?: string | null
+          powered_by_text?: string | null
           printer_width?: string | null
           shop_name?: string | null
           show_facebook?: boolean | null
           show_instagram?: boolean | null
           show_whatsapp?: boolean | null
+          tagline?: string | null
           updated_at?: string | null
           user_id: string
           whatsapp?: string | null
         }
         Update: {
           address?: string | null
+          app_name?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
           contact_number?: string | null
           created_at?: string | null
           facebook?: string | null
+          hide_powered_by?: boolean | null
           id?: string
           instagram?: string | null
           logo_url?: string | null
+          powered_by_text?: string | null
           printer_width?: string | null
           shop_name?: string | null
           show_facebook?: boolean | null
           show_instagram?: boolean | null
           show_whatsapp?: boolean | null
+          tagline?: string | null
           updated_at?: string | null
           user_id?: string
           whatsapp?: string | null
